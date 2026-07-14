@@ -5,7 +5,7 @@
 
 export interface Profile {
   id: string
-  role: 'student' | 'instructor'
+  role: 'student' | 'instructor' | 'admin'
   nama: string
   npm?: string | null
   kelas?: string | null

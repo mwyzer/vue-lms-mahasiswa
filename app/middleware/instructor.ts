@@ -1,5 +1,5 @@
 /**
- * Instructor middleware — ensures the current user has an 'instructor' role.
+ * Instructor middleware — ensures the current user has an 'instructor' or 'admin' role.
  * Must be used after auth middleware.
  */
 export default defineNuxtRouteMiddleware((to) => {
@@ -9,7 +9,7 @@ export default defineNuxtRouteMiddleware((to) => {
     return navigateTo('/login')
   }
 
-  if (!auth.isInstructor) {
+  if (!auth.isInstructor && !auth.isAdmin) {
     // Students trying to access instructor pages → redirect to student dashboard
     return navigateTo('/dashboard')
   }

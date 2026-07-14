@@ -22,6 +22,7 @@ describe('Auth Store', () => {
       expect(store.isAuthenticated).toBe(false)
       expect(store.isStudent).toBe(false)
       expect(store.isInstructor).toBe(false)
+      expect(store.isAdmin).toBe(false)
     })
 
     it('starts in demo mode by default', () => {
@@ -53,6 +54,11 @@ describe('Auth Store', () => {
       expect(store.dashboardRoute).toBe('/instructor/dashboard')
     })
 
+    it('dashboardRoute returns /admin/dashboard for admin', async () => {
+      await store.loginAsAdmin('Admin LMS', 'admin123')
+      expect(store.dashboardRoute).toBe('/admin/dashboard')
+    })
+
     it('studentRoster falls back to DEMO_STUDENTS when empty', () => {
       const roster = store.studentRoster
       expect(roster.length).toBe(15)
@@ -64,6 +70,13 @@ describe('Auth Store', () => {
       const list = store.instructorList
       expect(list.length).toBe(3)
       expect(list[0].nama).toBe('Dr. Andi Wijaya, M.Kom.')
+    })
+
+    it('adminList falls back to DEMO_ADMINS when empty', () => {
+      const admins = store.adminList
+      expect(admins.length).toBe(1)
+      expect(admins[0].nama).toBe('Admin LMS')
+      expect(admins[0].email).toBe('admin@lms.ac.id')
     })
 
     it('classList groups students by level and session', () => {
@@ -187,6 +200,47 @@ describe('Auth Store', () => {
     })
   })
 
+  // ── Admin Login ──
+  describe('loginAsAdmin', () => {
+    it('logs in successfully with correct password', async () => {
+      const result = await store.loginAsAdmin('Admin LMS', 'admin123')
+      expect(result).toBe(true)
+      expect(store.isAuthenticated).toBe(true)
+      expect(store.isAdmin).toBe(true)
+      expect(store.user).toMatchObject({
+        id: 'a1',
+        nama: 'Admin LMS',
+        role: 'admin',
+      })
+    })
+
+    it('handles case-insensitive nama matching', async () => {
+      const result = await store.loginAsAdmin('admin lms', 'admin123')
+      expect(result).toBe(true)
+    })
+
+    it('rejects wrong password', async () => {
+      await store.loginAsStudent('Ahmad Fauzi', '20241001') // clear state first
+      store.logout()
+      const result = await store.loginAsAdmin('Admin LMS', 'wrongpass')
+      expect(result).toBe(false)
+      expect(store.error).toBe('Password salah.')
+    })
+
+    it('returns false for non-existent admin', async () => {
+      const result = await store.loginAsAdmin('Unknown Person', 'admin123')
+      expect(result).toBe(false)
+      expect(store.error).toBe('Nama administrator tidak ditemukan.')
+    })
+
+    it('sets loading state during login', async () => {
+      const promise = store.loginAsAdmin('Admin LMS', 'admin123')
+      expect(store.loading).toBe(true)
+      await promise
+      expect(store.loading).toBe(false)
+    })
+  })
+
   // ── Logout ──
   describe('logout', () => {
     it('clears user state after student login', async () => {
@@ -201,6 +255,15 @@ describe('Auth Store', () => {
 
     it('clears user state after instructor login', async () => {
       await store.loginAsInstructor('Dr. Andi Wijaya, M.Kom.', 'instruktur123')
+      expect(store.isAuthenticated).toBe(true)
+
+      store.logout()
+      expect(store.user).toBeNull()
+      expect(store.role).toBeNull()
+    })
+
+    it('clears user state after admin login', async () => {
+      await store.loginAsAdmin('Admin LMS', 'admin123')
       expect(store.isAuthenticated).toBe(true)
 
       store.logout()
@@ -228,6 +291,12 @@ describe('Auth Store', () => {
 
     it('has exactly 3 instructors', () => {
       expect(store.instructorList.length).toBe(3)
+    })
+
+    it('has exactly 1 admin', () => {
+      expect(store.adminList.length).toBe(1)
+      expect(store.adminList[0].id).toBe('a1')
+      expect(store.adminList[0].nama).toBe('Admin LMS')
     })
 
     it('has unique npm across all students', () => {

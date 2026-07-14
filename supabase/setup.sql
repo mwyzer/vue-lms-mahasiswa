@@ -24,7 +24,7 @@ DROP TABLE IF EXISTS profiles CASCADE;
 -- Profiles (students + instructors)
 CREATE TABLE profiles (
   id TEXT PRIMARY KEY,
-  role VARCHAR(20) NOT NULL CHECK (role IN ('student', 'instructor')),
+  role VARCHAR(20) NOT NULL CHECK (role IN ('student', 'instructor', 'admin')),
   nama VARCHAR(255) NOT NULL,
   npm VARCHAR(20) UNIQUE,
   kelas VARCHAR(10),
@@ -144,6 +144,10 @@ INSERT INTO profiles (id, role, nama, email) VALUES
   ('i1', 'instructor', 'Dr. Andi Wijaya, M.Kom.', 'andi@lms.ac.id'),
   ('i2', 'instructor', 'Dr. Dewi Lestari, M.Pd.', 'dewi@lms.ac.id'),
   ('i3', 'instructor', 'Prof. Budi Hartono, Ph.D.', 'budi@lms.ac.id');
+
+-- Admin
+INSERT INTO profiles (id, role, nama, email) VALUES
+  ('a1', 'admin', 'Admin LMS', 'admin@lms.ac.id');
 
 -- Students
 INSERT INTO profiles (id, role, nama, npm, kelas, level, session_time) VALUES

@@ -9,7 +9,7 @@
  */
 import { defineStore } from 'pinia'
 import type { Profile } from '~/types/database'
-import type { StudentRosterEntry, InstructorEntry } from '~/types/roster'
+import type { StudentRosterEntry, InstructorEntry, AdminEntry } from '~/types/roster'
 
 // ── Demo data (fallback when demoMode=true) ──────────
 const DEMO_STUDENTS: StudentRosterEntry[] = [
@@ -42,14 +42,23 @@ const DEMO_INSTRUCTOR_PASSWORDS: Record<string, string> = {
   'i3': 'instruktur123',
 }
 
+const DEMO_ADMINS: AdminEntry[] = [
+  { id: 'a1', nama: 'Admin LMS', email: 'admin@lms.ac.id' },
+]
+
+const DEMO_ADMIN_PASSWORDS: Record<string, string> = {
+  'a1': 'admin123',
+}
+
 interface AuthState {
   user: Profile | null
-  role: 'student' | 'instructor' | null
+  role: 'student' | 'instructor' | 'admin' | null
   isDemoMode: boolean
   loading: boolean
   error: string | null
   students: StudentRosterEntry[]
   instructors: InstructorEntry[]
+  admins: AdminEntry[]
   initialized: boolean
 }
 
@@ -62,6 +71,7 @@ export const useAuthStore = defineStore('auth', {
     error: null,
     students: [],
     instructors: [],
+    admins: [],
     initialized: false,
   }),
 
@@ -69,8 +79,10 @@ export const useAuthStore = defineStore('auth', {
     isAuthenticated: (state) => state.user !== null,
     isStudent: (state) => state.role === 'student',
     isInstructor: (state) => state.role === 'instructor',
+    isAdmin: (state) => state.role === 'admin',
 
     dashboardRoute: (state): string => {
+      if (state.role === 'admin') return '/admin/dashboard'
       if (state.role === 'instructor') return '/instructor/dashboard'
       if (state.role === 'student') return '/dashboard'
       return '/login'
@@ -103,6 +115,12 @@ export const useAuthStore = defineStore('auth', {
         }
       }
       return Array.from(unique.values())
+    },
+
+    adminList(): AdminEntry[] {
+      const store = useAuthStore()
+      if (store.admins.length > 0) return store.admins
+      return DEMO_ADMINS
     },
   },
 
@@ -137,6 +155,16 @@ export const useAuthStore = defineStore('auth', {
 
           if (instructorData) {
             this.instructors = instructorData as unknown as InstructorEntry[]
+          }
+
+          const { data: adminData } = await supabase
+            .from('profiles')
+            .select('id, nama, email')
+            .eq('role', 'admin')
+            .order('nama')
+
+          if (adminData) {
+            this.admins = adminData as AdminEntry[]
           }
         } catch (err) {
           console.error('Failed to fetch roster from Supabase, falling back to demo:', err)
@@ -227,6 +255,49 @@ export const useAuthStore = defineStore('auth', {
         updated_at: new Date().toISOString(),
       }
       this.role = 'instructor'
+      this.loading = false
+      return true
+    },
+
+    /**
+     * Login as an administrator using name+password.
+     */
+    async loginAsAdmin(nama: string, password: string): Promise<boolean> {
+      this.loading = true
+      this.error = null
+
+      // Ensure roster is loaded
+      if (!this.initialized) {
+        await this.init()
+      }
+
+      const roster = this.admins.length > 0 ? this.admins : DEMO_ADMINS
+      const match = roster.find(
+        (a) => a.nama.toLowerCase() === nama.toLowerCase()
+      )
+
+      if (!match) {
+        this.error = 'Nama administrator tidak ditemukan.'
+        this.loading = false
+        return false
+      }
+
+      const expectedPassword = DEMO_ADMIN_PASSWORDS[match.id]
+      if (password !== expectedPassword) {
+        this.error = 'Password salah.'
+        this.loading = false
+        return false
+      }
+
+      this.user = {
+        id: match.id,
+        role: 'admin',
+        nama: match.nama,
+        email: match.email,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+      this.role = 'admin'
       this.loading = false
       return true
     },

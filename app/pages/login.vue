@@ -3,9 +3,10 @@
  * Login Page — Multi-step role-based authentication.
  *
  * Flow:
- *   1. Choose role (Student / Instructor)
+ *   1. Choose role (Student / Instructor / Administrator)
  *   2a. Student → Choose Level → Choose Session → Pick name+NPM from roster
  *   2b. Instructor → Pick name from list → Enter password
+ *   2c. Administrator → Enter password
  */
 definePageMeta({
   layout: 'default',
@@ -21,12 +22,13 @@ onMounted(() => {
 })
 
 // ── Step management ──
-const step = ref<'role' | 'level' | 'session' | 'roster' | 'instructor-list' | 'instructor-password'>('role')
-const selectedRole = ref<'student' | 'instructor' | null>(null)
+const step = ref<'role' | 'level' | 'session' | 'roster' | 'instructor-list' | 'instructor-password' | 'admin-password'>('role')
+const selectedRole = ref<'student' | 'instructor' | 'admin' | null>(null)
 const selectedLevel = ref<number | null>(null)
 const selectedSession = ref<'morning' | 'evening' | null>(null)
 const selectedInstructorId = ref<string | null>(null)
 const instructorPassword = ref('')
+const adminPassword = ref('')
 const loginError = ref('')
 const isLoggingIn = ref(false)
 
@@ -46,6 +48,7 @@ const filteredStudents = computed(() => {
 })
 
 const instructors = computed(() => auth.instructorList)
+const admins = computed(() => auth.adminList)
 
 const selectedInstructorName = computed(() => {
   if (!selectedInstructorId.value) return ''
@@ -56,14 +59,17 @@ const selectedInstructorName = computed(() => {
 const isDemoMode = computed(() => auth.isDemoMode)
 
 // ── Actions ──
-function selectRole(role: 'student' | 'instructor') {
+function selectRole(role: 'student' | 'instructor' | 'admin') {
   selectedRole.value = role
   loginError.value = ''
 
   if (role === 'student') {
     step.value = 'level'
-  } else {
+  } else if (role === 'instructor') {
     step.value = 'instructor-list'
+  } else {
+    // Admin — go straight to password entry
+    step.value = 'admin-password'
   }
 }
 
@@ -129,6 +135,37 @@ async function loginAsInstructor() {
   }
 }
 
+async function loginAsAdmin() {
+  if (!adminPassword.value) {
+    loginError.value = 'Silakan masukkan password administrator.'
+    return
+  }
+
+  loginError.value = ''
+  isLoggingIn.value = true
+
+  // Use the first admin in the list
+  const admin = admins.value[0]
+  if (!admin) {
+    loginError.value = 'Data administrator tidak ditemukan.'
+    isLoggingIn.value = false
+    return
+  }
+
+  try {
+    const success = await auth.loginAsAdmin(admin.nama, adminPassword.value)
+    if (success) {
+      router.push('/admin/dashboard')
+    } else {
+      loginError.value = auth.error || 'Password salah. Silakan coba kembali.'
+    }
+  } catch {
+    loginError.value = 'Login gagal. Silakan coba kembali.'
+  } finally {
+    isLoggingIn.value = false
+  }
+}
+
 function goBack() {
   loginError.value = ''
   if (step.value === 'level') { step.value = 'role'; selectedRole.value = null }
@@ -136,6 +173,7 @@ function goBack() {
   else if (step.value === 'roster') { step.value = 'session'; selectedSession.value = null }
   else if (step.value === 'instructor-list') { step.value = 'role'; selectedRole.value = null }
   else if (step.value === 'instructor-password') { step.value = 'instructor-list'; selectedInstructorId.value = null; instructorPassword.value = '' }
+  else if (step.value === 'admin-password') { step.value = 'role'; selectedRole.value = null; adminPassword.value = '' }
 }
 
 function resetLogin() {
@@ -145,6 +183,7 @@ function resetLogin() {
   selectedSession.value = null
   selectedInstructorId.value = null
   instructorPassword.value = ''
+  adminPassword.value = ''
   loginError.value = ''
 }
 </script>
@@ -181,6 +220,11 @@ function resetLogin() {
               <span class="role-icon">👨‍🏫</span>
               <span class="role-title">Instruktur</span>
               <span class="role-desc">Kelola kelas, materi, dan penilaian</span>
+            </button>
+            <button class="role-card" @click="selectRole('admin')">
+              <span class="role-icon">🛠️</span>
+              <span class="role-title">Administrator</span>
+              <span class="role-desc">Kelola sistem, pengguna, dan data</span>
             </button>
           </div>
         </template>
@@ -325,8 +369,42 @@ function resetLogin() {
           </form>
         </template>
 
+        <!-- ══════ STEP 2c: Admin Password ══════ -->
+        <template v-if="step === 'admin-password'">
+          <div class="login-header">
+            <div class="login-icon">🛠️</div>
+            <h1>Login Administrator</h1>
+            <p>Masukkan password administrator untuk melanjutkan.</p>
+          </div>
+
+          <form class="password-form" @submit.prevent="loginAsAdmin">
+            <div class="form-group">
+              <label for="admin-password">Password Administrator</label>
+              <input
+                id="admin-password"
+                v-model="adminPassword"
+                type="password"
+                placeholder="Masukkan password"
+                autocomplete="current-password"
+              />
+            </div>
+
+            <div v-if="loginError" class="error-msg">
+              {{ loginError }}
+            </div>
+
+            <button
+              type="submit"
+              class="btn btn-primary"
+              :disabled="isLoggingIn || !adminPassword"
+            >
+              {{ isLoggingIn ? 'Memproses...' : 'Masuk' }}
+            </button>
+          </form>
+        </template>
+
         <!-- Error message (for roster/level steps) -->
-        <div v-if="loginError && step !== 'instructor-password'" class="error-msg">
+        <div v-if="loginError && step !== 'instructor-password' && step !== 'admin-password'" class="error-msg">
           {{ loginError }}
         </div>
       </div>

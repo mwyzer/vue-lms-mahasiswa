@@ -17,9 +17,15 @@ export interface InstructorEntry {
   email?: string | null
 }
 
+export interface AdminEntry {
+  id: string
+  nama: string
+  email?: string | null
+}
+
 export interface LoginCredentials {
-  role: 'student' | 'instructor'
+  role: 'student' | 'instructor' | 'admin'
   nama: string
   npm?: string
-  password?: string // only for instructors
+  password?: string // only for instructors and admins
 }

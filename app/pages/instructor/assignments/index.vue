@@ -11,6 +11,10 @@ const assignmentsStore = useAssignmentsStore()
 
 const myAssignments = computed(() => assignmentsStore.myAssignments as any[])
 
+onMounted(() => {
+  assignmentsStore.init()
+})
+
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('id-ID', {
     day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'

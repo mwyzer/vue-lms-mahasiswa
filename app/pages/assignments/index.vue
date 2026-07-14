@@ -11,6 +11,10 @@ const assignmentsStore = useAssignmentsStore()
 
 const myAssignments = computed(() => assignmentsStore.myAssignments as any[])
 
+onMounted(() => {
+  assignmentsStore.init()
+})
+
 function getStatusLabel(a: any): { label: string; class: string } {
   const now = new Date()
   const due = new Date(a.tenggat_waktu)

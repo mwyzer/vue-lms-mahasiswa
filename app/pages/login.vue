@@ -15,6 +15,11 @@ definePageMeta({
 const auth = useAuthStore()
 const router = useRouter()
 
+// Initialize auth store on mount (loads roster in production mode)
+onMounted(() => {
+  auth.init()
+})
+
 // ── Step management ──
 const step = ref<'role' | 'level' | 'session' | 'roster' | 'instructor-list' | 'instructor-password'>('role')
 const selectedRole = ref<'student' | 'instructor' | null>(null)
@@ -81,24 +86,25 @@ function selectInstructor(id: string) {
   step.value = 'instructor-password'
 }
 
-function loginAsStudent(studentId: string, nama: string, npm: string) {
+async function loginAsStudent(studentId: string, nama: string, npm: string) {
   loginError.value = ''
   isLoggingIn.value = true
 
-  // Small delay to show loading state
-  setTimeout(() => {
-    const success = auth.loginAsStudent(nama, npm)
-    isLoggingIn.value = false
-
+  try {
+    const success = await auth.loginAsStudent(nama, npm)
     if (success) {
       router.push('/dashboard')
     } else {
       loginError.value = auth.error || 'Login gagal. Silakan coba kembali.'
     }
-  }, 500)
+  } catch {
+    loginError.value = 'Login gagal. Silakan coba kembali.'
+  } finally {
+    isLoggingIn.value = false
+  }
 }
 
-function loginAsInstructor() {
+async function loginAsInstructor() {
   if (!selectedInstructorId.value || !instructorPassword.value) {
     loginError.value = 'Silakan masukkan password.'
     return
@@ -109,16 +115,18 @@ function loginAsInstructor() {
 
   const nama = instructors.value.find((i) => i.id === selectedInstructorId.value)?.nama || ''
 
-  setTimeout(() => {
-    const success = auth.loginAsInstructor(nama, instructorPassword.value)
-    isLoggingIn.value = false
-
+  try {
+    const success = await auth.loginAsInstructor(nama, instructorPassword.value)
     if (success) {
       router.push('/instructor/dashboard')
     } else {
       loginError.value = auth.error || 'Password salah. Silakan coba kembali.'
     }
-  }, 500)
+  } catch {
+    loginError.value = 'Login gagal. Silakan coba kembali.'
+  } finally {
+    isLoggingIn.value = false
+  }
 }
 
 function goBack() {

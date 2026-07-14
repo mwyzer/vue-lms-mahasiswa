@@ -12,6 +12,10 @@ const auth = useAuthStore()
 const coursesStore = useCoursesStore()
 
 const myCourses = computed(() => coursesStore.myCourses)
+
+onMounted(() => {
+  coursesStore.init()
+})
 const userName = computed(() => auth.user?.nama || 'Mahasiswa')
 const userLevel = computed(() => auth.user?.level || '-')
 const userSession = computed(() => auth.user?.session_time === 'morning' ? 'Pagi' : 'Malam')

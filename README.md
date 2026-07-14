@@ -2,7 +2,7 @@
 
 **Learning Management System** untuk mahasiswa dan instruktur — dibangun dengan Nuxt 4, Vue 3, TypeScript, Pinia, dan Supabase.
 
-> 🚀 **Live Demo**: [lms-mahasiswa.vercel.app](https://lms-mahasiswa.vercel.app)
+> 🚀 **Live Demo**: [nuxt-lms-mahasiswa.vercel.app](https://nuxt-lms-mahasiswa.vercel.app)
 
 ---
 
@@ -54,8 +54,8 @@
 
 ```bash
 # Clone repositori
-git clone https://github.com/<username>/lms-mahasiswa.git
-cd lms-mahasiswa
+git clone https://github.com/mwyzer/vue-lms-mahasiswa.git
+cd nuxt-lms-mahasiswa
 
 # Install dependencies
 npm install
@@ -81,19 +81,16 @@ Tanpa konfigurasi apapun, aplikasi berjalan dalam **Demo Mode** dengan data bawa
 2. Pilih instruktur (contoh: `Dr. Andi Wijaya, M.Kom.`)
 3. Masukkan password: `instruktur123`
 
-### Mode Production (dengan Supabase)
+### Mode Production (dengan Supabase) ✅ Terkonfigurasi
 
-1. Buat project di [supabase.com](https://supabase.com)
-2. Jalankan SQL dari folder `supabase/`:
-   - `supabase/schema.sql` — Buat tabel
-   - `supabase/policies.sql` — RLS policies
-   - `supabase/seed.sql` — Data awal
-3. Copy `.env.example` ke `.env` dan isi credentials:
-   ```env
-   NUXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-   NUXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-anon-key
-   NUXT_PUBLIC_DEMO_MODE=false
-   ```
+Project sudah terhubung ke **Supabase**:
+- **URL**: `https://fmibyazumfxrgcehojys.supabase.co`
+- **Status**: Demo mode `false` — menggunakan database nyata
+
+Jalankan SQL dari folder `supabase/` di Supabase SQL Editor:
+1. `supabase/schema.sql` — Buat tabel
+2. `supabase/policies.sql` — RLS policies
+3. `supabase/seed.sql` — Data awal
 
 ---
 
@@ -138,9 +135,14 @@ npm run preview
 
 Build sudah dikonfigurasi untuk **Vercel** (`nitro.preset: 'vercel'`).
 
-### Deploy ke Vercel
+### Deploy ke Vercel (✅已完成)
 
-1. Push repo ke GitHub
+Project sudah **live** di:
+- **🌐 Production**: [nuxt-lms-mahasiswa.vercel.app](https://nuxt-lms-mahasiswa.vercel.app)
+- **📦 GitHub**: [github.com/mwyzer/vue-lms-mahasiswa](https://github.com/mwyzer/vue-lms-mahasiswa)
+
+Untuk deploy ulang atau fork:
+1. Clone repo `git clone https://github.com/mwyzer/vue-lms-mahasiswa.git`
 2. Import di [vercel.com](https://vercel.com/import)
 3. Set environment variables:
    - `NUXT_PUBLIC_SUPABASE_URL` (opsional untuk demo)
@@ -153,49 +155,3 @@ Build sudah dikonfigurasi untuk **Vercel** (`nitro.preset: 'vercel'`).
 ## 📄 Lisensi
 
 MIT © 2026
-
-# pnpm
-pnpm dev
-
-# yarn
-yarn dev
-
-# bun
-bun run dev
-```
-
-## Production
-
-Build the application for production:
-
-```bash
-# npm
-npm run build
-
-# pnpm
-pnpm build
-
-# yarn
-yarn build
-
-# bun
-bun run build
-```
-
-Locally preview production build:
-
-```bash
-# npm
-npm run preview
-
-# pnpm
-pnpm preview
-
-# yarn
-yarn preview
-
-# bun
-bun run preview
-```
-
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.

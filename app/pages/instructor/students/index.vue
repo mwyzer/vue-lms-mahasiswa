@@ -11,6 +11,10 @@ const auth = useAuthStore()
 
 const students = computed(() => auth.studentRoster as any[])
 
+onMounted(() => {
+  auth.init()
+})
+
 // Group by level
 const groupedStudents = computed(() => {
   const groups: Record<number, any[]> = {}

@@ -4,14 +4,14 @@
  * Features:
  * - Role-based login (student by name+NPM, instructor by name+password)
  * - Roster-based student login (pick from predefined class list)
- * - Demo mode support (works without Supabase)
+ * - Demo mode + Supabase production mode
  * - Automatic dashboard route resolution based on role
  */
 import { defineStore } from 'pinia'
 import type { Profile } from '~/types/database'
 import type { StudentRosterEntry, InstructorEntry } from '~/types/roster'
 
-// ── Demo data ─────────────────────────────────────────
+// ── Demo data (fallback when demoMode=true) ──────────
 const DEMO_STUDENTS: StudentRosterEntry[] = [
   { id: 's1', nama: 'Ahmad Fauzi', npm: '20241001', kelas: '1A', level: 1, session_time: 'morning' },
   { id: 's2', nama: 'Budi Santoso', npm: '20241002', kelas: '1A', level: 1, session_time: 'morning' },
@@ -36,7 +36,6 @@ const DEMO_INSTRUCTORS: InstructorEntry[] = [
   { id: 'i3', nama: 'Prof. Budi Hartono, Ph.D.', email: 'budi@lms.ac.id' },
 ]
 
-// Demo instructor passwords
 const DEMO_INSTRUCTOR_PASSWORDS: Record<string, string> = {
   'i1': 'instruktur123',
   'i2': 'instruktur123',
@@ -49,6 +48,9 @@ interface AuthState {
   isDemoMode: boolean
   loading: boolean
   error: string | null
+  students: StudentRosterEntry[]
+  instructors: InstructorEntry[]
+  initialized: boolean
 }
 
 export const useAuthStore = defineStore('auth', {
@@ -58,6 +60,9 @@ export const useAuthStore = defineStore('auth', {
     isDemoMode: true,
     loading: false,
     error: null,
+    students: [],
+    instructors: [],
+    initialized: false,
   }),
 
   getters: {
@@ -71,17 +76,23 @@ export const useAuthStore = defineStore('auth', {
       return '/login'
     },
 
-    studentRoster: (): StudentRosterEntry[] => {
+    studentRoster(): StudentRosterEntry[] {
+      const store = useAuthStore()
+      if (store.students.length > 0) return store.students
       return DEMO_STUDENTS
     },
 
-    instructorList: (): InstructorEntry[] => {
+    instructorList(): InstructorEntry[] {
+      const store = useAuthStore()
+      if (store.instructors.length > 0) return store.instructors
       return DEMO_INSTRUCTORS
     },
 
-    classList: (): { level: number; session_time: string; label: string }[] => {
+    classList(): { level: number; session_time: string; label: string }[] {
+      const store = useAuthStore()
+      const roster = store.students.length > 0 ? store.students : DEMO_STUDENTS
       const unique = new Map<string, { level: number; session_time: string; label: string }>()
-      for (const s of DEMO_STUDENTS) {
+      for (const s of roster) {
         const key = `${s.level}-${s.session_time}`
         if (!unique.has(key)) {
           unique.set(key, {
@@ -97,13 +108,59 @@ export const useAuthStore = defineStore('auth', {
 
   actions: {
     /**
+     * Initialize store: detect demo mode and fetch roster from Supabase.
+     */
+    async init() {
+      if (this.initialized) return
+      const config = useRuntimeConfig()
+      this.isDemoMode = config.public.demoMode !== 'false'
+
+      if (!this.isDemoMode) {
+        try {
+          const supabase = useNuxtApp().$supabase
+
+          const { data: studentData } = await supabase
+            .from('profiles')
+            .select('id, nama, npm, kelas, level, session_time')
+            .eq('role', 'student')
+            .order('nama')
+
+          if (studentData) {
+            this.students = studentData as StudentRosterEntry[]
+          }
+
+          const { data: instructorData } = await supabase
+            .from('profiles')
+            .select('id, nama, email')
+            .eq('role', 'instructor')
+            .order('nama')
+
+          if (instructorData) {
+            this.instructors = instructorData as unknown as InstructorEntry[]
+          }
+        } catch (err) {
+          console.error('Failed to fetch roster from Supabase, falling back to demo:', err)
+          this.isDemoMode = true
+        }
+      }
+
+      this.initialized = true
+    },
+
+    /**
      * Login as a student using name+NPM from the roster.
      */
-    loginAsStudent(nama: string, npm: string): boolean {
+    async loginAsStudent(nama: string, npm: string): Promise<boolean> {
       this.loading = true
       this.error = null
 
-      const match = DEMO_STUDENTS.find(
+      // Ensure roster is loaded
+      if (!this.initialized) {
+        await this.init()
+      }
+
+      const roster = this.students.length > 0 ? this.students : DEMO_STUDENTS
+      const match = roster.find(
         (s) => s.nama.toLowerCase() === nama.toLowerCase() && s.npm === npm
       )
 
@@ -132,11 +189,17 @@ export const useAuthStore = defineStore('auth', {
     /**
      * Login as an instructor using name+password.
      */
-    loginAsInstructor(nama: string, password: string): boolean {
+    async loginAsInstructor(nama: string, password: string): Promise<boolean> {
       this.loading = true
       this.error = null
 
-      const match = DEMO_INSTRUCTORS.find(
+      // Ensure roster is loaded
+      if (!this.initialized) {
+        await this.init()
+      }
+
+      const roster = this.instructors.length > 0 ? this.instructors : DEMO_INSTRUCTORS
+      const match = roster.find(
         (i) => i.nama.toLowerCase() === nama.toLowerCase()
       )
 
@@ -146,6 +209,8 @@ export const useAuthStore = defineStore('auth', {
         return false
       }
 
+      // In demo mode, use hardcoded passwords.
+      // In production, passwords would be verified server-side.
       const expectedPassword = DEMO_INSTRUCTOR_PASSWORDS[match.id]
       if (password !== expectedPassword) {
         this.error = 'Password salah.'

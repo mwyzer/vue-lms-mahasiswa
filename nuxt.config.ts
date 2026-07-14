@@ -32,9 +32,9 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      supabaseUrl: '',
-      supabaseKey: '',
-      demoMode: 'true',
+      supabaseUrl: 'https://fmibyazumfxrgcehojys.supabase.co',
+      supabaseKey: 'pXfneEQMJBriwkob',
+      demoMode: 'false',
       appName: 'LMS Mahasiswa',
       appUrl: 'http://localhost:3000'
     }

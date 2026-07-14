@@ -14,8 +14,9 @@ const auth = useAuthStore()
 
 const courseId = computed(() => route.params.id as string)
 
-// Set current course on mount
-onMounted(() => {
+// Initialize store and set current course on mount
+onMounted(async () => {
+  await coursesStore.init()
   coursesStore.setCurrentCourse(courseId.value)
 })
 

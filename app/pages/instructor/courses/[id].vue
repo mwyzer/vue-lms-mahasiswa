@@ -15,7 +15,8 @@ const auth = useAuthStore()
 const courseId = computed(() => route.params.id as string)
 const students = computed(() => auth.studentRoster as any[])
 
-onMounted(() => {
+onMounted(async () => {
+  await coursesStore.init()
   coursesStore.setCurrentCourse(courseId.value)
 })
 

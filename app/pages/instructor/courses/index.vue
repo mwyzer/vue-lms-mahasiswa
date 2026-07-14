@@ -9,6 +9,10 @@ definePageMeta({
 
 const coursesStore = useCoursesStore()
 const myCourses = computed(() => coursesStore.myCourses)
+
+onMounted(() => {
+  coursesStore.init()
+})
 </script>
 
 <template>

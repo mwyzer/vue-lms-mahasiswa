@@ -12,6 +12,10 @@ const auth = useAuthStore()
 const coursesStore = useCoursesStore()
 
 const myCourses = computed(() => coursesStore.myCourses)
+
+onMounted(() => {
+  coursesStore.init()
+})
 const userName = computed(() => auth.user?.nama || 'Instruktur')
 
 // Stats

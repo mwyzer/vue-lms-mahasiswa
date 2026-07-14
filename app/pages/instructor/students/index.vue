@@ -65,7 +65,8 @@ const groupedStudents = computed(() => {
               :key="s.id"
               class="card student-card"
             >
-              <div class="student-avatar">{{ s.nama?.charAt(0) || '?' }}</div>
+              <img v-if="s.avatar_url" :src="s.avatar_url" class="student-avatar-img" alt="" />
+              <div v-else class="student-avatar">{{ s.nama?.charAt(0) || '?' }}</div>
               <div class="student-info">
                 <span class="student-name">{{ s.nama }}</span>
                 <span class="student-npm">{{ s.npm }} • {{ s.kelas }}</span>
@@ -86,7 +87,8 @@ const groupedStudents = computed(() => {
               :key="s.id"
               class="card student-card"
             >
-              <div class="student-avatar">{{ s.nama?.charAt(0) || '?' }}</div>
+              <img v-if="s.avatar_url" :src="s.avatar_url" class="student-avatar-img" alt="" />
+              <div v-else class="student-avatar">{{ s.nama?.charAt(0) || '?' }}</div>
               <div class="student-info">
                 <span class="student-name">{{ s.nama }}</span>
                 <span class="student-npm">{{ s.npm }} • {{ s.kelas }}</span>

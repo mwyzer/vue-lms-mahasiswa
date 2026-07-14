@@ -24,12 +24,14 @@ const saving = ref(false)
 const formNama = ref('')
 const formEmail = ref('')
 const formPassword = ref('')
+const formAvatarUrl = ref('')
 
 function openAddForm() {
   editingId.value = null
   formNama.value = ''
   formEmail.value = ''
   formPassword.value = ''
+  formAvatarUrl.value = ''
   showForm.value = true
 }
 
@@ -38,6 +40,7 @@ function openEditForm(inst: any) {
   formNama.value = inst.nama
   formEmail.value = inst.email || ''
   formPassword.value = ''
+  formAvatarUrl.value = inst.avatar_url || ''
   showForm.value = true
 }
 
@@ -63,6 +66,7 @@ function saveInstructor() {
       if (formPassword.value.trim()) {
         data.password = formPassword.value.trim()
       }
+      data.avatar_url = formAvatarUrl.value.trim() || null
       auth.updateInstructor(editingId.value, data)
       notification.success('Data instruktur berhasil diperbarui!')
     } else {
@@ -70,6 +74,7 @@ function saveInstructor() {
         nama: formNama.value.trim(),
         email: formEmail.value.trim(),
         password: formPassword.value.trim(),
+        avatar_url: formAvatarUrl.value.trim() || undefined,
       })
       notification.success('Instruktur berhasil ditambahkan!')
     }
@@ -116,6 +121,10 @@ function confirmDelete(inst: any) {
         </label>
         <input v-model="formPassword" type="password" class="form-input" placeholder="Minimal 6 karakter" />
       </div>
+      <div class="form-group">
+        <label class="form-label">Foto Profile (URL)</label>
+        <input v-model="formAvatarUrl" type="url" class="form-input" placeholder="https://example.com/foto.jpg" />
+      </div>
       <div class="form-actions">
         <button class="btn btn-ghost btn-sm" @click="cancelForm">Batal</button>
         <button
@@ -138,7 +147,8 @@ function confirmDelete(inst: any) {
         :key="inst.id"
         class="card instructor-card"
       >
-        <div class="instructor-avatar">{{ inst.nama.charAt(0) }}</div>
+        <img v-if="inst.avatar_url" :src="inst.avatar_url" class="instructor-avatar-img" alt="" />
+        <div v-else class="instructor-avatar">{{ inst.nama.charAt(0) }}</div>
         <div class="instructor-info">
           <span class="instructor-name">{{ inst.nama }}</span>
           <span class="instructor-email">{{ inst.email || '—' }}</span>
@@ -249,6 +259,14 @@ function confirmDelete(inst: any) {
   justify-content: center;
   font-weight: 700;
   font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.instructor-avatar-img {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  object-fit: cover;
   flex-shrink: 0;
 }
 

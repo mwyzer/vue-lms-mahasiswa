@@ -42,6 +42,8 @@ const formNpm = ref('')
 const formKelas = ref('')
 const formLevel = ref<number>(1)
 const formSession = ref<'morning' | 'evening'>('morning')
+const formPassword = ref('')
+const formAvatarUrl = ref('')
 
 function openAddForm() {
   editingId.value = null
@@ -50,6 +52,8 @@ function openAddForm() {
   formKelas.value = ''
   formLevel.value = 1
   formSession.value = 'morning'
+  formPassword.value = ''
+  formAvatarUrl.value = ''
   showForm.value = true
 }
 
@@ -60,6 +64,8 @@ function openEditForm(s: any) {
   formKelas.value = s.kelas
   formLevel.value = s.level
   formSession.value = s.session_time
+  formPassword.value = ''
+  formAvatarUrl.value = s.avatar_url || ''
   showForm.value = true
 }
 
@@ -85,13 +91,18 @@ function saveStudent() {
   saving.value = true
   setTimeout(() => {
     if (editingId.value) {
-      auth.updateStudent(editingId.value, {
+      const data: any = {
         nama: formNama.value.trim(),
         npm: formNpm.value.trim(),
         kelas: formKelas.value.trim(),
         level: formLevel.value,
         session_time: formSession.value,
-      })
+      }
+      if (formPassword.value.trim()) {
+        data.password = formPassword.value.trim()
+      }
+      data.avatar_url = formAvatarUrl.value.trim() || null
+      auth.updateStudent(editingId.value, data)
       notification.success('Data mahasiswa berhasil diperbarui!')
     } else {
       auth.addStudent({
@@ -100,6 +111,8 @@ function saveStudent() {
         kelas: formKelas.value.trim(),
         level: formLevel.value,
         session_time: formSession.value,
+        password: formPassword.value.trim() || undefined,
+        avatar_url: formAvatarUrl.value.trim() || undefined,
       })
       notification.success('Mahasiswa berhasil ditambahkan!')
     }
@@ -143,6 +156,14 @@ function confirmDelete(s: any) {
       <div class="form-group">
         <label class="form-label">Kelas</label>
         <input v-model="formKelas" type="text" class="form-input" placeholder="Contoh: A, B, C" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">{{ editingId ? 'Password Baru (kosongkan jika tidak diubah)' : 'Password' }}</label>
+        <input v-model="formPassword" type="password" class="form-input" placeholder="Minimal 6 karakter" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Foto Profile (URL)</label>
+        <input v-model="formAvatarUrl" type="url" class="form-input" placeholder="https://example.com/foto.jpg" />
       </div>
       <div class="form-row">
         <div class="form-group">
@@ -200,7 +221,8 @@ function confirmDelete(s: any) {
               :key="s.id"
               class="card student-card"
             >
-              <div class="student-avatar">{{ s.nama?.charAt(0) || '?' }}</div>
+              <img v-if="s.avatar_url" :src="s.avatar_url" class="student-avatar-img" alt="" />
+              <div v-else class="student-avatar">{{ s.nama?.charAt(0) || '?' }}</div>
               <div class="student-info">
                 <span class="student-name">{{ s.nama }}</span>
                 <span class="student-npm">{{ s.npm }} • {{ s.kelas }}</span>
@@ -225,7 +247,8 @@ function confirmDelete(s: any) {
               :key="s.id"
               class="card student-card"
             >
-              <div class="student-avatar">{{ s.nama?.charAt(0) || '?' }}</div>
+              <img v-if="s.avatar_url" :src="s.avatar_url" class="student-avatar-img" alt="" />
+              <div v-else class="student-avatar">{{ s.nama?.charAt(0) || '?' }}</div>
               <div class="student-info">
                 <span class="student-name">{{ s.nama }}</span>
                 <span class="student-npm">{{ s.npm }} • {{ s.kelas }}</span>
@@ -378,6 +401,14 @@ function confirmDelete(s: any) {
   justify-content: center;
   font-weight: 600;
   font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.student-avatar-img {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  object-fit: cover;
   flex-shrink: 0;
 }
 

@@ -46,6 +46,10 @@ const DEMO_ADMINS: AdminEntry[] = [
   { id: 'a1', nama: 'Admin LMS', email: 'admin@lms.ac.id' },
 ]
 
+const DEMO_STUDENT_PASSWORDS: Record<string, string> = {
+  // Default empty — students log in with name+NPM
+}
+
 const DEMO_ADMIN_PASSWORDS: Record<string, string> = {
   'a1': 'admin123',
 }
@@ -329,7 +333,7 @@ export const useAuthStore = defineStore('auth', {
     /**
      * Add a new student (admin).
      */
-    addStudent(data: { nama: string; npm: string; kelas: string; level: number; session_time: 'morning' | 'evening' }) {
+    addStudent(data: { nama: string; npm: string; kelas: string; level: number; session_time: 'morning' | 'evening'; password?: string; avatar_url?: string }) {
       if (!this.isDemoMode) return
 
       // Generate unique ID
@@ -338,27 +342,35 @@ export const useAuthStore = defineStore('auth', {
         return isNaN(num) ? 0 : num
       })
       const nextId = Math.max(...existingIds, 0) + 1
+      const id = `s${nextId}`
 
       DEMO_STUDENTS.push({
-        id: `s${nextId}`,
+        id,
         nama: data.nama,
         npm: data.npm,
         kelas: data.kelas,
         level: data.level,
         session_time: data.session_time,
+        avatar_url: data.avatar_url || null,
       })
+      if (data.password) {
+        DEMO_STUDENT_PASSWORDS[id] = data.password
+      }
       this.demoVersion++
     },
 
     /**
      * Update an existing student (admin).
      */
-    updateStudent(id: string, data: Partial<{ nama: string; npm: string; kelas: string; level: number; session_time: 'morning' | 'evening' }>) {
+    updateStudent(id: string, data: Partial<{ nama: string; npm: string; kelas: string; level: number; session_time: 'morning' | 'evening'; password: string; avatar_url: string }>) {
       if (!this.isDemoMode) return
 
       const idx = DEMO_STUDENTS.findIndex((s) => s.id === id)
       if (idx >= 0) {
         DEMO_STUDENTS[idx] = { ...DEMO_STUDENTS[idx], ...data }
+        if (data.password) {
+          DEMO_STUDENT_PASSWORDS[id] = data.password
+        }
         this.demoVersion++
       }
     },
@@ -381,7 +393,7 @@ export const useAuthStore = defineStore('auth', {
     /**
      * Add a new instructor (admin).
      */
-    addInstructor(data: { nama: string; email: string; password: string }) {
+    addInstructor(data: { nama: string; email: string; password: string; avatar_url?: string }) {
       if (!this.isDemoMode) return
 
       // Generate unique ID
@@ -396,6 +408,7 @@ export const useAuthStore = defineStore('auth', {
         id,
         nama: data.nama,
         email: data.email,
+        avatar_url: data.avatar_url || null,
       })
       DEMO_INSTRUCTOR_PASSWORDS[id] = data.password || 'instruktur123'
       this.demoVersion++
@@ -404,13 +417,14 @@ export const useAuthStore = defineStore('auth', {
     /**
      * Update an existing instructor (admin).
      */
-    updateInstructor(id: string, data: Partial<{ nama: string; email: string; password: string }>) {
+    updateInstructor(id: string, data: Partial<{ nama: string; email: string; password: string; avatar_url: string }>) {
       if (!this.isDemoMode) return
 
       const idx = DEMO_INSTRUCTORS.findIndex((i) => i.id === id)
       if (idx >= 0) {
         if (data.nama !== undefined) DEMO_INSTRUCTORS[idx].nama = data.nama
         if (data.email !== undefined) DEMO_INSTRUCTORS[idx].email = data.email
+        if (data.avatar_url !== undefined) DEMO_INSTRUCTORS[idx].avatar_url = data.avatar_url
         if (data.password !== undefined) DEMO_INSTRUCTOR_PASSWORDS[id] = data.password
         this.demoVersion++
       }

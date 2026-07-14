@@ -9,18 +9,21 @@ export interface StudentRosterEntry {
   kelas: string
   level: number
   session_time: 'morning' | 'evening'
+  avatar_url?: string | null
 }
 
 export interface InstructorEntry {
   id: string
   nama: string
   email?: string | null
+  avatar_url?: string | null
 }
 
 export interface AdminEntry {
   id: string
   nama: string
   email?: string | null
+  avatar_url?: string | null
 }
 
 export interface LoginCredentials {

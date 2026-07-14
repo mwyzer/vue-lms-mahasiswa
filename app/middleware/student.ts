@@ -1,0 +1,16 @@
+/**
+ * Student middleware — ensures the current user has a 'student' role.
+ * Must be used after auth middleware.
+ */
+export default defineNuxtRouteMiddleware((to) => {
+  const auth = useAuthStore()
+
+  if (!auth.isAuthenticated) {
+    return navigateTo('/login')
+  }
+
+  if (!auth.isStudent) {
+    // Instructors trying to access student pages → redirect to instructor dashboard
+    return navigateTo('/instructor/dashboard')
+  }
+})

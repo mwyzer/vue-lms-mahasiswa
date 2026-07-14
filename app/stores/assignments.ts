@@ -42,6 +42,9 @@ interface AssignmentsState {
   loading: boolean
   error: string | null
 
+  // Demo reactivity version (incremented on mutations to force getter re-evaluation)
+  demoVersion: number
+
   // Supabase data cache
   isDemoMode: boolean
   initialized: boolean
@@ -57,6 +60,7 @@ export const useAssignmentsStore = defineStore('assignments', {
     submissions: [],
     loading: false,
     error: null,
+    demoVersion: 0,
     isDemoMode: true,
     initialized: false,
     sbAssignments: [],
@@ -70,6 +74,8 @@ export const useAssignmentsStore = defineStore('assignments', {
       const store = useAssignmentsStore()
       const auth = useAuthStore()
       if (!auth.user) return []
+      // Track demoVersion for reactivity when DEMO_* arrays are mutated
+      void store.demoVersion
 
       const assignments = store.isDemoMode ? DEMO_ASSIGNMENTS : store.sbAssignments
       const submissions = store.isDemoMode ? DEMO_SUBMISSIONS : store.sbSubmissions
@@ -234,6 +240,7 @@ export const useAssignmentsStore = defineStore('assignments', {
         this.submissions = DEMO_SUBMISSIONS.filter(
           (s) => s.assignment_id === assignmentId
         )
+        this.demoVersion++
         return
       }
 
@@ -297,6 +304,7 @@ export const useAssignmentsStore = defineStore('assignments', {
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
+        this.demoVersion++
         return
       }
 
@@ -337,6 +345,7 @@ export const useAssignmentsStore = defineStore('assignments', {
             graded_at: new Date().toISOString(),
           }
         }
+        this.demoVersion++
         return
       }
 

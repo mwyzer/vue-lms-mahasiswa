@@ -72,6 +72,9 @@ interface CoursesState {
   loading: boolean
   error: string | null
 
+  // Demo reactivity version (incremented on mutations to force getter re-evaluation)
+  demoVersion: number
+
   // Supabase data cache
   isDemoMode: boolean
   initialized: boolean
@@ -92,6 +95,7 @@ export const useCoursesStore = defineStore('courses', {
     enrollments: [],
     loading: false,
     error: null,
+    demoVersion: 0,
     isDemoMode: true,
     initialized: false,
     sbCourses: [],
@@ -108,6 +112,8 @@ export const useCoursesStore = defineStore('courses', {
       const store = useCoursesStore()
       const auth = useAuthStore()
       if (!auth.user) return []
+      // Track demoVersion for reactivity when DEMO_* arrays are mutated
+      void store.demoVersion
 
       const courses = store.isDemoMode ? DEMO_COURSES : store.sbCourses
       const enrollMap: Record<string, string[]> = {}
@@ -315,6 +321,7 @@ export const useCoursesStore = defineStore('courses', {
           DEMO_LESSON_PROGRESS[auth.user.id] = existing
         }
         this.lessonProgress = DEMO_LESSON_PROGRESS[auth.user.id] || []
+        this.demoVersion++
         return
       }
 
@@ -380,6 +387,7 @@ export const useCoursesStore = defineStore('courses', {
         if (this.currentCourse?.id === courseId) {
           this.lessons = DEMO_LESSONS[courseId] || []
         }
+        this.demoVersion++
         return
       }
 

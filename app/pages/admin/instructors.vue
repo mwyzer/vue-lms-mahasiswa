@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Admin Instructors List — Shows all instructors.
+ * Admin Instructors Management — View, add, edit, and delete instructors.
  */
 definePageMeta({
   layout: 'admin',
@@ -8,12 +8,83 @@ definePageMeta({
 })
 
 const auth = useAuthStore()
+const notification = useNotification()
 
 const instructors = computed(() => auth.instructorList)
 
 onMounted(() => {
   auth.init()
 })
+
+// Form state
+const showForm = ref(false)
+const editingId = ref<string | null>(null)
+const saving = ref(false)
+
+const formNama = ref('')
+const formEmail = ref('')
+const formPassword = ref('')
+
+function openAddForm() {
+  editingId.value = null
+  formNama.value = ''
+  formEmail.value = ''
+  formPassword.value = ''
+  showForm.value = true
+}
+
+function openEditForm(inst: any) {
+  editingId.value = inst.id
+  formNama.value = inst.nama
+  formEmail.value = inst.email || ''
+  formPassword.value = ''
+  showForm.value = true
+}
+
+function cancelForm() {
+  showForm.value = false
+  editingId.value = null
+}
+
+function saveInstructor() {
+  if (!formNama.value.trim()) {
+    notification.warning('Nama instruktur harus diisi.')
+    return
+  }
+  if (!editingId.value && !formPassword.value.trim()) {
+    notification.warning('Password instruktur harus diisi.')
+    return
+  }
+
+  saving.value = true
+  setTimeout(() => {
+    if (editingId.value) {
+      const data: any = { nama: formNama.value.trim(), email: formEmail.value.trim() }
+      if (formPassword.value.trim()) {
+        data.password = formPassword.value.trim()
+      }
+      auth.updateInstructor(editingId.value, data)
+      notification.success('Data instruktur berhasil diperbarui!')
+    } else {
+      auth.addInstructor({
+        nama: formNama.value.trim(),
+        email: formEmail.value.trim(),
+        password: formPassword.value.trim(),
+      })
+      notification.success('Instruktur berhasil ditambahkan!')
+    }
+    showForm.value = false
+    editingId.value = null
+    saving.value = false
+  }, 200)
+}
+
+function confirmDelete(inst: any) {
+  if (confirm(`Hapus instruktur "${inst.nama}"?`)) {
+    auth.deleteInstructor(inst.id)
+    notification.success('Instruktur berhasil dihapus.')
+  }
+}
 </script>
 
 <template>
@@ -22,6 +93,38 @@ onMounted(() => {
       <div>
         <h1>Instruktur</h1>
         <p class="text-muted">Daftar seluruh instruktur ({{ instructors.length }}).</p>
+      </div>
+      <button v-if="!showForm" class="btn btn-primary btn-sm" @click="openAddForm">
+        + Tambah Instruktur
+      </button>
+    </div>
+
+    <!-- Add/Edit form -->
+    <div v-if="showForm" class="card form-card">
+      <h3>{{ editingId ? 'Edit Instruktur' : 'Tambah Instruktur Baru' }}</h3>
+      <div class="form-group">
+        <label class="form-label">Nama Lengkap</label>
+        <input v-model="formNama" type="text" class="form-input" placeholder="Nama instruktur" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input v-model="formEmail" type="email" class="form-input" placeholder="email@contoh.com" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">
+          {{ editingId ? 'Password Baru (kosongkan jika tidak diubah)' : 'Password' }}
+        </label>
+        <input v-model="formPassword" type="password" class="form-input" placeholder="Minimal 6 karakter" />
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-ghost btn-sm" @click="cancelForm">Batal</button>
+        <button
+          class="btn btn-primary btn-sm"
+          :disabled="saving || !formNama.trim() || (!editingId && !formPassword.trim())"
+          @click="saveInstructor"
+        >
+          {{ saving ? 'Menyimpan...' : 'Simpan' }}
+        </button>
       </div>
     </div>
 
@@ -41,6 +144,10 @@ onMounted(() => {
           <span class="instructor-email">{{ inst.email || '—' }}</span>
           <span class="instructor-id">ID: {{ inst.id }}</span>
         </div>
+        <div class="instructor-actions">
+          <button class="btn btn-ghost btn-sm" @click="openEditForm(inst)">Edit</button>
+          <button class="btn btn-danger btn-sm" @click="confirmDelete(inst)">Hapus</button>
+        </div>
       </div>
     </div>
   </div>
@@ -53,6 +160,10 @@ onMounted(() => {
 }
 
 .page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
   margin-bottom: 1.5rem;
 }
 
@@ -66,6 +177,52 @@ onMounted(() => {
   color: var(--text-muted, #94a3b8);
   font-size: 0.875rem;
   margin: 0;
+}
+
+.form-card {
+  margin-bottom: 1.5rem;
+}
+
+.form-card h3 {
+  font-size: 1rem;
+  margin-bottom: 1rem;
+}
+
+.form-group {
+  margin-bottom: 0.75rem;
+}
+
+.form-label {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-neutral-700);
+  margin-bottom: 0.375rem;
+}
+
+.form-input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-neutral-300);
+  border-radius: var(--radius-md);
+  background: white;
+  color: var(--color-neutral-800);
+  font-size: 0.875rem;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--color-primary-500);
+  box-shadow: 0 0 0 3px var(--color-primary-100);
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-neutral-200);
 }
 
 .instructor-grid {
@@ -98,6 +255,8 @@ onMounted(() => {
 .instructor-info {
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-width: 0;
 }
 
 .instructor-name {
@@ -115,6 +274,12 @@ onMounted(() => {
   font-size: 0.6875rem;
   color: var(--text-muted, #94a3b8);
   margin-top: 0.125rem;
+}
+
+.instructor-actions {
+  display: flex;
+  gap: 0.375rem;
+  flex-shrink: 0;
 }
 
 .empty-state {

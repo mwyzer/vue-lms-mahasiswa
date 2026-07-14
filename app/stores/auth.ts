@@ -60,6 +60,7 @@ interface AuthState {
   instructors: InstructorEntry[]
   admins: AdminEntry[]
   initialized: boolean
+  demoVersion: number
 }
 
 export const useAuthStore = defineStore('auth', {
@@ -73,6 +74,7 @@ export const useAuthStore = defineStore('auth', {
     instructors: [],
     admins: [],
     initialized: false,
+    demoVersion: 0,
   }),
 
   getters: {
@@ -90,18 +92,21 @@ export const useAuthStore = defineStore('auth', {
 
     studentRoster(): StudentRosterEntry[] {
       const store = useAuthStore()
+      void store.demoVersion
       if (store.students.length > 0) return store.students
       return DEMO_STUDENTS
     },
 
     instructorList(): InstructorEntry[] {
       const store = useAuthStore()
+      void store.demoVersion
       if (store.instructors.length > 0) return store.instructors
       return DEMO_INSTRUCTORS
     },
 
     classList(): { level: number; session_time: string; label: string }[] {
       const store = useAuthStore()
+      void store.demoVersion
       const roster = store.students.length > 0 ? store.students : DEMO_STUDENTS
       const unique = new Map<string, { level: number; session_time: string; label: string }>()
       for (const s of roster) {
@@ -317,6 +322,112 @@ export const useAuthStore = defineStore('auth', {
      */
     clearError() {
       this.error = null
+    },
+
+    // ── Admin: Student CRUD (Demo Mode) ──
+
+    /**
+     * Add a new student (admin).
+     */
+    addStudent(data: { nama: string; npm: string; kelas: string; level: number; session_time: 'morning' | 'evening' }) {
+      if (!this.isDemoMode) return
+
+      // Generate unique ID
+      const existingIds = DEMO_STUDENTS.map((s) => {
+        const num = parseInt(s.id.replace('s', ''), 10)
+        return isNaN(num) ? 0 : num
+      })
+      const nextId = Math.max(...existingIds, 0) + 1
+
+      DEMO_STUDENTS.push({
+        id: `s${nextId}`,
+        nama: data.nama,
+        npm: data.npm,
+        kelas: data.kelas,
+        level: data.level,
+        session_time: data.session_time,
+      })
+      this.demoVersion++
+    },
+
+    /**
+     * Update an existing student (admin).
+     */
+    updateStudent(id: string, data: Partial<{ nama: string; npm: string; kelas: string; level: number; session_time: 'morning' | 'evening' }>) {
+      if (!this.isDemoMode) return
+
+      const idx = DEMO_STUDENTS.findIndex((s) => s.id === id)
+      if (idx >= 0) {
+        DEMO_STUDENTS[idx] = { ...DEMO_STUDENTS[idx], ...data }
+        this.demoVersion++
+      }
+    },
+
+    /**
+     * Delete a student (admin).
+     */
+    deleteStudent(id: string) {
+      if (!this.isDemoMode) return
+
+      const idx = DEMO_STUDENTS.findIndex((s) => s.id === id)
+      if (idx >= 0) {
+        DEMO_STUDENTS.splice(idx, 1)
+        this.demoVersion++
+      }
+    },
+
+    // ── Admin: Instructor CRUD (Demo Mode) ──
+
+    /**
+     * Add a new instructor (admin).
+     */
+    addInstructor(data: { nama: string; email: string; password: string }) {
+      if (!this.isDemoMode) return
+
+      // Generate unique ID
+      const existingIds = DEMO_INSTRUCTORS.map((i) => {
+        const num = parseInt(i.id.replace('i', ''), 10)
+        return isNaN(num) ? 0 : num
+      })
+      const nextId = Math.max(...existingIds, 0) + 1
+      const id = `i${nextId}`
+
+      DEMO_INSTRUCTORS.push({
+        id,
+        nama: data.nama,
+        email: data.email,
+      })
+      DEMO_INSTRUCTOR_PASSWORDS[id] = data.password || 'instruktur123'
+      this.demoVersion++
+    },
+
+    /**
+     * Update an existing instructor (admin).
+     */
+    updateInstructor(id: string, data: Partial<{ nama: string; email: string; password: string }>) {
+      if (!this.isDemoMode) return
+
+      const idx = DEMO_INSTRUCTORS.findIndex((i) => i.id === id)
+      if (idx >= 0) {
+        if (data.nama !== undefined) DEMO_INSTRUCTORS[idx].nama = data.nama
+        if (data.email !== undefined) DEMO_INSTRUCTORS[idx].email = data.email
+        if (data.password !== undefined) DEMO_INSTRUCTOR_PASSWORDS[id] = data.password
+        this.demoVersion++
+      }
+    },
+
+    /**
+     * Delete an instructor (admin).
+     */
+    deleteInstructor(id: string) {
+      if (!this.isDemoMode) return
+
+      const idx = DEMO_INSTRUCTORS.findIndex((i) => i.id === id)
+      if (idx >= 0) {
+        DEMO_INSTRUCTORS.splice(idx, 1)
+        delete DEMO_INSTRUCTOR_PASSWORDS[id]
+        this.demoVersion++
+      }
     },
   },
 })

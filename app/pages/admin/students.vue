@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Admin Students List — Shows all students grouped by level.
+ * Admin Students Management — View, add, edit, and delete students.
  */
 definePageMeta({
   layout: 'admin',
@@ -8,6 +8,7 @@ definePageMeta({
 })
 
 const auth = useAuthStore()
+const notification = useNotification()
 
 const students = computed(() => auth.studentRoster as any[])
 
@@ -30,6 +31,90 @@ const groupedStudents = computed(() => {
     }))
     .sort((a, b) => a.level - b.level)
 })
+
+// Form state
+const showForm = ref(false)
+const editingId = ref<string | null>(null)
+const saving = ref(false)
+
+const formNama = ref('')
+const formNpm = ref('')
+const formKelas = ref('')
+const formLevel = ref<number>(1)
+const formSession = ref<'morning' | 'evening'>('morning')
+
+function openAddForm() {
+  editingId.value = null
+  formNama.value = ''
+  formNpm.value = ''
+  formKelas.value = ''
+  formLevel.value = 1
+  formSession.value = 'morning'
+  showForm.value = true
+}
+
+function openEditForm(s: any) {
+  editingId.value = s.id
+  formNama.value = s.nama
+  formNpm.value = s.npm
+  formKelas.value = s.kelas
+  formLevel.value = s.level
+  formSession.value = s.session_time
+  showForm.value = true
+}
+
+function cancelForm() {
+  showForm.value = false
+  editingId.value = null
+}
+
+function saveStudent() {
+  if (!formNama.value.trim()) {
+    notification.warning('Nama mahasiswa harus diisi.')
+    return
+  }
+  if (!formNpm.value.trim()) {
+    notification.warning('NPM mahasiswa harus diisi.')
+    return
+  }
+  if (!formKelas.value.trim()) {
+    notification.warning('Kelas mahasiswa harus diisi.')
+    return
+  }
+
+  saving.value = true
+  setTimeout(() => {
+    if (editingId.value) {
+      auth.updateStudent(editingId.value, {
+        nama: formNama.value.trim(),
+        npm: formNpm.value.trim(),
+        kelas: formKelas.value.trim(),
+        level: formLevel.value,
+        session_time: formSession.value,
+      })
+      notification.success('Data mahasiswa berhasil diperbarui!')
+    } else {
+      auth.addStudent({
+        nama: formNama.value.trim(),
+        npm: formNpm.value.trim(),
+        kelas: formKelas.value.trim(),
+        level: formLevel.value,
+        session_time: formSession.value,
+      })
+      notification.success('Mahasiswa berhasil ditambahkan!')
+    }
+    showForm.value = false
+    editingId.value = null
+    saving.value = false
+  }, 200)
+}
+
+function confirmDelete(s: any) {
+  if (confirm(`Hapus mahasiswa "${s.nama}" (${s.npm})?`)) {
+    auth.deleteStudent(s.id)
+    notification.success('Mahasiswa berhasil dihapus.')
+  }
+}
 </script>
 
 <template>
@@ -38,6 +123,54 @@ const groupedStudents = computed(() => {
       <div>
         <h1>Mahasiswa</h1>
         <p class="text-muted">Daftar seluruh mahasiswa terdaftar ({{ students.length }}).</p>
+      </div>
+      <button v-if="!showForm" class="btn btn-primary btn-sm" @click="openAddForm">
+        + Tambah Mahasiswa
+      </button>
+    </div>
+
+    <!-- Add/Edit form -->
+    <div v-if="showForm" class="card form-card">
+      <h3>{{ editingId ? 'Edit Mahasiswa' : 'Tambah Mahasiswa Baru' }}</h3>
+      <div class="form-group">
+        <label class="form-label">Nama Lengkap</label>
+        <input v-model="formNama" type="text" class="form-input" placeholder="Nama mahasiswa" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">NPM</label>
+        <input v-model="formNpm" type="text" class="form-input" placeholder="Nomor Pokok Mahasiswa" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Kelas</label>
+        <input v-model="formKelas" type="text" class="form-input" placeholder="Contoh: A, B, C" />
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Level</label>
+          <select v-model="formLevel" class="form-input">
+            <option :value="1">Level 1</option>
+            <option :value="2">Level 2</option>
+            <option :value="3">Level 3</option>
+            <option :value="4">Level 4</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Sesi</label>
+          <select v-model="formSession" class="form-input">
+            <option value="morning">Pagi</option>
+            <option value="evening">Malam</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-ghost btn-sm" @click="cancelForm">Batal</button>
+        <button
+          class="btn btn-primary btn-sm"
+          :disabled="saving || !formNama.trim() || !formNpm.trim() || !formKelas.trim()"
+          @click="saveStudent"
+        >
+          {{ saving ? 'Menyimpan...' : 'Simpan' }}
+        </button>
       </div>
     </div>
 
@@ -51,7 +184,9 @@ const groupedStudents = computed(() => {
         :key="group.level"
         class="level-group"
       >
-        <h2 class="level-title">Level {{ group.level }}</h2>
+        <div class="level-header">
+          <h2 class="level-title">Level {{ group.level }}</h2>
+        </div>
 
         <!-- Morning session -->
         <div v-if="group.morning.length > 0" class="session-group">
@@ -69,6 +204,10 @@ const groupedStudents = computed(() => {
               <div class="student-info">
                 <span class="student-name">{{ s.nama }}</span>
                 <span class="student-npm">{{ s.npm }} • {{ s.kelas }}</span>
+              </div>
+              <div class="student-actions">
+                <button class="btn btn-ghost btn-sm" @click="openEditForm(s)">Edit</button>
+                <button class="btn btn-danger btn-sm" @click="confirmDelete(s)">Hapus</button>
               </div>
             </div>
           </div>
@@ -91,6 +230,10 @@ const groupedStudents = computed(() => {
                 <span class="student-name">{{ s.nama }}</span>
                 <span class="student-npm">{{ s.npm }} • {{ s.kelas }}</span>
               </div>
+              <div class="student-actions">
+                <button class="btn btn-ghost btn-sm" @click="openEditForm(s)">Edit</button>
+                <button class="btn btn-danger btn-sm" @click="confirmDelete(s)">Hapus</button>
+              </div>
             </div>
           </div>
         </div>
@@ -106,6 +249,10 @@ const groupedStudents = computed(() => {
 }
 
 .page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
   margin-bottom: 1.5rem;
 }
 
@@ -121,18 +268,77 @@ const groupedStudents = computed(() => {
   margin: 0;
 }
 
+.form-card {
+  margin-bottom: 1.5rem;
+}
+
+.form-card h3 {
+  font-size: 1rem;
+  margin-bottom: 1rem;
+}
+
+.form-group {
+  margin-bottom: 0.75rem;
+}
+
+.form-label {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-neutral-700);
+  margin-bottom: 0.375rem;
+}
+
+.form-input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-neutral-300);
+  border-radius: var(--radius-md);
+  background: white;
+  color: var(--color-neutral-800);
+  font-size: 0.875rem;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--color-primary-500);
+  box-shadow: 0 0 0 3px var(--color-primary-100);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-neutral-200);
+}
+
 .level-groups {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
 }
 
+.level-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--border-color, #e2e8f0);
+}
+
 .level-title {
   font-size: 1.125rem;
   font-weight: 600;
-  margin: 0 0 0.75rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 2px solid var(--border-color, #e2e8f0);
+  margin: 0;
 }
 
 .session-group {
@@ -150,7 +356,7 @@ const groupedStudents = computed(() => {
 
 .student-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 0.75rem;
 }
 
@@ -178,6 +384,8 @@ const groupedStudents = computed(() => {
 .student-info {
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-width: 0;
 }
 
 .student-name {
@@ -189,6 +397,12 @@ const groupedStudents = computed(() => {
   font-size: 0.75rem;
   color: var(--text-muted, #94a3b8);
   margin-top: 0.125rem;
+}
+
+.student-actions {
+  display: flex;
+  gap: 0.375rem;
+  flex-shrink: 0;
 }
 
 .empty-state {

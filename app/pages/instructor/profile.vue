@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Instructor Profile — View profile information.
+ * Instructor Profile — View and edit profile information.
  */
 definePageMeta({
   layout: 'instructor',
@@ -9,10 +9,64 @@ definePageMeta({
 
 const auth = useAuthStore()
 const coursesStore = useCoursesStore()
+const notification = useNotification()
 
 const user = computed(() => auth.user)
 const myCourses = computed(() => coursesStore.myCourses)
 const courseCount = computed(() => myCourses.value.length)
+
+// ── Edit mode ──
+const isEditing = ref(false)
+const editNama = ref('')
+const editEmail = ref('')
+const saving = ref(false)
+
+function startEdit() {
+  editNama.value = user.value?.nama || ''
+  editEmail.value = user.value?.email || ''
+  isEditing.value = true
+}
+
+function cancelEdit() {
+  isEditing.value = false
+  editNama.value = ''
+  editEmail.value = ''
+}
+
+async function saveProfile() {
+  if (!editNama.value.trim()) {
+    notification.warning('Nama harus diisi.')
+    return
+  }
+  if (editNama.value.trim().length < 2) {
+    notification.warning('Nama minimal 2 karakter.')
+    return
+  }
+
+  const payload: any = { nama: editNama.value.trim() }
+
+  if (editEmail.value.trim()) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(editEmail.value)) {
+      notification.warning('Format email tidak valid.')
+      return
+    }
+    payload.email = editEmail.value.trim()
+  } else {
+    payload.email = ''
+  }
+
+  saving.value = true
+  const success = await auth.updateProfile(payload)
+
+  if (success) {
+    notification.success('Profil berhasil diperbarui!')
+    isEditing.value = false
+  } else {
+    notification.error(auth.error || 'Gagal menyimpan profil.')
+  }
+  saving.value = false
+}
 
 function formatDate(dateStr?: string | null): string {
   if (!dateStr) return '-'
@@ -25,7 +79,15 @@ function formatDate(dateStr?: string | null): string {
 <template>
   <div class="profile-page">
     <div class="page-header">
-      <h1>Profil Instruktur</h1>
+      <div>
+        <h1>Profil Instruktur</h1>
+        <p class="text-muted">Data diri instruktur.</p>
+      </div>
+      <div v-if="!isEditing">
+        <button class="btn btn-primary btn-sm" @click="startEdit">
+          ✏️ Edit Profil
+        </button>
+      </div>
     </div>
 
     <div v-if="!user" class="empty-state card">
@@ -45,7 +107,8 @@ function formatDate(dateStr?: string | null): string {
           </div>
         </div>
 
-        <div class="profile-details">
+        <!-- View mode -->
+        <div v-if="!isEditing" class="profile-details">
           <div class="detail-row">
             <span class="detail-label">Email</span>
             <span class="detail-value">{{ user.email || '-' }}</span>
@@ -65,8 +128,49 @@ function formatDate(dateStr?: string | null): string {
           <div class="detail-row">
             <span class="detail-label">Mode</span>
             <span class="detail-value">
-              <span class="badge badge-warning">Demo</span>
+              <span :class="auth.isDemoMode ? 'badge badge-warning' : 'badge badge-success'">
+                {{ auth.isDemoMode ? 'Demo' : 'Production' }}
+              </span>
             </span>
+          </div>
+        </div>
+
+        <!-- Edit mode -->
+        <div v-else class="profile-edit-form">
+          <div class="form-group">
+            <label class="form-label" for="edit-nama">Nama Lengkap</label>
+            <input
+              id="edit-nama"
+              v-model="editNama"
+              type="text"
+              class="form-input"
+              placeholder="Masukkan nama lengkap"
+              :disabled="saving"
+              @keyup.enter="saveProfile"
+            />
+            <p class="form-hint">Minimal 2 karakter.</p>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="edit-email">Email</label>
+            <input
+              id="edit-email"
+              v-model="editEmail"
+              type="email"
+              class="form-input"
+              placeholder="nama@email.com"
+              :disabled="saving"
+              @keyup.enter="saveProfile"
+            />
+          </div>
+
+          <div class="form-actions">
+            <button class="btn btn-ghost" :disabled="saving" @click="cancelEdit">
+              Batal
+            </button>
+            <button class="btn btn-primary" :disabled="saving" @click="saveProfile">
+              {{ saving ? 'Menyimpan...' : 'Simpan' }}
+            </button>
           </div>
         </div>
       </div>

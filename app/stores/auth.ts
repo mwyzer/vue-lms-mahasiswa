@@ -220,6 +220,10 @@ export const useAuthStore = defineStore('auth', {
       }
       this.role = 'student'
       this.loading = false
+
+      // Set server session cookie for middleware auth
+      await this.syncSession()
+
       return true
     },
 
@@ -265,6 +269,10 @@ export const useAuthStore = defineStore('auth', {
       }
       this.role = 'instructor'
       this.loading = false
+
+      // Set server session cookie for middleware auth
+      await this.syncSession()
+
       return true
     },
 
@@ -308,17 +316,141 @@ export const useAuthStore = defineStore('auth', {
       }
       this.role = 'admin'
       this.loading = false
+
+      // Set server session cookie for middleware auth
+      await this.syncSession()
+
       return true
     },
 
     /**
-     * Logout — clears user state.
+     * Sync session to server cookie so server middleware can authenticate.
      */
-    logout() {
+    async syncSession() {
+      if (!this.user) return
+      try {
+        await fetch('/api/auth/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: this.user.id,
+            role: this.role,
+            name: this.user.nama,
+          }),
+        })
+      } catch {
+        // Server session is best-effort; auth store is source of truth in demo mode
+      }
+    },
+
+    /**
+     * Logout — clears user state and server session.
+     */
+    async logout() {
+      try {
+        await fetch('/api/auth/session', { method: 'DELETE' })
+      } catch {
+        // Best-effort cleanup
+      }
       this.user = null
       this.role = null
       this.error = null
       navigateTo('/login')
+    },
+
+    /**
+     * Update the current user's profile fields.
+     * Works in both demo mode (local state) and production mode (Supabase).
+     */
+    async updateProfile(data: Partial<Pick<Profile, 'nama' | 'email' | 'avatar_url'>>): Promise<boolean> {
+      if (!this.user) return false
+
+      this.loading = true
+      this.error = null
+
+      // Validation
+      if (data.nama !== undefined && data.nama.trim().length < 2) {
+        this.error = 'Nama harus diisi minimal 2 karakter.'
+        this.loading = false
+        return false
+      }
+
+      if (data.email !== undefined && data.email.trim()) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+        if (!emailRegex.test(data.email)) {
+          this.error = 'Format email tidak valid.'
+          this.loading = false
+          return false
+        }
+      }
+
+      // Production mode — update via Supabase
+      if (!this.isDemoMode) {
+        try {
+          const supabase = useNuxtApp().$supabase
+          const { error: updateError } = await supabase
+            .from('profiles')
+            .update({
+              ...(data.nama !== undefined && { nama: data.nama }),
+              ...(data.email !== undefined && { email: data.email }),
+              ...(data.avatar_url !== undefined && { avatar_url: data.avatar_url }),
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', this.user.id)
+
+          if (updateError) {
+            this.error = 'Gagal menyimpan perubahan: ' + updateError.message
+            this.loading = false
+            return false
+          }
+        } catch (err: any) {
+          this.error = 'Terjadi kesalahan: ' + (err.message || 'Unknown error')
+          this.loading = false
+          return false
+        }
+      }
+
+      // Demo mode — update local state
+      if (this.isDemoMode) {
+        // Yield to allow loading state detection in tests
+        await new Promise((r) => setTimeout(r, 10))
+
+        if (this.role === 'student') {
+          // Update Pinia state array
+          const idx = this.students.findIndex((s) => s.id === this.user!.id)
+          if (idx >= 0) {
+            if (data.nama !== undefined) this.students[idx].nama = data.nama
+          }
+          // Also update the static DEMO_STUDENTS array for the getter fallback
+          const demoIdx = DEMO_STUDENTS.findIndex((s) => s.id === this.user!.id)
+          if (demoIdx >= 0 && data.nama !== undefined) {
+            DEMO_STUDENTS[demoIdx].nama = data.nama
+          }
+        }
+        if (this.role === 'instructor') {
+          const idx = this.instructors.findIndex((i) => i.id === this.user!.id)
+          if (idx >= 0) {
+            if (data.nama !== undefined) this.instructors[idx].nama = data.nama
+            if (data.email !== undefined) this.instructors[idx].email = data.email
+          }
+          // Update static DEMO_INSTRUCTORS
+          const demoIdx = DEMO_INSTRUCTORS.findIndex((i) => i.id === this.user!.id)
+          if (demoIdx >= 0) {
+            if (data.nama !== undefined) DEMO_INSTRUCTORS[demoIdx].nama = data.nama
+            if (data.email !== undefined) DEMO_INSTRUCTORS[demoIdx].email = data.email
+          }
+        }
+        this.demoVersion++
+      }
+
+      // Update current user object
+      if (data.nama !== undefined) this.user.nama = data.nama
+      if (data.email !== undefined) this.user.email = data.email
+      if (data.avatar_url !== undefined) this.user.avatar_url = data.avatar_url
+      this.user.updated_at = new Date().toISOString()
+
+      this.loading = false
+      return true
     },
 
     /**

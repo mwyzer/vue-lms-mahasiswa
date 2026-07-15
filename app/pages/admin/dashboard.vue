@@ -44,6 +44,42 @@ const greeting = computed(() => {
   if (hour < 18) return 'Selamat Sore'
   return 'Selamat Malam'
 })
+
+// ── AI Usage Stats ──
+interface AiUsageData {
+  date: string
+  totalTokens: number
+  promptTokens: number
+  completionTokens: number
+  requestCount: number
+  budgetRemaining: number
+  budgetTotal: number
+  budgetPercent: number
+}
+
+const aiUsage = ref<AiUsageData | null>(null)
+const aiUsageLoading = ref(false)
+const aiUsageError = ref('')
+
+async function fetchAiUsage() {
+  aiUsageLoading.value = true
+  aiUsageError.value = ''
+  try {
+    const res = await fetch('/api/admin/ai-usage')
+    if (!res.ok) throw new Error(await res.text())
+    aiUsage.value = await res.json()
+  } catch (err: any) {
+    aiUsageError.value = err.message || 'Gagal memuat data AI usage.'
+  } finally {
+    aiUsageLoading.value = false
+  }
+}
+
+onMounted(() => {
+  coursesStore.init()
+  assignmentsStore.init()
+  fetchAiUsage()
+})
 </script>
 
 <template>
@@ -93,6 +129,81 @@ const greeting = computed(() => {
         </div>
       </div>
     </div>
+
+    <!-- AI Usage -->
+    <section class="section">
+      <div class="section-header">
+        <h2>🤖 Penggunaan AI Assistant Hari Ini</h2>
+        <span class="badge" :class="aiUsage ? (aiUsage.budgetPercent > 80 ? 'badge-warning' : 'badge-success') : ''">
+          {{ aiUsage?.date || '-' }}
+        </span>
+      </div>
+
+      <div v-if="aiUsageLoading" class="card loading-card">
+        <p>Memuat data penggunaan AI...</p>
+      </div>
+
+      <div v-else-if="aiUsageError" class="card error-card">
+        <p>⚠️ {{ aiUsageError }}</p>
+      </div>
+
+      <div v-else-if="aiUsage" class="ai-usage-grid">
+        <div class="card stat-card ai-stat">
+          <div class="stat-icon mini" style="background-color: #e0f2fe; color: #0369a1;">🪙</div>
+          <div class="stat-body">
+            <span class="stat-value">{{ aiUsage.totalTokens.toLocaleString() }}</span>
+            <span class="stat-label">Token Dipakai</span>
+          </div>
+        </div>
+
+        <div class="card stat-card ai-stat">
+          <div class="stat-icon mini" style="background-color: #f0fdf4; color: #15803d;">📨</div>
+          <div class="stat-body">
+            <span class="stat-value">{{ aiUsage.requestCount }}</span>
+            <span class="stat-label">Total Request</span>
+          </div>
+        </div>
+
+        <div class="card stat-card ai-stat">
+          <div class="stat-icon mini" style="background-color: #fffbeb; color: #92400e;">📤</div>
+          <div class="stat-body">
+            <span class="stat-value">{{ aiUsage.promptTokens.toLocaleString() }}</span>
+            <span class="stat-label">Prompt Tokens</span>
+          </div>
+        </div>
+
+        <div class="card stat-card ai-stat">
+          <div class="stat-icon mini" style="background-color: #fdf2f8; color: #be185d;">📥</div>
+          <div class="stat-body">
+            <span class="stat-value">{{ aiUsage.completionTokens.toLocaleString() }}</span>
+            <span class="stat-label">Completion Tokens</span>
+          </div>
+        </div>
+
+        <div class="card budget-card">
+          <div class="budget-header">
+            <span class="budget-title">Budget Harian</span>
+            <span class="budget-value">{{ aiUsage.budgetRemaining.toLocaleString() }} / {{ aiUsage.budgetTotal.toLocaleString() }} token</span>
+          </div>
+          <div class="progress-bar">
+            <div
+              class="progress-fill"
+              :style="{
+                width: aiUsage.budgetPercent + '%',
+                backgroundColor: aiUsage.budgetPercent > 80 ? '#ef4444' : aiUsage.budgetPercent > 50 ? '#f59e0b' : '#10b981'
+              }"
+            />
+          </div>
+          <p class="budget-note">
+            {{ aiUsage.budgetPercent > 80 ? '⚠️ Hampir mencapai batas harian!' : '✅ Masih dalam batas aman' }}
+          </p>
+        </div>
+      </div>
+
+      <div v-else class="card empty-card">
+        <p>Belum ada penggunaan AI hari ini.</p>
+      </div>
+    </section>
 
     <!-- Quick Links -->
     <section class="section">
@@ -374,5 +485,95 @@ const greeting = computed(() => {
   .quick-links {
     grid-template-columns: 1fr;
   }
+}
+
+/* AI Usage */
+.ai-usage-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.875rem;
+}
+
+.ai-stat {
+  padding: 1rem;
+}
+
+.stat-icon.mini {
+  width: 2.25rem;
+  height: 2.25rem;
+  font-size: 1.125rem;
+  border-radius: 0.5rem;
+}
+
+.budget-card {
+  grid-column: 1 / -1;
+  padding: 1.25rem;
+}
+
+.budget-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.budget-title {
+  font-weight: 600;
+  font-size: 0.9375rem;
+}
+
+.budget-value {
+  font-size: 0.8125rem;
+  color: var(--text-muted, #94a3b8);
+}
+
+.budget-note {
+  margin: 0.5rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--text-muted, #94a3b8);
+}
+
+.loading-card,
+.error-card,
+.empty-card {
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.loading-card p,
+.error-card p,
+.empty-card p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-muted, #94a3b8);
+}
+
+.error-card {
+  border-color: #fecaca !important;
+  background-color: #fef2f2;
+}
+
+.error-card p {
+  color: #dc2626;
+}
+
+.badge-success {
+  background-color: #dcfce7;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badge-warning {
+  background-color: #fffbeb;
+  color: #d97706;
+  border: 1px solid #fde68a;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
 }
 </style>

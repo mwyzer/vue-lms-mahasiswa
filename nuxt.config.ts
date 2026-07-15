@@ -31,12 +31,17 @@ export default defineNuxtConfig({
   },
 
   runtimeConfig: {
+    // Server-only (not exposed to client)
+    aiApiKey: '',
+    aiModel: 'gpt-4o-mini',
+
     public: {
       supabaseUrl: 'https://fmibyazumfxrgcehojys.supabase.co',
       supabaseKey: 'sb_publishable_YcNaRX89fTgNKA91A7Cw5w_q5HUozdQ',
       demoMode: 'false',
       appName: 'LMS Mahasiswa',
-      appUrl: 'http://localhost:3000'
+      appUrl: 'http://localhost:3000',
+      aiModel: 'gpt-4o-mini'
     }
   }
 })

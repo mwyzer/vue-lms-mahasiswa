@@ -314,4 +314,76 @@ describe('Auth Store', () => {
       expect(sessions).toEqual(new Set(['morning', 'evening']))
     })
   })
+
+  // ── updateProfile ──
+  describe('updateProfile', () => {
+    it('updates student nama successfully', async () => {
+      await store.loginAsStudent('Oscar Rafif', '20241015')
+      expect(store.user?.nama).toBe('Oscar Rafif')
+
+      const result = await store.updateProfile({ nama: 'Oscar Update' })
+      expect(result).toBe(true)
+      expect(store.user?.nama).toBe('Oscar Update')
+    })
+
+    it('updates student nama in roster array', async () => {
+      await store.loginAsStudent('Nanda Kusuma', '20241014')
+      const before = store.studentRoster.find((s) => s.id === 's14')
+      expect(before?.nama).toBe('Nanda Kusuma')
+
+      await store.updateProfile({ nama: 'Nanda Updated' })
+      const rosterEntry = store.studentRoster.find((s) => s.id === 's14')
+      expect(rosterEntry?.nama).toBe('Nanda Updated')
+    })
+
+    it('updates instructor nama and email successfully', async () => {
+      await store.loginAsInstructor('Prof. Budi Hartono, Ph.D.', 'instruktur123')
+      expect(store.user?.nama).toBe('Prof. Budi Hartono, Ph.D.')
+
+      const result = await store.updateProfile({ nama: 'Prof. Budi Update', email: 'budi.baru@lms.ac.id' })
+      expect(result).toBe(true)
+      expect(store.user?.nama).toBe('Prof. Budi Update')
+      expect(store.user?.email).toBe('budi.baru@lms.ac.id')
+    })
+
+    it('updates admin nama successfully', async () => {
+      await store.loginAsAdmin('Admin LMS', 'admin123')
+      await store.updateProfile({ nama: 'Admin Test' })
+      expect(store.user?.nama).toBe('Admin Test')
+    })
+
+    it('returns false when not logged in', async () => {
+      const result = await store.updateProfile({ nama: 'Test' })
+      expect(result).toBe(false)
+    })
+
+    it('rejects empty nama', async () => {
+      await store.loginAsStudent('Citra Dewi', '20241003')
+      const result = await store.updateProfile({ nama: 'A' })
+      expect(result).toBe(false)
+      expect(store.error).toContain('minimal 2 karakter')
+    })
+
+    it('rejects invalid email format', async () => {
+      await store.loginAsInstructor('Dr. Dewi Lestari, M.Pd.', 'instruktur123')
+      const result = await store.updateProfile({ email: 'not-an-email' })
+      expect(result).toBe(false)
+      expect(store.error).toContain('email tidak valid')
+    })
+
+    it('accepts empty email', async () => {
+      await store.loginAsInstructor('Dr. Dewi Lestari, M.Pd.', 'instruktur123')
+      const result = await store.updateProfile({ email: '' })
+      expect(result).toBe(true)
+      expect(store.user?.email).toBe('')
+    })
+
+    it('sets and clears loading state during update', async () => {
+      await store.loginAsStudent('Lintang Utami', '20241012')
+      const promise = store.updateProfile({ nama: 'Lintang Baru' })
+      expect(store.loading).toBe(true)
+      await promise
+      expect(store.loading).toBe(false)
+    })
+  })
 })

@@ -173,6 +173,7 @@ export const useCoursesStore = defineStore('courses', {
     /** All courses (for admin/instructor overview). */
     allCourses(): Course[] {
       const store = useCoursesStore()
+      void store.demoVersion
       return store.isDemoMode ? DEMO_COURSES : store.sbCourses
     },
 
@@ -451,6 +452,148 @@ export const useCoursesStore = defineStore('courses', {
         }
       } catch (err) {
         console.error('Failed to delete lesson:', err)
+      }
+    },
+
+    // ── Admin: Course CRUD ─────────────────────────────────────
+
+    /**
+     * Add a new course (admin).
+     */
+    async addCourse(data: {
+      kode: string
+      nama: string
+      deskripsi: string
+      level: number
+      session_time: 'morning' | 'evening'
+      instructor_id: string
+      color: string
+      icon: string
+    }) {
+      if (this.isDemoMode) {
+        const maxNum = DEMO_COURSES.reduce((max, c) => {
+          const num = parseInt(c.id.replace('c', ''))
+          return num > max ? num : max
+        }, 0)
+        DEMO_COURSES.push({
+          id: `c${maxNum + 1}`,
+          instructor_id: data.instructor_id,
+          kode: data.kode,
+          nama: data.nama,
+          deskripsi: data.deskripsi,
+          level: data.level,
+          session_time: data.session_time,
+          color: data.color,
+          icon: data.icon,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        // Also add instructor enrollment
+        if (!DEMO_ENROLLMENTS[data.instructor_id]) DEMO_ENROLLMENTS[data.instructor_id] = []
+        DEMO_ENROLLMENTS[data.instructor_id].push(`c${maxNum + 1}`)
+        this.demoVersion++
+        return
+      }
+
+      // Production: insert into Supabase
+      try {
+        const supabase = useNuxtApp().$supabase
+        const { data: newCourse } = await supabase
+          .from('courses')
+          .insert({
+            kode: data.kode,
+            nama: data.nama,
+            deskripsi: data.deskripsi,
+            level: data.level,
+            session_time: data.session_time,
+            instructor_id: data.instructor_id,
+            color: data.color,
+            icon: data.icon,
+          })
+          .select()
+          .single()
+
+        if (newCourse) {
+          this.sbCourses.push(newCourse as Course)
+        }
+      } catch (err) {
+        console.error('Failed to add course:', err)
+      }
+    },
+
+    /**
+     * Update an existing course (admin).
+     */
+    async updateCourse(id: string, data: Partial<{
+      kode: string
+      nama: string
+      deskripsi: string
+      level: number
+      session_time: 'morning' | 'evening'
+      instructor_id: string
+      color: string
+      icon: string
+    }>) {
+      if (this.isDemoMode) {
+        const idx = DEMO_COURSES.findIndex((c) => c.id === id)
+        if (idx >= 0) {
+          DEMO_COURSES[idx] = { ...DEMO_COURSES[idx], ...data, updated_at: new Date().toISOString() }
+        }
+        this.demoVersion++
+        return
+      }
+
+      // Production: update in Supabase
+      try {
+        const supabase = useNuxtApp().$supabase
+        await supabase.from('courses').update(data).eq('id', id)
+
+        // Update local cache
+        const idx = this.sbCourses.findIndex((c) => c.id === id)
+        if (idx >= 0) {
+          this.sbCourses[idx] = { ...this.sbCourses[idx], ...data } as Course
+        }
+      } catch (err) {
+        console.error('Failed to update course:', err)
+      }
+    },
+
+    /**
+     * Delete a course (admin).
+     */
+    async deleteCourse(id: string) {
+      if (this.isDemoMode) {
+        const idx = DEMO_COURSES.findIndex((c) => c.id === id)
+        if (idx >= 0) {
+          DEMO_COURSES.splice(idx, 1)
+        }
+        // Clean up enrollments
+        for (const userId in DEMO_ENROLLMENTS) {
+          DEMO_ENROLLMENTS[userId] = DEMO_ENROLLMENTS[userId].filter((cid) => cid !== id)
+        }
+        // Clean up lessons
+        delete DEMO_LESSONS[id]
+        // Clean up progress
+        for (const studentId in DEMO_LESSON_PROGRESS) {
+          DEMO_LESSON_PROGRESS[studentId] = DEMO_LESSON_PROGRESS[studentId].filter(
+            (p) => !DEMO_LESSONS[id]?.some((l) => l.id === p.lesson_id)
+          )
+        }
+        this.demoVersion++
+        return
+      }
+
+      // Production: delete from Supabase
+      try {
+        const supabase = useNuxtApp().$supabase
+        await supabase.from('courses').delete().eq('id', id)
+
+        // Remove from local cache
+        this.sbCourses = this.sbCourses.filter((c) => c.id !== id)
+        this.sbEnrollments = this.sbEnrollments.filter((e) => e.course_id !== id)
+        delete this.sbCourseMap[id]
+      } catch (err) {
+        console.error('Failed to delete course:', err)
       }
     },
   },

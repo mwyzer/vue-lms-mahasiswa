@@ -14,6 +14,7 @@ const navigation = computed(() => [
   { label: 'Tugas', icon: '📝', to: '/admin/assignments' },
   { label: 'Mahasiswa', icon: '👥', to: '/admin/students' },
   { label: 'Instruktur', icon: '👨‍🏫', to: '/admin/instructors' },
+  { label: 'AI Tutor', icon: '🤖', to: '/ai/chat' },
   { label: 'Profil', icon: '👤', to: '/admin/profile' },
 ])
 
@@ -93,6 +94,20 @@ function closeSidebar() {
         <slot />
       </main>
     </div>
+
+    <!-- Bottom Navigation (Mobile) -->
+    <nav class="bottom-nav">
+      <NuxtLink
+        v-for="item in navigation"
+        :key="item.to"
+        :to="item.to"
+        class="bottom-nav-item"
+        :class="{ active: route.path.startsWith(item.to) }"
+      >
+        <span class="bottom-nav-icon">{{ item.icon }}</span>
+        <span class="bottom-nav-label">{{ item.label }}</span>
+      </NuxtLink>
+    </nav>
   </div>
 </template>
 
@@ -316,5 +331,73 @@ function closeSidebar() {
   border-radius: 999px;
   font-size: 0.75rem;
   font-weight: 600;
+}
+
+/* ── Bottom Navigation (Mobile) ── */
+.bottom-nav {
+  display: none;
+}
+
+.bottom-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.125rem;
+  padding: 0.375rem 0.375rem;
+  text-decoration: none;
+  color: var(--color-neutral-500);
+  font-size: 0.625rem;
+  font-weight: 500;
+  transition: color 0.15s ease;
+  flex: 1;
+  min-width: 0;
+}
+
+.bottom-nav-item:hover {
+  color: var(--color-neutral-800);
+  text-decoration: none;
+}
+
+.bottom-nav-item.active {
+  color: var(--color-primary-600);
+}
+
+.bottom-nav-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.bottom-nav-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  font-size: 0.5625rem;
+}
+
+@media (max-width: 767px) {
+  .bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--bg-card, #ffffff);
+    border-top: 1px solid var(--border-color, #e2e8f0);
+    z-index: 100;
+    justify-content: space-around;
+    align-items: stretch;
+    padding: 0.375rem 0;
+    padding-bottom: max(0.375rem, env(safe-area-inset-bottom, 0.375rem));
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.06);
+  }
+
+  .sidebar-nav {
+    display: none;
+  }
+
+  .content {
+    padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+  }
 }
 </style>

@@ -123,7 +123,54 @@ lms-mahasiswa/
 
 ---
 
-## 📦 Build & Deploy
+## � Progress Pengembangan
+
+| # | Fase | Status | Keterangan |
+|---|------|--------|------------|
+| 1 | **Project Setup** | ✅ Selesai | Nuxt 4, TypeScript strict, Pinia, ESLint, CSS global |
+| 2 | **Landing Page & Auth UI** | ✅ Selesai | Hero section, multi-step login (role → level → session → roster) |
+| 3 | **Supabase Database** | ✅ Selesai | 8 tabel, RLS policies, seed data (3 instruktur, 15 mahasiswa, 13 MK) |
+| 4 | **Supabase Auth & Routing** | ✅ Selesai | Auth store, 5 middleware, route guards per role |
+| 5 | **Student Dashboard** | ✅ Selesai | Sidebar, stats cards, course grid, mobile drawer |
+| 6 | **Courses** | ✅ Selesai | List, detail, filter level/session, progress per MK |
+| 7 | **Lesson Progress** | ✅ Selesai | Detail materi, prev/next nav, mark-as-complete |
+| 8 | **Assignments** | ✅ Selesai | List, detail, submission form, grade & feedback |
+| 9 | **Instructor Module** | ✅ Selesai | Dashboard, CRUD materi & tugas, grading submission |
+| 10 | **Profile** | ✅ Selesai | Edit profil (student, instructor, admin) dengan validasi |
+| 11 | **Testing & a11y** | ✅ Selesai | Vitest (119 tests), Playwright E2E (3 flows), a11y audits |
+| 12 | **Deployment** | ✅ Selesai | Vercel live, README, smoke test |
+
+### 🧪 Test Coverage
+
+| Tipe | Teknologi | Jumlah | Status |
+|------|-----------|--------|--------|
+| **Unit Test (Stores)** | Vitest | 74 tests | ✅ Pass |
+| **Unit Test (Components)** | Vitest + Vue Test Utils | 25 tests | ✅ Pass |
+| **E2E (Student Flow)** | Playwright | 1 spec | ✅ Pass |
+| **E2E (Instructor Flow)** | Playwright | 1 spec | ✅ Pass |
+| **E2E (Accessibility)** | Playwright | 8 specs | ✅ Pass |
+
+### 🧩 Reusable Components
+
+| Komponen | Lokasi | Kegunaan |
+|----------|--------|----------|
+| `StatCard` | `app/components/common/StatCard.vue` | Kartu statistik dengan ikon, nilai, dan label |
+| `ProgressBar` | `app/components/common/ProgressBar.vue` | Progress bar dengan persentase |
+| `EmptyState` | `app/components/common/EmptyState.vue` | Tampilan saat data kosong |
+| `SessionBadge` | `app/components/common/SessionBadge.vue` | Badge sesi Pagi/Malam |
+| `PageHeader` | `app/components/common/PageHeader.vue` | Header halaman dengan judul & subtitle |
+
+### 🔑 Demo Login
+
+| Role | Nama | Password |
+|------|------|----------|
+| Mahasiswa | `Ahmad Fauzi` — `20241001` | — (cukup nama+NPM) |
+| Instruktur | `Dr. Andi Wijaya, M.Kom.` | `instruktur123` |
+| Admin | `Admin LMS` | `admin123` |
+
+---
+
+## �📦 Build & Deploy
 
 ```bash
 # Production build

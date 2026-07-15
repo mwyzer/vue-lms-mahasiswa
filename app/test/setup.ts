@@ -9,6 +9,14 @@
  */
 import { vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
+import { reactive, ref, computed, watch, nextTick } from 'vue'
+
+// ── Vue auto-imports (Nuxt provides these as globals) ──
+globalThis.reactive = reactive
+globalThis.ref = ref
+globalThis.computed = computed
+globalThis.watch = watch
+globalThis.nextTick = nextTick
 
 // ── Mock Nuxt auto-imports as globals ──
 // Nuxt auto-imports are available as globals at runtime.

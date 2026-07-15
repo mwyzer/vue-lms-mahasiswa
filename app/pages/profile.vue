@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Student Profile — View profile information.
+ * Student Profile — View and edit profile information.
  */
 definePageMeta({
   layout: 'dashboard',
@@ -8,6 +8,7 @@ definePageMeta({
 })
 
 const auth = useAuthStore()
+const notification = useNotification()
 
 const user = computed(() => auth.user)
 
@@ -15,6 +16,43 @@ const levelLabel = computed(() => `Level ${user.value?.level || '-'}`)
 const sessionLabel = computed(() =>
   user.value?.session_time === 'morning' ? 'Pagi' : (user.value?.session_time === 'evening' ? 'Malam' : '-')
 )
+
+// ── Edit mode ──
+const isEditing = ref(false)
+const editNama = ref('')
+const saving = ref(false)
+
+function startEdit() {
+  editNama.value = user.value?.nama || ''
+  isEditing.value = true
+}
+
+function cancelEdit() {
+  isEditing.value = false
+  editNama.value = ''
+}
+
+async function saveProfile() {
+  if (!editNama.value.trim()) {
+    notification.warning('Nama harus diisi.')
+    return
+  }
+  if (editNama.value.trim().length < 2) {
+    notification.warning('Nama minimal 2 karakter.')
+    return
+  }
+
+  saving.value = true
+  const success = await auth.updateProfile({ nama: editNama.value.trim() })
+
+  if (success) {
+    notification.success('Profil berhasil diperbarui!')
+    isEditing.value = false
+  } else {
+    notification.error(auth.error || 'Gagal menyimpan profil.')
+  }
+  saving.value = false
+}
 
 function formatDate(dateStr?: string | null): string {
   if (!dateStr) return '-'
@@ -27,7 +65,15 @@ function formatDate(dateStr?: string | null): string {
 <template>
   <div class="profile-page">
     <div class="page-header">
-      <h1>Profil</h1>
+      <div>
+        <h1>Profil</h1>
+        <p class="text-muted">Data diri mahasiswa.</p>
+      </div>
+      <div v-if="!isEditing">
+        <button class="btn btn-primary btn-sm" @click="startEdit">
+          ✏️ Edit Profil
+        </button>
+      </div>
     </div>
 
     <div v-if="!user" class="empty-state card">
@@ -47,7 +93,8 @@ function formatDate(dateStr?: string | null): string {
           </div>
         </div>
 
-        <div class="profile-details">
+        <!-- View mode -->
+        <div v-if="!isEditing" class="profile-details">
           <div class="detail-row">
             <span class="detail-label">NPM</span>
             <span class="detail-value">{{ user.npm || '-' }}</span>
@@ -67,6 +114,60 @@ function formatDate(dateStr?: string | null): string {
           <div class="detail-row">
             <span class="detail-label">Bergabung</span>
             <span class="detail-value">{{ formatDate(user.created_at) }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Mode</span>
+            <span class="detail-value">
+              <span :class="auth.isDemoMode ? 'badge badge-warning' : 'badge badge-success'">
+                {{ auth.isDemoMode ? 'Demo' : 'Production' }}
+              </span>
+            </span>
+          </div>
+        </div>
+
+        <!-- Edit mode -->
+        <div v-else class="profile-edit-form">
+          <div class="form-group">
+            <label class="form-label" for="edit-nama">Nama Lengkap</label>
+            <input
+              id="edit-nama"
+              v-model="editNama"
+              type="text"
+              class="form-input"
+              placeholder="Masukkan nama lengkap"
+              :disabled="saving"
+              @keyup.enter="saveProfile"
+            />
+            <p class="form-hint">Minimal 2 karakter.</p>
+          </div>
+
+          <!-- Read-only fields shown for reference -->
+          <div class="form-readonly">
+            <div class="readonly-row">
+              <span class="readonly-label">NPM</span>
+              <span class="readonly-value">{{ user.npm || '-' }}</span>
+            </div>
+            <div class="readonly-row">
+              <span class="readonly-label">Kelas</span>
+              <span class="readonly-value">{{ user.kelas || '-' }}</span>
+            </div>
+            <div class="readonly-row">
+              <span class="readonly-label">Level</span>
+              <span class="readonly-value">{{ levelLabel }}</span>
+            </div>
+            <div class="readonly-row">
+              <span class="readonly-label">Sesi</span>
+              <span class="readonly-value">{{ sessionLabel }}</span>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button class="btn btn-ghost" :disabled="saving" @click="cancelEdit">
+              Batal
+            </button>
+            <button class="btn btn-primary" :disabled="saving" @click="saveProfile">
+              {{ saving ? 'Menyimpan...' : 'Simpan' }}
+            </button>
           </div>
         </div>
       </div>

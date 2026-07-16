@@ -534,9 +534,11 @@ export const useAuthStore = defineStore('auth', {
       if (!this.isDemoMode) {
         try {
           const supabase = useNuxtApp().$supabase
+          const newId = crypto.randomUUID()
           const { data: newProfile, error } = await supabase
             .from('profiles')
             .insert({
+              id: newId,
               role: 'student',
               nama: data.nama,
               npm: data.npm,
@@ -697,9 +699,11 @@ export const useAuthStore = defineStore('auth', {
       if (!this.isDemoMode) {
         try {
           const supabase = useNuxtApp().$supabase
+          const newId = crypto.randomUUID()
           const { data: newProfile, error } = await supabase
             .from('profiles')
             .insert({
+              id: newId,
               role: 'instructor',
               nama: data.nama,
               email: data.email || null,

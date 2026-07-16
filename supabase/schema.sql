@@ -18,6 +18,7 @@ CREATE TABLE profiles (
   session_time VARCHAR(10) CHECK (session_time IN ('morning', 'evening')), -- only for students
   email VARCHAR(255) UNIQUE,                 -- only for instructors
   avatar_url TEXT,
+  is_demo BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

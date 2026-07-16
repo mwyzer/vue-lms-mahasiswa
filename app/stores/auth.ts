@@ -218,6 +218,15 @@ export const useAuthStore = defineStore('auth', {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }
+
+      // Load saved avatar from localStorage (demo mode)
+      if (this.isDemoMode) {
+        try {
+          const saved = localStorage.getItem(`lms_avatar_${match.id}`)
+          if (saved) this.user.avatar_url = saved
+        } catch { /* ignore */ }
+      }
+
       this.role = 'student'
       this.loading = false
 
@@ -267,6 +276,15 @@ export const useAuthStore = defineStore('auth', {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }
+
+      // Load saved avatar from localStorage (demo mode)
+      if (this.isDemoMode) {
+        try {
+          const saved = localStorage.getItem(`lms_avatar_${match.id}`)
+          if (saved) this.user.avatar_url = saved
+        } catch { /* ignore */ }
+      }
+
       this.role = 'instructor'
       this.loading = false
 
@@ -313,6 +331,14 @@ export const useAuthStore = defineStore('auth', {
         email: match.email,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
+      }
+
+      // Load saved avatar from localStorage (demo mode)
+      if (this.isDemoMode) {
+        try {
+          const saved = localStorage.getItem(`lms_avatar_${match.id}`)
+          if (saved) this.user.avatar_url = saved
+        } catch { /* ignore */ }
       }
       this.role = 'admin'
       this.loading = false
@@ -448,6 +474,15 @@ export const useAuthStore = defineStore('auth', {
       if (data.email !== undefined) this.user.email = data.email
       if (data.avatar_url !== undefined) this.user.avatar_url = data.avatar_url
       this.user.updated_at = new Date().toISOString()
+
+      // Persist avatar to localStorage in demo mode for cross-session retention
+      if (this.isDemoMode && data.avatar_url !== undefined && this.user?.id) {
+        try {
+          localStorage.setItem(`lms_avatar_${this.user.id}`, data.avatar_url || '')
+        } catch {
+          // localStorage may be full or unavailable
+        }
+      }
 
       this.loading = false
       return true

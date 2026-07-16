@@ -22,6 +22,68 @@ const isEditing = ref(false)
 const editNama = ref('')
 const saving = ref(false)
 
+// ── Photo upload ──
+const fileInput = ref<HTMLInputElement>()
+const uploadingPhoto = ref(false)
+
+function triggerPhotoUpload() {
+  fileInput.value?.click()
+}
+
+async function handlePhotoSelected(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  // Validate file type
+  if (!file.type.startsWith('image/')) {
+    notification.warning('Hanya file gambar yang diizinkan.')
+    return
+  }
+
+  // Validate size (max 2MB)
+  if (file.size > 2 * 1024 * 1024) {
+    notification.warning('Ukuran foto maksimal 2MB.')
+    return
+  }
+
+  uploadingPhoto.value = true
+  try {
+    const base64 = await fileToBase64(file)
+    const success = await auth.updateProfile({ avatar_url: base64 })
+    if (success) {
+      notification.success('Foto profil berhasil diperbarui!')
+    } else {
+      notification.error(auth.error || 'Gagal menyimpan foto.')
+    }
+  } catch {
+    notification.error('Gagal membaca file gambar.')
+  }
+  uploadingPhoto.value = false
+  // Reset so re-selecting same file triggers change
+  input.value = ''
+}
+
+async function removePhoto() {
+  uploadingPhoto.value = true
+  const success = await auth.updateProfile({ avatar_url: null })
+  if (success) {
+    notification.success('Foto profil berhasil dihapus.')
+  } else {
+    notification.error(auth.error || 'Gagal menghapus foto.')
+  }
+  uploadingPhoto.value = false
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
 function startEdit() {
   editNama.value = user.value?.nama || ''
   isEditing.value = true
@@ -84,12 +146,27 @@ function formatDate(dateStr?: string | null): string {
       <!-- Profile card -->
       <div class="card profile-card">
         <div class="profile-avatar-section">
-          <div class="profile-avatar">
-            {{ user.nama?.charAt(0) || '?' }}
+          <div class="profile-avatar" :class="{ 'has-photo': user.avatar_url }" @click="triggerPhotoUpload">
+            <img v-if="user.avatar_url" :src="user.avatar_url" :alt="user.nama" class="avatar-img" />
+            <span v-else>{{ user.nama?.charAt(0) || '?' }}</span>
+            <div class="avatar-overlay">
+              <span v-if="uploadingPhoto" class="avatar-spinner"></span>
+              <span v-else>📷</span>
+            </div>
           </div>
+          <input
+            ref="fileInput"
+            type="file"
+            accept="image/*"
+            class="hidden-input"
+            @change="handlePhotoSelected"
+          />
           <div class="profile-name-section">
             <h2>{{ user.nama }}</h2>
             <span class="badge badge-primary">Mahasiswa</span>
+            <button v-if="user.avatar_url" class="btn btn-ghost btn-xs photo-remove-btn" @click.stop="removePhoto">
+              Hapus Foto
+            </button>
           </div>
         </div>
 
@@ -278,5 +355,60 @@ function formatDate(dateStr?: string | null): string {
   text-align: center;
   padding: 2rem;
   color: var(--color-neutral-500);
+}
+
+/* ── Photo upload ── */
+.profile-avatar {
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.avatar-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s;
+  font-size: 1.25rem;
+}
+
+.profile-avatar:hover .avatar-overlay {
+  opacity: 1;
+}
+
+.hidden-input {
+  display: none;
+}
+
+.photo-remove-btn {
+  font-size: 0.75rem;
+  padding: 0.125rem 0.375rem;
+  margin-top: 0.25rem;
+  color: var(--color-danger, #ef4444);
+}
+
+.avatar-spinner {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 </style>

@@ -13,6 +13,7 @@ const navigation = computed(() => [
   { label: 'Mata Kuliah', icon: '📖', to: '/courses' },
   { label: 'Tugas', icon: '📝', to: '/assignments' },
   { label: 'AI Tutor', icon: '🤖', to: '/ai/chat' },
+  { label: 'Python', icon: '🐍', to: '/playground' },
   { label: 'Profil', icon: '👤', to: '/profile' }
 ])
 
@@ -61,7 +62,10 @@ function closeSidebar() {
 
       <div class="sidebar-footer">
         <div class="user-info">
-          <span class="user-avatar">{{ auth.user?.nama?.charAt(0) || '?' }}</span>
+          <span class="user-avatar">
+            <img v-if="auth.user?.avatar_url" :src="auth.user.avatar_url" :alt="auth.user.nama" class="avatar-img" />
+            <span v-else>{{ auth.user?.nama?.charAt(0) || '?' }}</span>
+          </span>
           <div class="user-details">
             <span class="user-name">{{ auth.user?.nama || 'Pengguna' }}</span>
             <span class="user-role">Mahasiswa</span>
@@ -216,6 +220,15 @@ function closeSidebar() {
   justify-content: center;
   font-weight: 700;
   font-size: 0.875rem;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
 }
 
 .user-details {

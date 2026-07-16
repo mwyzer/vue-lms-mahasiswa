@@ -24,6 +24,7 @@ const saving = ref(false)
 const formNama = ref('')
 const formEmail = ref('')
 const formPassword = ref('')
+const showPassword = ref(false)
 const formAvatarUrl = ref('')
 
 function openAddForm() {
@@ -49,7 +50,7 @@ function cancelForm() {
   editingId.value = null
 }
 
-function saveInstructor() {
+async function saveInstructor() {
   if (!formNama.value.trim()) {
     notification.warning('Nama instruktur harus diisi.')
     return
@@ -60,34 +61,48 @@ function saveInstructor() {
   }
 
   saving.value = true
-  setTimeout(() => {
+  try {
     if (editingId.value) {
       const data: any = { nama: formNama.value.trim(), email: formEmail.value.trim() }
       if (formPassword.value.trim()) {
         data.password = formPassword.value.trim()
       }
       data.avatar_url = formAvatarUrl.value.trim() || null
-      auth.updateInstructor(editingId.value, data)
+      const ok = await auth.updateInstructor(editingId.value, data)
+      if (!ok) {
+        notification.error(auth.error || 'Gagal memperbarui data instruktur.')
+        return
+      }
       notification.success('Data instruktur berhasil diperbarui!')
     } else {
-      auth.addInstructor({
+      const ok = await auth.addInstructor({
         nama: formNama.value.trim(),
         email: formEmail.value.trim(),
         password: formPassword.value.trim(),
         avatar_url: formAvatarUrl.value.trim() || undefined,
       })
+      if (!ok) {
+        notification.error(auth.error || 'Gagal menambahkan instruktur.')
+        return
+      }
       notification.success('Instruktur berhasil ditambahkan!')
     }
     showForm.value = false
     editingId.value = null
+  } catch {
+    notification.error('Terjadi kesalahan saat menyimpan data.')
+  } finally {
     saving.value = false
-  }, 200)
+  }
 }
 
-function confirmDelete(inst: any) {
-  if (confirm(`Hapus instruktur "${inst.nama}"?`)) {
-    auth.deleteInstructor(inst.id)
+async function confirmDelete(inst: any) {
+  if (!confirm(`Hapus instruktur "${inst.nama}"?`)) return
+  const ok = await auth.deleteInstructor(inst.id)
+  if (ok) {
     notification.success('Instruktur berhasil dihapus.')
+  } else {
+    notification.error(auth.error || 'Gagal menghapus instruktur.')
   }
 }
 </script>
@@ -119,7 +134,12 @@ function confirmDelete(inst: any) {
         <label class="form-label">
           {{ editingId ? 'Password Baru (kosongkan jika tidak diubah)' : 'Password' }}
         </label>
-        <input v-model="formPassword" type="password" class="form-input" placeholder="Minimal 6 karakter" />
+        <div class="password-wrapper">
+          <input v-model="formPassword" :type="showPassword ? 'text' : 'password'" class="form-input" placeholder="Minimal 6 karakter" />
+          <button type="button" class="password-toggle" @click="showPassword = !showPassword" :title="showPassword ? 'Sembunyikan password' : 'Tampilkan password'">
+            {{ showPassword ? '🙈' : '👁️' }}
+          </button>
+        </div>
       </div>
       <div class="form-group">
         <label class="form-label">Foto Profile (URL)</label>

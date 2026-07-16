@@ -47,7 +47,21 @@ const DEMO_ADMINS: AdminEntry[] = [
 ]
 
 const DEMO_STUDENT_PASSWORDS: Record<string, string> = {
-  // Default empty — students log in with name+NPM
+  's1': 'mahasiswa123',
+  's2': 'mahasiswa123',
+  's3': 'mahasiswa123',
+  's4': 'mahasiswa123',
+  's5': 'mahasiswa123',
+  's6': 'mahasiswa123',
+  's7': 'mahasiswa123',
+  's8': 'mahasiswa123',
+  's9': 'mahasiswa123',
+  's10': 'mahasiswa123',
+  's11': 'mahasiswa123',
+  's12': 'mahasiswa123',
+  's13': 'mahasiswa123',
+  's14': 'mahasiswa123',
+  's15': 'mahasiswa123',
 }
 
 const DEMO_ADMIN_PASSWORDS: Record<string, string> = {
@@ -186,8 +200,10 @@ export const useAuthStore = defineStore('auth', {
 
     /**
      * Login as a student using name+NPM from the roster.
+     * In production mode, password is verified server-side via Supabase.
+     * In demo mode, password is checked against DEMO_STUDENT_PASSWORDS.
      */
-    async loginAsStudent(nama: string, npm: string): Promise<boolean> {
+    async loginAsStudent(nama: string, npm: string, password?: string): Promise<boolean> {
       this.loading = true
       this.error = null
 
@@ -205,6 +221,16 @@ export const useAuthStore = defineStore('auth', {
         this.error = 'Nama atau NPM tidak ditemukan. Silakan cek kembali.'
         this.loading = false
         return false
+      }
+
+      // Verify password (in demo mode — production uses Supabase Auth)
+      if (this.isDemoMode) {
+        const expectedPassword = DEMO_STUDENT_PASSWORDS[match.id]
+        if (expectedPassword && password !== expectedPassword) {
+          this.error = 'Password salah. Silakan coba kembali.'
+          this.loading = false
+          return false
+        }
       }
 
       this.user = {
@@ -495,15 +521,49 @@ export const useAuthStore = defineStore('auth', {
       this.error = null
     },
 
-    // ── Admin: Student CRUD (Demo Mode) ──
+    // ── Admin: Student CRUD ──
 
     /**
      * Add a new student (admin).
+     * Works in both demo mode (local state) and production mode (Supabase).
      */
-    addStudent(data: { nama: string; npm: string; kelas: string; level: number; session_time: 'morning' | 'evening'; password?: string; avatar_url?: string }) {
-      if (!this.isDemoMode) return
+    async addStudent(data: { nama: string; npm: string; kelas: string; level: number; session_time: 'morning' | 'evening'; password?: string; avatar_url?: string }): Promise<boolean> {
+      this.error = null
 
-      // Generate unique ID
+      // Production mode — insert via Supabase
+      if (!this.isDemoMode) {
+        try {
+          const supabase = useNuxtApp().$supabase
+          const { data: newProfile, error } = await supabase
+            .from('profiles')
+            .insert({
+              role: 'student',
+              nama: data.nama,
+              npm: data.npm,
+              kelas: data.kelas,
+              level: data.level,
+              session_time: data.session_time,
+              avatar_url: data.avatar_url || null,
+            })
+            .select()
+            .single()
+
+          if (error) {
+            this.error = 'Gagal menambahkan mahasiswa: ' + error.message
+            return false
+          }
+
+          // Add to local state for immediate UI update
+          this.students.push(newProfile as StudentRosterEntry)
+          this.demoVersion++
+          return true
+        } catch (err: any) {
+          this.error = 'Terjadi kesalahan: ' + (err.message || 'Unknown error')
+          return false
+        }
+      }
+
+      // Demo mode — local state only
       const existingIds = DEMO_STUDENTS.map((s) => {
         const num = parseInt(s.id.replace('s', ''), 10)
         return isNaN(num) ? 0 : num
@@ -524,14 +584,52 @@ export const useAuthStore = defineStore('auth', {
         DEMO_STUDENT_PASSWORDS[id] = data.password
       }
       this.demoVersion++
+      return true
     },
 
     /**
      * Update an existing student (admin).
+     * Works in both demo mode (local state) and production mode (Supabase).
      */
-    updateStudent(id: string, data: Partial<{ nama: string; npm: string; kelas: string; level: number; session_time: 'morning' | 'evening'; password: string; avatar_url: string }>) {
-      if (!this.isDemoMode) return
+    async updateStudent(id: string, data: Partial<{ nama: string; npm: string; kelas: string; level: number; session_time: 'morning' | 'evening'; password: string; avatar_url: string }>): Promise<boolean> {
+      this.error = null
 
+      // Production mode — update via Supabase
+      if (!this.isDemoMode) {
+        try {
+          const supabase = useNuxtApp().$supabase
+          const payload: Record<string, any> = { updated_at: new Date().toISOString() }
+          if (data.nama !== undefined) payload.nama = data.nama
+          if (data.npm !== undefined) payload.npm = data.npm
+          if (data.kelas !== undefined) payload.kelas = data.kelas
+          if (data.level !== undefined) payload.level = data.level
+          if (data.session_time !== undefined) payload.session_time = data.session_time
+          if (data.avatar_url !== undefined) payload.avatar_url = data.avatar_url
+
+          const { error } = await supabase
+            .from('profiles')
+            .update(payload)
+            .eq('id', id)
+
+          if (error) {
+            this.error = 'Gagal memperbarui mahasiswa: ' + error.message
+            return false
+          }
+
+          // Update local state
+          const idx = this.students.findIndex((s) => s.id === id)
+          if (idx >= 0) {
+            this.students[idx] = { ...this.students[idx], ...data }
+          }
+          this.demoVersion++
+          return true
+        } catch (err: any) {
+          this.error = 'Terjadi kesalahan: ' + (err.message || 'Unknown error')
+          return false
+        }
+      }
+
+      // Demo mode — local state only
       const idx = DEMO_STUDENTS.findIndex((s) => s.id === id)
       if (idx >= 0) {
         DEMO_STUDENTS[idx] = { ...DEMO_STUDENTS[idx], ...data }
@@ -540,30 +638,92 @@ export const useAuthStore = defineStore('auth', {
         }
         this.demoVersion++
       }
+      return true
     },
 
     /**
      * Delete a student (admin).
+     * Works in both demo mode (local state) and production mode (Supabase).
      */
-    deleteStudent(id: string) {
-      if (!this.isDemoMode) return
+    async deleteStudent(id: string): Promise<boolean> {
+      this.error = null
 
+      // Production mode — delete via Supabase
+      if (!this.isDemoMode) {
+        try {
+          const supabase = useNuxtApp().$supabase
+          const { error } = await supabase
+            .from('profiles')
+            .delete()
+            .eq('id', id)
+
+          if (error) {
+            this.error = 'Gagal menghapus mahasiswa: ' + error.message
+            return false
+          }
+
+          // Remove from local state
+          const idx = this.students.findIndex((s) => s.id === id)
+          if (idx >= 0) {
+            this.students.splice(idx, 1)
+          }
+          this.demoVersion++
+          return true
+        } catch (err: any) {
+          this.error = 'Terjadi kesalahan: ' + (err.message || 'Unknown error')
+          return false
+        }
+      }
+
+      // Demo mode — local state only
       const idx = DEMO_STUDENTS.findIndex((s) => s.id === id)
       if (idx >= 0) {
         DEMO_STUDENTS.splice(idx, 1)
         this.demoVersion++
       }
+      return true
     },
 
-    // ── Admin: Instructor CRUD (Demo Mode) ──
+    // ── Admin: Instructor CRUD ──
 
     /**
      * Add a new instructor (admin).
+     * Works in both demo mode (local state) and production mode (Supabase).
      */
-    addInstructor(data: { nama: string; email: string; password: string; avatar_url?: string }) {
-      if (!this.isDemoMode) return
+    async addInstructor(data: { nama: string; email: string; password: string; avatar_url?: string }): Promise<boolean> {
+      this.error = null
 
-      // Generate unique ID
+      // Production mode — insert via Supabase
+      if (!this.isDemoMode) {
+        try {
+          const supabase = useNuxtApp().$supabase
+          const { data: newProfile, error } = await supabase
+            .from('profiles')
+            .insert({
+              role: 'instructor',
+              nama: data.nama,
+              email: data.email || null,
+              avatar_url: data.avatar_url || null,
+            })
+            .select()
+            .single()
+
+          if (error) {
+            this.error = 'Gagal menambahkan instruktur: ' + error.message
+            return false
+          }
+
+          // Add to local state for immediate UI update
+          this.instructors.push(newProfile as unknown as InstructorEntry)
+          this.demoVersion++
+          return true
+        } catch (err: any) {
+          this.error = 'Terjadi kesalahan: ' + (err.message || 'Unknown error')
+          return false
+        }
+      }
+
+      // Demo mode — local state only
       const existingIds = DEMO_INSTRUCTORS.map((i) => {
         const num = parseInt(i.id.replace('i', ''), 10)
         return isNaN(num) ? 0 : num
@@ -579,14 +739,51 @@ export const useAuthStore = defineStore('auth', {
       })
       DEMO_INSTRUCTOR_PASSWORDS[id] = data.password || 'instruktur123'
       this.demoVersion++
+      return true
     },
 
     /**
      * Update an existing instructor (admin).
+     * Works in both demo mode (local state) and production mode (Supabase).
      */
-    updateInstructor(id: string, data: Partial<{ nama: string; email: string; password: string; avatar_url: string }>) {
-      if (!this.isDemoMode) return
+    async updateInstructor(id: string, data: Partial<{ nama: string; email: string; password: string; avatar_url: string }>): Promise<boolean> {
+      this.error = null
 
+      // Production mode — update via Supabase
+      if (!this.isDemoMode) {
+        try {
+          const supabase = useNuxtApp().$supabase
+          const payload: Record<string, any> = { updated_at: new Date().toISOString() }
+          if (data.nama !== undefined) payload.nama = data.nama
+          if (data.email !== undefined) payload.email = data.email
+          if (data.avatar_url !== undefined) payload.avatar_url = data.avatar_url
+
+          const { error } = await supabase
+            .from('profiles')
+            .update(payload)
+            .eq('id', id)
+
+          if (error) {
+            this.error = 'Gagal memperbarui instruktur: ' + error.message
+            return false
+          }
+
+          // Update local state
+          const idx = this.instructors.findIndex((i) => i.id === id)
+          if (idx >= 0) {
+            if (data.nama !== undefined) this.instructors[idx].nama = data.nama
+            if (data.email !== undefined) this.instructors[idx].email = data.email
+            if (data.avatar_url !== undefined) this.instructors[idx].avatar_url = data.avatar_url
+          }
+          this.demoVersion++
+          return true
+        } catch (err: any) {
+          this.error = 'Terjadi kesalahan: ' + (err.message || 'Unknown error')
+          return false
+        }
+      }
+
+      // Demo mode — local state only
       const idx = DEMO_INSTRUCTORS.findIndex((i) => i.id === id)
       if (idx >= 0) {
         if (data.nama !== undefined) DEMO_INSTRUCTORS[idx].nama = data.nama
@@ -595,20 +792,51 @@ export const useAuthStore = defineStore('auth', {
         if (data.password !== undefined) DEMO_INSTRUCTOR_PASSWORDS[id] = data.password
         this.demoVersion++
       }
+      return true
     },
 
     /**
      * Delete an instructor (admin).
+     * Works in both demo mode (local state) and production mode (Supabase).
      */
-    deleteInstructor(id: string) {
-      if (!this.isDemoMode) return
+    async deleteInstructor(id: string): Promise<boolean> {
+      this.error = null
 
+      // Production mode — delete via Supabase
+      if (!this.isDemoMode) {
+        try {
+          const supabase = useNuxtApp().$supabase
+          const { error } = await supabase
+            .from('profiles')
+            .delete()
+            .eq('id', id)
+
+          if (error) {
+            this.error = 'Gagal menghapus instruktur: ' + error.message
+            return false
+          }
+
+          // Remove from local state
+          const idx = this.instructors.findIndex((i) => i.id === id)
+          if (idx >= 0) {
+            this.instructors.splice(idx, 1)
+          }
+          this.demoVersion++
+          return true
+        } catch (err: any) {
+          this.error = 'Terjadi kesalahan: ' + (err.message || 'Unknown error')
+          return false
+        }
+      }
+
+      // Demo mode — local state only
       const idx = DEMO_INSTRUCTORS.findIndex((i) => i.id === id)
       if (idx >= 0) {
         DEMO_INSTRUCTORS.splice(idx, 1)
         delete DEMO_INSTRUCTOR_PASSWORDS[id]
         this.demoVersion++
       }
+      return true
     },
   },
 })

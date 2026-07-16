@@ -23,7 +23,9 @@
 - **Profil** — Lihat data diri
 
 ### 🔧 Fitur Teknis
-- Login role-based (Mahasiswa via Nama+NPM, Instruktur via Nama+Password)
+- Login role-based (Mahasiswa via Nama+NPM+Password, Instruktur via Nama+Password, Admin via Password)
+- Show/hide toggle 👁️ pada semua field password
+- Admin CRUD Mahasiswa & Instruktur (Demo mode + Supabase production)
 - 4 Level kelas (1–4) dengan sesi Pagi & Malam
 - **Demo Mode** — Bisa dijalankan tanpa Supabase (data bawaan)
 - Responsive design (desktop & mobile)
@@ -75,6 +77,7 @@ Tanpa konfigurasi apapun, aplikasi berjalan dalam **Demo Mode** dengan data bawa
 2. Pilih **Level** (1–4)
 3. Pilih sesi **Pagi** atau **Malam**
 4. Klik nama dari daftar (contoh: `Ahmad Fauzi` — `20241001`)
+5. Masukkan password: `mahasiswa123`
 
 **Login Instruktur:**
 1. Pilih role **Instruktur**
@@ -164,7 +167,7 @@ lms-mahasiswa/
 
 | Role | Nama | Password |
 |------|------|----------|
-| Mahasiswa | `Ahmad Fauzi` — `20241001` | — (cukup nama+NPM) |
+| Mahasiswa | `Ahmad Fauzi` — `20241001` | `mahasiswa123` |
 | Instruktur | `Dr. Andi Wijaya, M.Kom.` | `instruktur123` |
 | Admin | `Admin LMS` | `admin123` |
 
@@ -199,6 +202,24 @@ Untuk deploy ulang atau fork:
 
 ---
 
-## 📄 Lisensi
+## � Changelog
+
+### v1.1.0 — Password Security & Admin CRUD Supabase
+
+| Perubahan | Detail |
+|-----------|--------|
+| **🔐 Password Student Login** | Mahasiswa sekarang wajib memasukkan password setelah memilih nama dari roster |
+| **👁️ Show/Hide Password Toggle** | Semua field password di app (login & admin forms) punya toggle tampilkan/sembunyikan |
+| **🛠️ Admin CRUD Supabase** | `addStudent`, `updateStudent`, `deleteStudent`, `addInstructor`, `updateInstructor`, `deleteInstructor` kini support **demo mode + Supabase production** |
+| **✅ Error Handling** | Save/delete operations menampilkan notifikasi error jika gagal (bukan hanya sukses) |
+
+**Demo Password:**
+- Student: `mahasiswa123`
+- Instructor: `instruktur123`
+- Admin: `admin123`
+
+---
+
+## �📄 Lisensi
 
 MIT © 2026

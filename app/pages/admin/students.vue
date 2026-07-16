@@ -43,6 +43,7 @@ const formKelas = ref('')
 const formLevel = ref<number>(1)
 const formSession = ref<'morning' | 'evening'>('morning')
 const formPassword = ref('')
+const showPassword = ref(false)
 const formAvatarUrl = ref('')
 
 function openAddForm() {
@@ -74,7 +75,7 @@ function cancelForm() {
   editingId.value = null
 }
 
-function saveStudent() {
+async function saveStudent() {
   if (!formNama.value.trim()) {
     notification.warning('Nama mahasiswa harus diisi.')
     return
@@ -89,7 +90,7 @@ function saveStudent() {
   }
 
   saving.value = true
-  setTimeout(() => {
+  try {
     if (editingId.value) {
       const data: any = {
         nama: formNama.value.trim(),
@@ -102,10 +103,14 @@ function saveStudent() {
         data.password = formPassword.value.trim()
       }
       data.avatar_url = formAvatarUrl.value.trim() || null
-      auth.updateStudent(editingId.value, data)
+      const ok = await auth.updateStudent(editingId.value, data)
+      if (!ok) {
+        notification.error(auth.error || 'Gagal memperbarui data mahasiswa.')
+        return
+      }
       notification.success('Data mahasiswa berhasil diperbarui!')
     } else {
-      auth.addStudent({
+      const ok = await auth.addStudent({
         nama: formNama.value.trim(),
         npm: formNpm.value.trim(),
         kelas: formKelas.value.trim(),
@@ -114,18 +119,28 @@ function saveStudent() {
         password: formPassword.value.trim() || undefined,
         avatar_url: formAvatarUrl.value.trim() || undefined,
       })
+      if (!ok) {
+        notification.error(auth.error || 'Gagal menambahkan mahasiswa.')
+        return
+      }
       notification.success('Mahasiswa berhasil ditambahkan!')
     }
     showForm.value = false
     editingId.value = null
+  } catch {
+    notification.error('Terjadi kesalahan saat menyimpan data.')
+  } finally {
     saving.value = false
-  }, 200)
+  }
 }
 
-function confirmDelete(s: any) {
-  if (confirm(`Hapus mahasiswa "${s.nama}" (${s.npm})?`)) {
-    auth.deleteStudent(s.id)
+async function confirmDelete(s: any) {
+  if (!confirm(`Hapus mahasiswa "${s.nama}" (${s.npm})?`)) return
+  const ok = await auth.deleteStudent(s.id)
+  if (ok) {
     notification.success('Mahasiswa berhasil dihapus.')
+  } else {
+    notification.error(auth.error || 'Gagal menghapus mahasiswa.')
   }
 }
 </script>
@@ -159,7 +174,12 @@ function confirmDelete(s: any) {
       </div>
       <div class="form-group">
         <label class="form-label">{{ editingId ? 'Password Baru (kosongkan jika tidak diubah)' : 'Password' }}</label>
-        <input v-model="formPassword" type="password" class="form-input" placeholder="Minimal 6 karakter" />
+        <div class="password-wrapper">
+          <input v-model="formPassword" :type="showPassword ? 'text' : 'password'" class="form-input" placeholder="Minimal 6 karakter" />
+          <button type="button" class="password-toggle" @click="showPassword = !showPassword" :title="showPassword ? 'Sembunyikan password' : 'Tampilkan password'">
+            {{ showPassword ? '🙈' : '👁️' }}
+          </button>
+        </div>
       </div>
       <div class="form-group">
         <label class="form-label">Foto Profile (URL)</label>

@@ -4,7 +4,7 @@
  *
  * Flow:
  *   1. Choose role (Student / Instructor / Administrator)
- *   2a. Student → Choose Level → Choose Session → Pick name+NPM from roster
+ *   2a. Student → Choose Level → Choose Session → Pick name+NPM from roster → Enter password
  *   2b. Instructor → Pick name from list → Enter password
  *   2c. Administrator → Enter password
  */
@@ -22,13 +22,20 @@ onMounted(() => {
 })
 
 // ── Step management ──
-const step = ref<'role' | 'level' | 'session' | 'roster' | 'instructor-list' | 'instructor-password' | 'admin-password'>('role')
+const step = ref<'role' | 'level' | 'session' | 'roster' | 'student-password' | 'instructor-list' | 'instructor-password' | 'admin-password'>('role')
 const selectedRole = ref<'student' | 'instructor' | 'admin' | null>(null)
 const selectedLevel = ref<number | null>(null)
 const selectedSession = ref<'morning' | 'evening' | null>(null)
 const selectedInstructorId = ref<string | null>(null)
 const instructorPassword = ref('')
+const showInstructorPassword = ref(false)
 const adminPassword = ref('')
+const showAdminPassword = ref(false)
+const selectedStudentId = ref<string | null>(null)
+const selectedStudentNama = ref('')
+const selectedStudentNpm = ref('')
+const studentPassword = ref('')
+const showStudentPassword = ref(false)
 const loginError = ref('')
 const isLoggingIn = ref(false)
 
@@ -92,12 +99,12 @@ function selectInstructor(id: string) {
   step.value = 'instructor-password'
 }
 
-async function loginAsStudent(studentId: string, nama: string, npm: string) {
+async function loginAsStudent(nama: string, npm: string, password?: string) {
   loginError.value = ''
   isLoggingIn.value = true
 
   try {
-    const success = await auth.loginAsStudent(nama, npm)
+    const success = await auth.loginAsStudent(nama, npm, password)
     if (success) {
       router.push('/dashboard')
     } else {
@@ -108,6 +115,24 @@ async function loginAsStudent(studentId: string, nama: string, npm: string) {
   } finally {
     isLoggingIn.value = false
   }
+}
+
+function selectStudent(id: string, nama: string, npm: string) {
+  selectedStudentId.value = id
+  selectedStudentNama.value = nama
+  selectedStudentNpm.value = npm
+  studentPassword.value = ''
+  loginError.value = ''
+  step.value = 'student-password'
+}
+
+async function loginAsStudentWithPassword() {
+  if (!studentPassword.value) {
+    loginError.value = 'Silakan masukkan password.'
+    return
+  }
+
+  await loginAsStudent(selectedStudentNama.value, selectedStudentNpm.value, studentPassword.value)
 }
 
 async function loginAsInstructor() {
@@ -171,6 +196,7 @@ function goBack() {
   if (step.value === 'level') { step.value = 'role'; selectedRole.value = null }
   else if (step.value === 'session') { step.value = 'level'; selectedLevel.value = null }
   else if (step.value === 'roster') { step.value = 'session'; selectedSession.value = null }
+  else if (step.value === 'student-password') { step.value = 'roster'; selectedStudentId.value = null; selectedStudentNama.value = ''; selectedStudentNpm.value = ''; studentPassword.value = '' }
   else if (step.value === 'instructor-list') { step.value = 'role'; selectedRole.value = null }
   else if (step.value === 'instructor-password') { step.value = 'instructor-list'; selectedInstructorId.value = null; instructorPassword.value = '' }
   else if (step.value === 'admin-password') { step.value = 'role'; selectedRole.value = null; adminPassword.value = '' }
@@ -184,6 +210,10 @@ function resetLogin() {
   selectedInstructorId.value = null
   instructorPassword.value = ''
   adminPassword.value = ''
+  selectedStudentId.value = null
+  selectedStudentNama.value = ''
+  selectedStudentNpm.value = ''
+  studentPassword.value = ''
   loginError.value = ''
 }
 </script>
@@ -293,7 +323,7 @@ function resetLogin() {
               v-for="student in filteredStudents"
               :key="student.id"
               class="roster-item"
-              @click="loginAsStudent(student.id, student.nama, student.npm)"
+              @click="selectStudent(student.id, student.nama, student.npm)"
             >
               <span class="roster-avatar">{{ student.nama.charAt(0) }}</span>
               <div class="roster-info">
@@ -309,6 +339,45 @@ function resetLogin() {
               </button>
             </div>
           </div>
+        </template>
+
+        <!-- ══════ STEP 5a: Student Password ══════ -->
+        <template v-if="step === 'student-password'">
+          <div class="login-header">
+            <div class="login-icon">🔑</div>
+            <h1>Selamat datang,</h1>
+            <p class="instructor-greeting">{{ selectedStudentNama }}</p>
+          </div>
+
+          <form class="password-form" @submit.prevent="loginAsStudentWithPassword">
+            <div class="form-group">
+              <label for="student-password">Password</label>
+              <div class="password-wrapper">
+                <input
+                  id="student-password"
+                  v-model="studentPassword"
+                  :type="showStudentPassword ? 'text' : 'password'"
+                  placeholder="Masukkan password"
+                  autocomplete="current-password"
+                />
+                <button type="button" class="password-toggle" @click="showStudentPassword = !showStudentPassword" :title="showStudentPassword ? 'Sembunyikan password' : 'Tampilkan password'">
+                  {{ showStudentPassword ? '🙈' : '👁️' }}
+                </button>
+              </div>
+            </div>
+
+            <div v-if="loginError" class="error-msg">
+              {{ loginError }}
+            </div>
+
+            <button
+              type="submit"
+              class="btn btn-primary"
+              :disabled="isLoggingIn || !studentPassword"
+            >
+              {{ isLoggingIn ? 'Memproses...' : 'Masuk' }}
+            </button>
+          </form>
         </template>
 
         <!-- ══════ STEP 2b: Instructor List ══════ -->
@@ -346,13 +415,18 @@ function resetLogin() {
           <form class="password-form" @submit.prevent="loginAsInstructor">
             <div class="form-group">
               <label for="password">Password</label>
-              <input
-                id="password"
-                v-model="instructorPassword"
-                type="password"
-                placeholder="Masukkan password"
-                autocomplete="current-password"
-              />
+              <div class="password-wrapper">
+                <input
+                  id="password"
+                  v-model="instructorPassword"
+                  :type="showInstructorPassword ? 'text' : 'password'"
+                  placeholder="Masukkan password"
+                  autocomplete="current-password"
+                />
+                <button type="button" class="password-toggle" @click="showInstructorPassword = !showInstructorPassword" :title="showInstructorPassword ? 'Sembunyikan password' : 'Tampilkan password'">
+                  {{ showInstructorPassword ? '🙈' : '👁️' }}
+                </button>
+              </div>
             </div>
 
             <div v-if="loginError" class="error-msg">
@@ -380,13 +454,18 @@ function resetLogin() {
           <form class="password-form" @submit.prevent="loginAsAdmin">
             <div class="form-group">
               <label for="admin-password">Password Administrator</label>
-              <input
-                id="admin-password"
-                v-model="adminPassword"
-                type="password"
-                placeholder="Masukkan password"
-                autocomplete="current-password"
-              />
+              <div class="password-wrapper">
+                <input
+                  id="admin-password"
+                  v-model="adminPassword"
+                  :type="showAdminPassword ? 'text' : 'password'"
+                  placeholder="Masukkan password"
+                  autocomplete="current-password"
+                />
+                <button type="button" class="password-toggle" @click="showAdminPassword = !showAdminPassword" :title="showAdminPassword ? 'Sembunyikan password' : 'Tampilkan password'">
+                  {{ showAdminPassword ? '🙈' : '👁️' }}
+                </button>
+              </div>
             </div>
 
             <div v-if="loginError" class="error-msg">
@@ -404,7 +483,7 @@ function resetLogin() {
         </template>
 
         <!-- Error message (for roster/level steps) -->
-        <div v-if="loginError && step !== 'instructor-password' && step !== 'admin-password'" class="error-msg">
+        <div v-if="loginError && step !== 'student-password' && step !== 'instructor-password' && step !== 'admin-password'" class="error-msg">
           {{ loginError }}
         </div>
       </div>

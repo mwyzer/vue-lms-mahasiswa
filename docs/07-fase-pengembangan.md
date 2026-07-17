@@ -1,4 +1,4 @@
-# Bagian 7: Fase Pengembangan (11 Fase)
+# Bagian 7: Fase Pengembangan (12 Fase)
 
 | Fase | Nama | Fokus Utama | Output |
 |------|------|-------------|--------|
@@ -8,12 +8,13 @@
 | 4 | **Supabase Auth & Routing** | Auth store, Middleware, Route structure | Login + routing per role |
 | 5 | **Student Dashboard** | Layout, Sidebar, Stats, Announcements | Dashboard mahasiswa responsif |
 | 6 | **Courses** | Course list, detail, search, level & session filter | Mahasiswa lihat MK & materi |
-| 7 | **Lesson Progress** | Lesson detail, mark complete | Progress tersimpan di DB |
-| 8 | **Assignments** | List, filter, submission, grade | Mahasiswa kumpul tugas |
-| 9 | **Instructor Module** | Dashboard, manage courses, lessons, assignments | Instruktur kelola MK |
-| 10 | **Profile** | Profile page, edit form (student + instructor) | Mahasiswa & instruktur update profil |
-| 11 | **Testing & a11y** | Vitest, Playwright, a11y | Core flow lulus test |
-| 12 | **Deployment** | Vercel, README, smoke test | Aplikasi live di Vercel |
+| 7 | **Lesson Progress** | Lesson detail, toggle complete, sidebar nav | Progress tersimpan di DB |
+| 8 | **Assignments** | List, filter, submission, grade, countdown | Mahasiswa kumpul tugas |
+| 9 | **Instructor Module** | Dashboard, manage courses, lessons, assignments, attendance | Instruktur kelola MK & presensi |
+| 10 | **Admin Module** | Dashboard admin, CRUD students/instructors/courses | Admin kelola data master |
+| 11 | **Profile, AI Chat & Calendar** | Profile edit, AI assistant, playground, kalender akademik | Mahasiswa & instruktur update profil, lihat kalender |
+| 12 | **Testing & Deployment** | Vitest, Playwright, a11y, Vercel | Core flow lulus test, live di Vercel |
+| 13 | **Attendance & Direct Grading** | Presensi kehadiran, penilaian langsung, timeline view, nav links | Instruktur catat presensi, nilai semua mahasiswa |
 
 ---
 
@@ -75,7 +76,9 @@
 ### Phase 7 — Lesson Progress
 - Lesson detail page
 - Previous / next navigation
-- Mark as complete button
+- Sidebar lesson list
+- Toggle complete/uncomplete button
+- Keyboard shortcuts (←/→)
 - Persist progress ke Supabase
 - Progress calculation per course
 
@@ -83,6 +86,8 @@
 - Assignment store
 - Assignment list + search + filters
 - Assignment detail
+- Countdown timer display
+- Character counter on textarea
 - Submission form (text + URL)
 - Update submission
 - Status labels
@@ -98,27 +103,49 @@
 - Lihat submission mahasiswa + beri nilai & feedback
 - Loading, empty, error states
 
-### Phase 10 — Profile
-- Student profile page (nama, NPM, program studi, avatar, bio)
-- Instructor profile page (nama, email, avatar, bio)
-- Edit form
-- Validation
+### Phase 10 — Admin Module
+- Admin dashboard layout (`layouts/admin.vue`)
+- Sidebar navigasi admin
+- Dashboard admin (total mahasiswa, instruktur, MK, tugas)
+- CRUD Mahasiswa (tambah, edit, hapus, lihat)
+- CRUD Instruktur (tambah, edit, hapus, lihat)
+- CRUD Mata Kuliah (tambah, edit, hapus, lihat)
+- Lihat seluruh assignments
+- Loading, empty, error states
+
+### Phase 11 — Profile, AI Chat & Calendar
+- Student profile page (nama, NPM, avatar)
+- Instructor profile page (nama, email, avatar)
+- Admin profile page
+- Edit form with validation
 - Update ke database
+- AI Chat assistant (integration with AI API)
+- Code playground with Pyodide (Python execution)
+- Kalender akademik (tabel academic_events, calendar store, 3 tampilan: list, bulan, timeline horizontal)
 - Success & error messages
 
-### Phase 11 — Testing & Accessibility
-- Vitest setup
-- Unit tests (stores, utils)
+### Phase 12 — Testing & Deployment
+- Vitest setup (99+ tests)
+- Unit tests (stores)
 - Component tests (cards, forms, states)
-- Playwright E2E (student + instructor flows)
-- Keyboard nav verification
-- Contrast & label review
-
-### Phase 12 — Deployment
+- Playwright E2E (student + instructor flows, a11y)
+- PWA configuration & icons
 - Push ke GitHub
 - Import ke Vercel
 - Environment variables
 - Production build
 - Smoke test
 - README update
-- Screenshot
+
+### Phase 13 — Attendance & Direct Grading
+- Tabel `attendance` di database (foreign keys, unique constraint, indexes, CHECK constraint status)
+- Attendance store (demo data + Supabase integration)
+- CRUD presensi per pertemuan (instructor): `app/pages/instructor/courses/[id]/attendance/index.vue`
+- Rekap presensi lintas MK (instructor): `app/pages/instructor/attendance/index.vue`
+- Rekap presensi mahasiswa: `app/pages/student/attendance/index.vue`
+- Persentase kehadiran per MK (dengan ring warna)
+- Nav link "Presensi" di semua layout (dashboard, instructor, admin)
+- Direct grading (`directGradeStudent` action): beri nilai ke semua mahasiswa sekaligus
+- Tombol "Nilai Semua" pada halaman tugas instruktur dengan grid nilai+feedback inline
+- Halaman hasil penilaian mahasiswa: `app/pages/student/grades/index.vue`
+- Nav link "Nilai" di layout dashboard mahasiswa

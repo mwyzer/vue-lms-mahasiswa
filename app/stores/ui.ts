@@ -76,5 +76,49 @@ export const useUiStore = defineStore('ui', {
     toggleSidebar() {
       this.sidebarCollapsed = !this.sidebarCollapsed
     },
+
+    /**
+     * Set the theme and persist to localStorage + DOM attribute.
+     * The `data-theme` attribute on <html> drives all CSS variable overrides
+     * and Vuestic UI's color preset switching.
+     */
+    setTheme(theme: 'light' | 'dark') {
+      this.theme = theme
+
+      if (import.meta.client) {
+        document.documentElement.setAttribute('data-theme', theme)
+        localStorage.setItem('lms-theme', theme)
+      }
+    },
+
+    /**
+     * Toggle between light and dark themes.
+     */
+    toggleTheme() {
+      const next = this.theme === 'light' ? 'dark' : 'light'
+      this.setTheme(next)
+    },
+
+    /**
+     * Initialize theme from localStorage or system preference.
+     * Call once on app mount (e.g., in a client-only plugin or layout).
+     */
+    initTheme() {
+      if (!import.meta.client) return
+
+      const stored = localStorage.getItem('lms-theme') as UiState['theme'] | null
+      const preferred =
+        stored ??
+        (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+
+      this.setTheme(preferred)
+
+      // Listen for OS-level changes when no explicit preference is stored
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+        if (!localStorage.getItem('lms-theme')) {
+          this.setTheme(e.matches ? 'dark' : 'light')
+        }
+      })
+    },
   },
 })

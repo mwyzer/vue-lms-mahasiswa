@@ -14,7 +14,7 @@ import { useAuthStore } from './auth'
 import { useCoursesStore } from './courses'
 
 // ── Demo data (fallback when demoMode=true) ──────────
-const DEMO_ASSIGNMENTS: Assignment[] = [
+export const DEMO_ASSIGNMENTS: Assignment[] = [
   { id: 'a1', course_id: 'c1', instructor_id: 'i1', judul: 'Tugas 1: Hello World', deskripsi: 'Buat program Hello World dalam Python.', tenggat_waktu: '2025-08-15T23:59:59Z' },
   { id: 'a2', course_id: 'c1', instructor_id: 'i1', judul: 'Tugas 2: Kalkulator Sederhana', deskripsi: 'Buat kalkulator sederhana dengan Python.', tenggat_waktu: '2025-08-22T23:59:59Z' },
   { id: 'a3', course_id: 'c2', instructor_id: 'i2', judul: 'Tugas 1: Diagram Venn', deskripsi: 'Buat diagram Venn dari 3 himpunan.', tenggat_waktu: '2025-08-18T23:59:59Z' },
@@ -288,16 +288,22 @@ export const useAssignmentsStore = defineStore('assignments', {
     },
 
     /**
-     * Create a new assignment (instructor).
+     * Create a new assignment (instructor/admin).
+     * @param courseId - Target course ID
+     * @param judul - Assignment title
+     * @param deskripsi - Assignment description
+     * @param tenggatWaktu - ISO deadline string
+     * @param instructorId - Optional instructor override (admin use). Defaults to current user.
      */
-    async addAssignment(courseId: string, judul: string, deskripsi: string, tenggatWaktu: string) {
+    async addAssignment(courseId: string, judul: string, deskripsi: string, tenggatWaktu: string, instructorId?: string) {
       const auth = useAuthStore()
+      const instId = instructorId || auth.user?.id || ''
 
       if (this.isDemoMode) {
         DEMO_ASSIGNMENTS.push({
           id: `a-${Date.now()}`,
           course_id: courseId,
-          instructor_id: auth.user?.id || '',
+          instructor_id: instId,
           judul,
           deskripsi,
           tenggat_waktu: tenggatWaktu,
@@ -315,7 +321,7 @@ export const useAssignmentsStore = defineStore('assignments', {
           .from('assignments')
           .insert({
             course_id: courseId,
-            instructor_id: auth.user?.id || '',
+            instructor_id: instId,
             judul,
             deskripsi,
             tenggat_waktu: tenggatWaktu,
@@ -328,6 +334,72 @@ export const useAssignmentsStore = defineStore('assignments', {
         }
       } catch (err) {
         console.error('Failed to add assignment:', err)
+      }
+    },
+
+    /**
+     * Update an existing assignment (instructor).
+     */
+    async updateAssignment(assignmentId: string, data: { judul?: string; deskripsi?: string; tenggat_waktu?: string }) {
+      if (this.isDemoMode) {
+        const idx = DEMO_ASSIGNMENTS.findIndex((a) => a.id === assignmentId)
+        if (idx >= 0) {
+          if (data.judul !== undefined) DEMO_ASSIGNMENTS[idx].judul = data.judul
+          if (data.deskripsi !== undefined) DEMO_ASSIGNMENTS[idx].deskripsi = data.deskripsi
+          if (data.tenggat_waktu !== undefined) DEMO_ASSIGNMENTS[idx].tenggat_waktu = data.tenggat_waktu
+          DEMO_ASSIGNMENTS[idx].updated_at = new Date().toISOString()
+        }
+        this.demoVersion++
+        return
+      }
+
+      try {
+        const supabase = useNuxtApp().$supabase
+        const payload: Record<string, any> = { updated_at: new Date().toISOString() }
+        if (data.judul !== undefined) payload.judul = data.judul
+        if (data.deskripsi !== undefined) payload.deskripsi = data.deskripsi
+        if (data.tenggat_waktu !== undefined) payload.tenggat_waktu = data.tenggat_waktu
+
+        await supabase.from('assignments').update(payload).eq('id', assignmentId)
+
+        const idx = this.sbAssignments.findIndex((a) => a.id === assignmentId)
+        if (idx >= 0) {
+          if (data.judul !== undefined) this.sbAssignments[idx].judul = data.judul
+          if (data.deskripsi !== undefined) this.sbAssignments[idx].deskripsi = data.deskripsi
+          if (data.tenggat_waktu !== undefined) this.sbAssignments[idx].tenggat_waktu = data.tenggat_waktu
+        }
+      } catch (err) {
+        console.error('Failed to update assignment:', err)
+      }
+    },
+
+    /**
+     * Delete an assignment (instructor).
+     */
+    async deleteAssignment(assignmentId: string) {
+      if (this.isDemoMode) {
+        const idx = DEMO_ASSIGNMENTS.findIndex((a) => a.id === assignmentId)
+        if (idx >= 0) {
+          DEMO_ASSIGNMENTS.splice(idx, 1)
+          // Also remove related submissions
+          for (let i = DEMO_SUBMISSIONS.length - 1; i >= 0; i--) {
+            if (DEMO_SUBMISSIONS[i].assignment_id === assignmentId) {
+              DEMO_SUBMISSIONS.splice(i, 1)
+            }
+          }
+        }
+        this.demoVersion++
+        return
+      }
+
+      try {
+        const supabase = useNuxtApp().$supabase
+        await supabase.from('assignments').delete().eq('id', assignmentId)
+
+        this.sbAssignments = this.sbAssignments.filter((a) => a.id !== assignmentId)
+        this.sbSubmissions = this.sbSubmissions.filter((s) => s.assignment_id !== assignmentId)
+      } catch (err) {
+        console.error('Failed to delete assignment:', err)
       }
     },
 
@@ -373,6 +445,80 @@ export const useAssignmentsStore = defineStore('assignments', {
         }
       } catch (err) {
         console.error('Failed to grade submission:', err)
+      }
+    },
+
+    /**
+     * Direct grade a student without requiring a submission.
+     * Creates a submission placeholder if one doesn't exist.
+     */
+    async directGradeStudent(
+      courseId: string,
+      assignmentId: string,
+      studentId: string,
+      nilai: number,
+      feedback: string
+    ) {
+      if (this.isDemoMode) {
+        // Find existing submission or create placeholder
+        let sub = DEMO_SUBMISSIONS.find(
+          (s) => s.assignment_id === assignmentId && s.student_id === studentId
+        )
+        if (!sub) {
+          const newSub: any = {
+            id: `direct-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            assignment_id: assignmentId,
+            course_id: courseId,
+            student_id: studentId,
+            jawaban: '(Dinilai langsung)',
+            submitted_at: new Date().toISOString(),
+            nilai,
+            feedback,
+            graded_at: new Date().toISOString(),
+          }
+          DEMO_SUBMISSIONS.push(newSub)
+        } else {
+          const idx = DEMO_SUBMISSIONS.indexOf(sub)
+          DEMO_SUBMISSIONS[idx] = { ...sub, nilai, feedback, graded_at: new Date().toISOString() }
+        }
+        this.demoVersion++
+        return true
+      }
+
+      // Production
+      try {
+        const supabase = useNuxtApp().$supabase
+        // Check for existing submission
+        const { data: existing } = await supabase
+          .from('submissions')
+          .select('id')
+          .eq('assignment_id', assignmentId)
+          .eq('student_id', studentId)
+          .single()
+
+        if (existing) {
+          await supabase
+            .from('submissions')
+            .update({ nilai, feedback, graded_at: new Date().toISOString() })
+            .eq('id', existing.id)
+        } else {
+          await supabase
+            .from('submissions')
+            .insert({
+              assignment_id: assignmentId,
+              course_id: courseId,
+              student_id: studentId,
+              jawaban: '(Dinilai langsung)',
+              submitted_at: new Date().toISOString(),
+              nilai,
+              feedback,
+              graded_at: new Date().toISOString(),
+            })
+        }
+        return true
+      } catch (err) {
+        console.error('Failed to direct grade:', err)
+        return false
       }
     },
   },

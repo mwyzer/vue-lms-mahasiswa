@@ -40,6 +40,11 @@ const instructorName = computed(() => {
   const match = instructors.find((i: any) => i.id === course.value?.instructor_id)
   return match?.nama || ''
 })
+
+// Find the first incomplete lesson for "Continue Learning" button
+const nextIncompleteLesson = computed(() =>
+  lessons.value.find((l: any) => !l.progress?.completed) || null
+)
 </script>
 
 <template>
@@ -100,7 +105,16 @@ const instructorName = computed(() => {
 
       <!-- Lesson list -->
       <section class="section">
-        <h2>Materi Perkuliahan</h2>
+        <div class="section-header">
+          <h2>Materi Perkuliahan</h2>
+          <NuxtLink
+            v-if="lessons.length > 0"
+            :to="`/courses/${course.id}/lessons/${nextIncompleteLesson?.id || lessons[0].id}`"
+            class="btn btn-primary btn-sm"
+          >
+            {{ nextIncompleteLesson ? 'Lanjutkan Belajar' : 'Mulai Belajar' }}
+          </NuxtLink>
+        </div>
 
         <div v-if="lessons.length === 0" class="empty-state card">
           <p>Belum ada materi untuk mata kuliah ini.</p>
@@ -108,17 +122,26 @@ const instructorName = computed(() => {
 
         <div v-else class="lesson-list">
           <NuxtLink
-            v-for="lesson in lessons"
+            v-for="(lesson, idx) in lessons"
             :key="lesson.id"
             :to="`/courses/${course.id}/lessons/${lesson.id}`"
             class="card lesson-card"
             :class="{ completed: lesson.progress?.completed }"
           >
             <div class="lesson-left">
-              <span class="lesson-number">{{ lesson.urutan }}</span>
+              <span
+                class="lesson-number"
+                :class="{ done: lesson.progress?.completed }"
+              >
+                <span v-if="lesson.progress?.completed">✓</span>
+                <span v-else>{{ idx + 1 }}</span>
+              </span>
               <div class="lesson-info">
                 <span class="lesson-title">{{ lesson.judul }}</span>
-                <span class="lesson-status text-sm">
+                <span
+                  class="lesson-status text-sm"
+                  :class="{ completed: lesson.progress?.completed }"
+                >
                   {{ lesson.progress?.completed ? '✓ Selesai' : 'Belum dipelajari' }}
                 </span>
               </div>
@@ -242,9 +265,17 @@ const instructorName = computed(() => {
   margin-top: 1.5rem;
 }
 
-.section h2 {
-  font-size: 1.125rem;
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 1rem;
+  gap: 1rem;
+}
+
+.section-header h2 {
+  font-size: 1.125rem;
+  margin-bottom: 0;
 }
 
 .lesson-list {
@@ -260,15 +291,17 @@ const instructorName = computed(() => {
   text-decoration: none;
   color: inherit;
   padding: 1rem;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, background-color 0.2s;
 }
 
 .lesson-card:hover {
   border-color: var(--color-primary-300);
+  text-decoration: none;
 }
 
 .lesson-card.completed {
   background-color: #f0fdf4;
+  border-color: #bbf7d0;
 }
 
 .lesson-left {
@@ -278,17 +311,42 @@ const instructorName = computed(() => {
 }
 
 .lesson-number {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  background-color: var(--color-neutral-100);
+  background-color: var(--color-neutral-200);
+  color: var(--color-neutral-600);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   font-weight: 600;
-  color: var(--color-neutral-600);
   flex-shrink: 0;
+}
+
+.lesson-number.done {
+  background-color: var(--color-success);
+  color: white;
+}
+
+.lesson-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.lesson-title {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--color-neutral-800);
+}
+
+.lesson-status {
+  font-size: 0.75rem;
+  color: var(--color-neutral-500);
+}
+
+.lesson-status.completed {
+  color: var(--color-success);
 }
 
 .lesson-card.completed .lesson-number {

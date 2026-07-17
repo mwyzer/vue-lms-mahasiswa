@@ -18,6 +18,59 @@ const editNama = ref('')
 const editEmail = ref('')
 const saving = ref(false)
 
+// ── Password change ──
+const showPasswordForm = ref(false)
+const oldPassword = ref('')
+const newPassword = ref('')
+const confirmPassword = ref('')
+const showOldPassword = ref(false)
+const showNewPassword = ref(false)
+const showConfirmPassword = ref(false)
+const changingPassword = ref(false)
+
+function openPasswordForm() {
+  oldPassword.value = ''
+  newPassword.value = ''
+  confirmPassword.value = ''
+  showPasswordForm.value = true
+}
+
+function cancelPasswordForm() {
+  showPasswordForm.value = false
+  oldPassword.value = ''
+  newPassword.value = ''
+  confirmPassword.value = ''
+}
+
+async function changePassword() {
+  if (!oldPassword.value) {
+    notification.warning('Password lama harus diisi.')
+    return
+  }
+  if (!newPassword.value || newPassword.value.length < 6) {
+    notification.warning('Password baru minimal 6 karakter.')
+    return
+  }
+  if (newPassword.value !== confirmPassword.value) {
+    notification.warning('Konfirmasi password baru tidak cocok.')
+    return
+  }
+  if (oldPassword.value === newPassword.value) {
+    notification.warning('Password baru tidak boleh sama dengan password lama.')
+    return
+  }
+
+  changingPassword.value = true
+  const success = await auth.changePassword(oldPassword.value, newPassword.value)
+  if (success) {
+    notification.success('Password berhasil diubah!')
+    cancelPasswordForm()
+  } else {
+    notification.error(auth.error || 'Gagal mengubah password.')
+  }
+  changingPassword.value = false
+}
+
 // ── Photo upload ──
 const fileInput = ref<HTMLInputElement>()
 const uploadingPhoto = ref(false)
@@ -258,6 +311,103 @@ function formatDate(dateStr?: string | null): string {
           <span class="detail-value">Penuh — seluruh data sistem</span>
         </div>
       </div>
+
+      <!-- Change Password -->
+      <div class="card password-card">
+        <div class="card-header">
+          <h3>Ubah Password</h3>
+        </div>
+
+        <!-- Toggle button when form hidden -->
+        <div v-if="!showPasswordForm">
+          <p class="text-muted text-sm">Ganti password administrator untuk keamanan akun.</p>
+          <button class="btn btn-primary btn-sm mt-2" @click="openPasswordForm">
+            🔒 Ubah Password
+          </button>
+        </div>
+
+        <!-- Password form -->
+        <div v-else class="password-form">
+          <div class="form-group">
+            <label class="form-label" for="old-password">Password Lama</label>
+            <div class="password-wrapper">
+              <input
+                id="old-password"
+                v-model="oldPassword"
+                :type="showOldPassword ? 'text' : 'password'"
+                class="form-input"
+                placeholder="Masukkan password saat ini"
+                :disabled="changingPassword"
+              />
+              <button
+                type="button"
+                class="password-toggle"
+                :title="showOldPassword ? 'Sembunyikan' : 'Tampilkan'"
+                @click="showOldPassword = !showOldPassword"
+              >
+                {{ showOldPassword ? '🙈' : '👁️' }}
+              </button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="new-password">Password Baru</label>
+            <div class="password-wrapper">
+              <input
+                id="new-password"
+                v-model="newPassword"
+                :type="showNewPassword ? 'text' : 'password'"
+                class="form-input"
+                placeholder="Minimal 6 karakter"
+                :disabled="changingPassword"
+              />
+              <button
+                type="button"
+                class="password-toggle"
+                :title="showNewPassword ? 'Sembunyikan' : 'Tampilkan'"
+                @click="showNewPassword = !showNewPassword"
+              >
+                {{ showNewPassword ? '🙈' : '👁️' }}
+              </button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="confirm-password">Konfirmasi Password Baru</label>
+            <div class="password-wrapper">
+              <input
+                id="confirm-password"
+                v-model="confirmPassword"
+                :type="showConfirmPassword ? 'text' : 'password'"
+                class="form-input"
+                placeholder="Ketik ulang password baru"
+                :disabled="changingPassword"
+              />
+              <button
+                type="button"
+                class="password-toggle"
+                :title="showConfirmPassword ? 'Sembunyikan' : 'Tampilkan'"
+                @click="showConfirmPassword = !showConfirmPassword"
+              >
+                {{ showConfirmPassword ? '🙈' : '👁️' }}
+              </button>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button class="btn btn-ghost" :disabled="changingPassword" @click="cancelPasswordForm">
+              Batal
+            </button>
+            <button
+              class="btn btn-primary"
+              :disabled="changingPassword || !oldPassword || !newPassword || !confirmPassword"
+              @click="changePassword"
+            >
+              {{ changingPassword ? 'Menyimpan...' : 'Simpan Password' }}
+            </button>
+          </div>
+        </div>
+      </div>
     </template>
   </div>
 </template>
@@ -395,6 +545,19 @@ function formatDate(dateStr?: string | null): string {
 .info-card h3 {
   font-size: 1rem;
   margin-bottom: 0.75rem;
+}
+
+.password-card {
+  margin-bottom: 1rem;
+}
+
+.password-card .card-header h3 {
+  font-size: 1rem;
+  margin: 0;
+}
+
+.password-form {
+  margin-top: 0.75rem;
 }
 
 .empty-state {

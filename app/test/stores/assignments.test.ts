@@ -8,6 +8,39 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { useAssignmentsStore } from '~/stores/assignments'
 import { useAuthStore } from '~/stores/auth'
 import { useCoursesStore } from '~/stores/courses'
+import type { StudentRosterEntry, InstructorEntry } from '~/types/roster'
+
+/** Seed the auth store's students array with known test users */
+function seedStudents(): void {
+  const auth = useAuthStore()
+  auth.students = [
+    { id: 's1', nama: 'Ahmad Fauzi', npm: '20241001', kelas: '1A', level: 1, session_time: 'morning' },
+    { id: 's2', nama: 'Budi Santoso', npm: '20241002', kelas: '1A', level: 1, session_time: 'morning' },
+    { id: 's3', nama: 'Citra Dewi', npm: '20241003', kelas: '1A', level: 1, session_time: 'morning' },
+    { id: 's4', nama: 'Dian Permata', npm: '20241004', kelas: '1B', level: 1, session_time: 'evening' },
+    { id: 's5', nama: 'Eka Putra', npm: '20241005', kelas: '1B', level: 1, session_time: 'evening' },
+    { id: 's6', nama: 'Fitri Handayani', npm: '20241006', kelas: '2A', level: 2, session_time: 'morning' },
+    { id: 's7', nama: 'Gilang Pratama', npm: '20241007', kelas: '2A', level: 2, session_time: 'morning' },
+    { id: 's8', nama: 'Hesti Wulandari', npm: '20241008', kelas: '2B', level: 2, session_time: 'evening' },
+    { id: 's9', nama: 'Irfan Hakim', npm: '20241009', kelas: '3A', level: 3, session_time: 'morning' },
+    { id: 's10', nama: 'Joko Susilo', npm: '20241010', kelas: '3A', level: 3, session_time: 'morning' },
+    { id: 's11', nama: 'Kartika Sari', npm: '20241011', kelas: '3B', level: 3, session_time: 'evening' },
+    { id: 's12', nama: 'Lintang Utami', npm: '20241012', kelas: '4A', level: 4, session_time: 'morning' },
+    { id: 's13', nama: 'Mega Puspita', npm: '20241013', kelas: '4A', level: 4, session_time: 'morning' },
+    { id: 's14', nama: 'Nanda Kusuma', npm: '20241014', kelas: '4B', level: 4, session_time: 'evening' },
+    { id: 's15', nama: 'Oscar Rafif', npm: '20241015', kelas: '4B', level: 4, session_time: 'evening' },
+  ]
+}
+
+/** Seed the auth store's instructors array with known test users */
+function seedInstructors(): void {
+  const auth = useAuthStore()
+  auth.instructors = [
+    { id: 'i1', nama: 'Dr. Andi Wijaya, M.Kom.', email: 'andi@lms.ac.id' },
+    { id: 'i2', nama: 'Dr. Dewi Lestari, M.Pd.', email: 'dewi@lms.ac.id' },
+    { id: 'i3', nama: 'Prof. Budi Hartono, Ph.D.', email: 'budi@lms.ac.id' },
+  ]
+}
 
 describe('Assignments Store', () => {
   let store: ReturnType<typeof useAssignmentsStore>
@@ -30,13 +63,17 @@ describe('Assignments Store', () => {
 
   // ── myAssignments (Student) ──
   describe('myAssignments for students', () => {
+    beforeEach(() => {
+      seedStudents()
+    })
+
     it('returns empty array when no user is logged in', () => {
       expect(store.myAssignments).toEqual([])
     })
 
     it('returns s1 assignments (from c1 and c2)', async () => {
       const auth = useAuthStore()
-      await auth.loginAsStudent('Ahmad Fauzi', '20241001')
+      await auth.loginAsStudent('Ahmad Fauzi', '20241001', 'mahasiswa123')
 
       const assignments = store.myAssignments as any[]
       expect(assignments.length).toBeGreaterThanOrEqual(3) // a1, a2 (c1) + a3 (c2)
@@ -47,7 +84,7 @@ describe('Assignments Store', () => {
 
     it('includes submission data for s1 (a1 has grade 90)', async () => {
       const auth = useAuthStore()
-      await auth.loginAsStudent('Ahmad Fauzi', '20241001')
+      await auth.loginAsStudent('Ahmad Fauzi', '20241001', 'mahasiswa123')
 
       const assignments = store.myAssignments as any[]
       const a1 = assignments.find((a: any) => a.id === 'a1')
@@ -58,7 +95,7 @@ describe('Assignments Store', () => {
 
     it('includes course_name and course_kode', async () => {
       const auth = useAuthStore()
-      await auth.loginAsStudent('Ahmad Fauzi', '20241001')
+      await auth.loginAsStudent('Ahmad Fauzi', '20241001', 'mahasiswa123')
 
       const assignments = store.myAssignments as any[]
       const a1 = assignments.find((a: any) => a.id === 'a1')
@@ -68,7 +105,7 @@ describe('Assignments Store', () => {
 
     it('returns no assignments for s8 (only course c7 has no assignments)', async () => {
       const auth = useAuthStore()
-      await auth.loginAsStudent('Hesti Wulandari', '20241008')
+      await auth.loginAsStudent('Hesti Wulandari', '20241008', 'mahasiswa123')
 
       const assignments = store.myAssignments
       expect(assignments.length).toBe(0)
@@ -77,6 +114,10 @@ describe('Assignments Store', () => {
 
   // ── myAssignments (Instructor) ──
   describe('myAssignments for instructors', () => {
+    beforeEach(() => {
+      seedInstructors()
+    })
+
     it('returns i1 assignments (a1, a2, a4, a5)', async () => {
       const auth = useAuthStore()
       await auth.loginAsInstructor('Dr. Andi Wijaya, M.Kom.', 'instruktur123')
@@ -111,6 +152,10 @@ describe('Assignments Store', () => {
 
   // ── submissionsForAssignment ──
   describe('submissionsForAssignment', () => {
+    beforeEach(() => {
+      seedStudents()
+    })
+
     it('returns submissions for a1 with student names', () => {
       const submissions = store.submissionsForAssignment('a1')
       expect(submissions.length).toBe(2)
@@ -150,9 +195,13 @@ describe('Assignments Store', () => {
 
   // ── submitAssignment (Demo Mode) ──
   describe('submitAssignment', () => {
+    beforeEach(() => {
+      seedStudents()
+    })
+
     it('creates a new submission', async () => {
       const auth = useAuthStore()
-      await auth.loginAsStudent('Citra Dewi', '20241003')
+      await auth.loginAsStudent('Citra Dewi', '20241003', 'mahasiswa123')
       const coursesStore = useCoursesStore()
 
       // s3 is enrolled in c1, c2 but only c1 (c3, c4) have assignments
@@ -166,7 +215,7 @@ describe('Assignments Store', () => {
 
     it('updates an existing submission', async () => {
       const auth = useAuthStore()
-      await auth.loginAsStudent('Ahmad Fauzi', '20241001')
+      await auth.loginAsStudent('Ahmad Fauzi', '20241001', 'mahasiswa123')
 
       // s1 already has a submission for a1
       await store.submitAssignment('a1', 'print("Hello, World! Updated")')
@@ -179,6 +228,10 @@ describe('Assignments Store', () => {
 
   // ── addAssignment (Instructor, Demo Mode) ──
   describe('addAssignment', () => {
+    beforeEach(() => {
+      seedInstructors()
+    })
+
     it('adds a new assignment', async () => {
       const auth = useAuthStore()
       await auth.loginAsInstructor('Dr. Andi Wijaya, M.Kom.', 'instruktur123')
@@ -202,9 +255,13 @@ describe('Assignments Store', () => {
 
   // ── gradeSubmission (Instructor, Demo Mode) ──
   describe('gradeSubmission', () => {
+    beforeEach(() => {
+      seedStudents()
+    })
+
     it('grades an ungraded submission', async () => {
       const auth = useAuthStore()
-      await auth.loginAsStudent('Budi Santoso', '20241002')
+      await auth.loginAsStudent('Budi Santoso', '20241002', 'mahasiswa123')
 
       // First, get the submission ID
       let submissions = store.submissionsForAssignment('a1')
@@ -221,7 +278,7 @@ describe('Assignments Store', () => {
 
     it('overwrites an existing grade', async () => {
       const auth = useAuthStore()
-      await auth.loginAsStudent('Ahmad Fauzi', '20241001')
+      await auth.loginAsStudent('Ahmad Fauzi', '20241001', 'mahasiswa123')
 
       let submissions = store.submissionsForAssignment('a1')
       const sub1 = submissions.find((s) => s.student_id === 's1')

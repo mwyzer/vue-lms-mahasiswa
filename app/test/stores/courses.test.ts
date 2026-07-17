@@ -7,6 +7,39 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { useCoursesStore } from '~/stores/courses'
 import { useAuthStore } from '~/stores/auth'
+import type { StudentRosterEntry, InstructorEntry } from '~/types/roster'
+
+/** Seed the auth store's students array with known test users */
+function seedStudents(): void {
+  const auth = useAuthStore()
+  auth.students = [
+    { id: 's1', nama: 'Ahmad Fauzi', npm: '20241001', kelas: '1A', level: 1, session_time: 'morning' },
+    { id: 's2', nama: 'Budi Santoso', npm: '20241002', kelas: '1A', level: 1, session_time: 'morning' },
+    { id: 's3', nama: 'Citra Dewi', npm: '20241003', kelas: '1A', level: 1, session_time: 'morning' },
+    { id: 's4', nama: 'Dian Permata', npm: '20241004', kelas: '1B', level: 1, session_time: 'evening' },
+    { id: 's5', nama: 'Eka Putra', npm: '20241005', kelas: '1B', level: 1, session_time: 'evening' },
+    { id: 's6', nama: 'Fitri Handayani', npm: '20241006', kelas: '2A', level: 2, session_time: 'morning' },
+    { id: 's7', nama: 'Gilang Pratama', npm: '20241007', kelas: '2A', level: 2, session_time: 'morning' },
+    { id: 's8', nama: 'Hesti Wulandari', npm: '20241008', kelas: '2B', level: 2, session_time: 'evening' },
+    { id: 's9', nama: 'Irfan Hakim', npm: '20241009', kelas: '3A', level: 3, session_time: 'morning' },
+    { id: 's10', nama: 'Joko Susilo', npm: '20241010', kelas: '3A', level: 3, session_time: 'morning' },
+    { id: 's11', nama: 'Kartika Sari', npm: '20241011', kelas: '3B', level: 3, session_time: 'evening' },
+    { id: 's12', nama: 'Lintang Utami', npm: '20241012', kelas: '4A', level: 4, session_time: 'morning' },
+    { id: 's13', nama: 'Mega Puspita', npm: '20241013', kelas: '4A', level: 4, session_time: 'morning' },
+    { id: 's14', nama: 'Nanda Kusuma', npm: '20241014', kelas: '4B', level: 4, session_time: 'evening' },
+    { id: 's15', nama: 'Oscar Rafif', npm: '20241015', kelas: '4B', level: 4, session_time: 'evening' },
+  ]
+}
+
+/** Seed the auth store's instructors array with known test users */
+function seedInstructors(): void {
+  const auth = useAuthStore()
+  auth.instructors = [
+    { id: 'i1', nama: 'Dr. Andi Wijaya, M.Kom.', email: 'andi@lms.ac.id' },
+    { id: 'i2', nama: 'Dr. Dewi Lestari, M.Pd.', email: 'dewi@lms.ac.id' },
+    { id: 'i3', nama: 'Prof. Budi Hartono, Ph.D.', email: 'budi@lms.ac.id' },
+  ]
+}
 
 describe('Courses Store', () => {
   let store: ReturnType<typeof useCoursesStore>
@@ -54,7 +87,7 @@ describe('Courses Store', () => {
 
     it('includes courses at all 4 levels', () => {
       const levels = new Set(store.allCourses.map((c) => c.level))
-      expect(levels).toEqual(new Set([1, 2, 3, 4]))
+      expect(levels).toEqual(new Set([1, 2, 3, 4, 5]))
     })
 
     it('includes both session times', () => {
@@ -70,13 +103,17 @@ describe('Courses Store', () => {
 
   // ── myCourses (Student) ──
   describe('myCourses for students', () => {
+    beforeEach(() => {
+      seedStudents()
+    })
+
     it('returns empty array when no user is logged in', () => {
       expect(store.myCourses).toEqual([])
     })
 
     it('returns s1 enrolled courses (Pemrograman Dasar + Matematika Diskrit)', async () => {
       const auth = useAuthStore()
-      await auth.loginAsStudent('Ahmad Fauzi', '20241001')
+      await auth.loginAsStudent('Ahmad Fauzi', '20241001', 'mahasiswa123')
 
       const courses = store.myCourses
       expect(courses.length).toBe(2)
@@ -86,7 +123,7 @@ describe('Courses Store', () => {
 
     it('returns s4 enrolled courses (Logika Informatika + Pengantar TI)', async () => {
       const auth = useAuthStore()
-      await auth.loginAsStudent('Dian Permata', '20241004')
+      await auth.loginAsStudent('Dian Permata', '20241004', 'mahasiswa123')
 
       const courses = store.myCourses
       expect(courses.length).toBe(2)
@@ -96,7 +133,7 @@ describe('Courses Store', () => {
 
     it('includes progress for s1 (2 of 4 lessons completed in c1)', async () => {
       const auth = useAuthStore()
-      await auth.loginAsStudent('Ahmad Fauzi', '20241001')
+      await auth.loginAsStudent('Ahmad Fauzi', '20241001', 'mahasiswa123')
 
       const courses = store.myCourses
       const c1 = courses.find((c) => c.id === 'c1')
@@ -108,7 +145,7 @@ describe('Courses Store', () => {
 
     it('includes progress for s2 (1 of 4 lessons completed in c1)', async () => {
       const auth = useAuthStore()
-      await auth.loginAsStudent('Budi Santoso', '20241002')
+      await auth.loginAsStudent('Budi Santoso', '20241002', 'mahasiswa123')
 
       const courses = store.myCourses
       const c1 = courses.find((c) => c.id === 'c1')
@@ -121,6 +158,10 @@ describe('Courses Store', () => {
 
   // ── myCourses (Instructor) ──
   describe('myCourses for instructors', () => {
+    beforeEach(() => {
+      seedInstructors()
+    })
+
     it('returns i1 courses (5 courses taught by Dr. Andi)', async () => {
       const auth = useAuthStore()
       await auth.loginAsInstructor('Dr. Andi Wijaya, M.Kom.', 'instruktur123')
@@ -201,9 +242,13 @@ describe('Courses Store', () => {
 
   // ── currentLessons ──
   describe('currentLessons', () => {
+    beforeEach(() => {
+      seedStudents()
+    })
+
     it('shows lesson progress for s1 in c1 (2 of 4 completed)', async () => {
       const auth = useAuthStore()
-      await auth.loginAsStudent('Ahmad Fauzi', '20241001')
+      await auth.loginAsStudent('Ahmad Fauzi', '20241001', 'mahasiswa123')
       store.setCurrentCourse('c1')
 
       const lessons = store.currentLessons
@@ -214,7 +259,7 @@ describe('Courses Store', () => {
 
     it('shows no progress for s3 in c1', async () => {
       const auth = useAuthStore()
-      await auth.loginAsStudent('Citra Dewi', '20241003')
+      await auth.loginAsStudent('Citra Dewi', '20241003', 'mahasiswa123')
       store.setCurrentCourse('c1')
 
       const lessons = store.currentLessons
@@ -225,9 +270,13 @@ describe('Courses Store', () => {
 
   // ── markLessonCompleted (Demo Mode) ──
   describe('markLessonCompleted', () => {
+    beforeEach(() => {
+      seedStudents()
+    })
+
     it('marks a lesson as completed', async () => {
       const auth = useAuthStore()
-      await auth.loginAsStudent('Citra Dewi', '20241003')
+      await auth.loginAsStudent('Citra Dewi', '20241003', 'mahasiswa123')
       store.setCurrentCourse('c1')
 
       await store.markLessonCompleted('l1')
@@ -237,7 +286,7 @@ describe('Courses Store', () => {
 
     it('does not duplicate progress on re-completion', async () => {
       const auth = useAuthStore()
-      await auth.loginAsStudent('Ahmad Fauzi', '20241001')
+      await auth.loginAsStudent('Ahmad Fauzi', '20241001', 'mahasiswa123')
       store.setCurrentCourse('c1')
 
       await store.markLessonCompleted('l1') // Already completed

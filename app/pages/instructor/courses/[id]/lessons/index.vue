@@ -18,7 +18,8 @@ const newJudul = ref('')
 const newKonten = ref('')
 const saving = ref(false)
 
-onMounted(() => {
+onMounted(async () => {
+  await coursesStore.init()
   coursesStore.setCurrentCourse(courseId.value)
 })
 

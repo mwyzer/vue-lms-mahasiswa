@@ -4,9 +4,9 @@
  *
  * Flow:
  *   1. Choose role (Student / Instructor / Administrator)
- *   2a. Student → Choose Level → Choose Session → Pick name+NPM from roster → Enter password
- *   2b. Instructor → Pick name from list → Enter password
- *   2c. Administrator → Enter password
+ *   2a. Student → Choose Level → Choose Session → Pick name+NPM from roster → Login
+ *   2b. Instructor → Pick name from list → Login
+ *   2c. Administrator → Login
  */
 definePageMeta({
   layout: 'default',
@@ -22,25 +22,27 @@ onMounted(() => {
 })
 
 // ── Step management ──
-const step = ref<'role' | 'level' | 'session' | 'roster' | 'student-password' | 'instructor-list' | 'instructor-password' | 'admin-password'>('role')
+const step = ref<'role' | 'level' | 'session' | 'roster' | 'instructor-list' | 'student-password' | 'instructor-password' | 'admin-password'>('role')
 const selectedRole = ref<'student' | 'instructor' | 'admin' | null>(null)
 const selectedLevel = ref<number | null>(null)
 const selectedSession = ref<'morning' | 'evening' | null>(null)
 const selectedInstructorId = ref<string | null>(null)
-const instructorPassword = ref('')
-const showInstructorPassword = ref(false)
-const adminPassword = ref('')
-const showAdminPassword = ref(false)
 const selectedStudentId = ref<string | null>(null)
 const selectedStudentNama = ref('')
 const selectedStudentNpm = ref('')
-const studentPassword = ref('')
-const showStudentPassword = ref(false)
 const loginError = ref('')
 const isLoggingIn = ref(false)
+const password = ref('')
+const showPassword = ref(false)
 
 // ── Computed ──
-const levels = [1, 2, 3, 4]
+const levels = [1, 2, 3, 4, 5]
+
+/** Map level number to display label. */
+function getLevelLabel(lv: number): string {
+  if (lv === 5) return 'Apoteker'
+  return `Level ${lv}`
+}
 
 const sessions = [
   { value: 'morning' as const, label: 'Pagi', icon: '🌅' },
@@ -69,13 +71,13 @@ const isDemoMode = computed(() => auth.isDemoMode)
 function selectRole(role: 'student' | 'instructor' | 'admin') {
   selectedRole.value = role
   loginError.value = ''
+  password.value = ''
 
   if (role === 'student') {
     step.value = 'level'
   } else if (role === 'instructor') {
     step.value = 'instructor-list'
   } else {
-    // Admin — go straight to password entry
     step.value = 'admin-password'
   }
 }
@@ -94,17 +96,35 @@ function selectSession(session: 'morning' | 'evening') {
 
 function selectInstructor(id: string) {
   selectedInstructorId.value = id
-  instructorPassword.value = ''
+  password.value = ''
   loginError.value = ''
   step.value = 'instructor-password'
 }
 
-async function loginAsStudent(nama: string, npm: string, password?: string) {
+function selectStudent(id: string, nama: string, npm: string) {
+  selectedStudentId.value = id
+  selectedStudentNama.value = nama
+  selectedStudentNpm.value = npm
+  password.value = ''
+  loginError.value = ''
+  step.value = 'student-password'
+}
+
+async function submitStudentLogin() {
+  if (!password.value.trim()) {
+    loginError.value = 'Password harus diisi.'
+    return
+  }
+
   loginError.value = ''
   isLoggingIn.value = true
 
   try {
-    const success = await auth.loginAsStudent(nama, npm, password)
+    const success = await auth.loginAsStudent(
+      selectedStudentNama.value,
+      selectedStudentNpm.value,
+      password.value,
+    )
     if (success) {
       router.push('/dashboard')
     } else {
@@ -117,27 +137,9 @@ async function loginAsStudent(nama: string, npm: string, password?: string) {
   }
 }
 
-function selectStudent(id: string, nama: string, npm: string) {
-  selectedStudentId.value = id
-  selectedStudentNama.value = nama
-  selectedStudentNpm.value = npm
-  studentPassword.value = ''
-  loginError.value = ''
-  step.value = 'student-password'
-}
-
-async function loginAsStudentWithPassword() {
-  if (!studentPassword.value) {
-    loginError.value = 'Silakan masukkan password.'
-    return
-  }
-
-  await loginAsStudent(selectedStudentNama.value, selectedStudentNpm.value, studentPassword.value)
-}
-
-async function loginAsInstructor() {
-  if (!selectedInstructorId.value || !instructorPassword.value) {
-    loginError.value = 'Silakan masukkan password.'
+async function submitInstructorLogin() {
+  if (!password.value.trim()) {
+    loginError.value = 'Password harus diisi.'
     return
   }
 
@@ -147,11 +149,11 @@ async function loginAsInstructor() {
   const nama = instructors.value.find((i) => i.id === selectedInstructorId.value)?.nama || ''
 
   try {
-    const success = await auth.loginAsInstructor(nama, instructorPassword.value)
+    const success = await auth.loginAsInstructor(nama, password.value)
     if (success) {
       router.push('/instructor/dashboard')
     } else {
-      loginError.value = auth.error || 'Password salah. Silakan coba kembali.'
+      loginError.value = auth.error || 'Login gagal. Silakan coba kembali.'
     }
   } catch {
     loginError.value = 'Login gagal. Silakan coba kembali.'
@@ -160,16 +162,15 @@ async function loginAsInstructor() {
   }
 }
 
-async function loginAsAdmin() {
-  if (!adminPassword.value) {
-    loginError.value = 'Silakan masukkan password administrator.'
+async function submitAdminLogin() {
+  if (!password.value.trim()) {
+    loginError.value = 'Password harus diisi.'
     return
   }
 
   loginError.value = ''
   isLoggingIn.value = true
 
-  // Use the first admin in the list
   const admin = admins.value[0]
   if (!admin) {
     loginError.value = 'Data administrator tidak ditemukan.'
@@ -178,7 +179,7 @@ async function loginAsAdmin() {
   }
 
   try {
-    const success = await auth.loginAsAdmin(admin.nama, adminPassword.value)
+    const success = await auth.loginAsAdmin(admin.nama, password.value)
     if (success) {
       router.push('/admin/dashboard')
     } else {
@@ -191,15 +192,23 @@ async function loginAsAdmin() {
   }
 }
 
+/** Handle Enter key on password fields */
+function onPasswordEnter() {
+  if (step.value === 'student-password') submitStudentLogin()
+  else if (step.value === 'instructor-password') submitInstructorLogin()
+  else if (step.value === 'admin-password') submitAdminLogin()
+}
+
 function goBack() {
   loginError.value = ''
+  password.value = ''
   if (step.value === 'level') { step.value = 'role'; selectedRole.value = null }
   else if (step.value === 'session') { step.value = 'level'; selectedLevel.value = null }
   else if (step.value === 'roster') { step.value = 'session'; selectedSession.value = null }
-  else if (step.value === 'student-password') { step.value = 'roster'; selectedStudentId.value = null; selectedStudentNama.value = ''; selectedStudentNpm.value = ''; studentPassword.value = '' }
+  else if (step.value === 'student-password') { step.value = 'roster' }
   else if (step.value === 'instructor-list') { step.value = 'role'; selectedRole.value = null }
-  else if (step.value === 'instructor-password') { step.value = 'instructor-list'; selectedInstructorId.value = null; instructorPassword.value = '' }
-  else if (step.value === 'admin-password') { step.value = 'role'; selectedRole.value = null; adminPassword.value = '' }
+  else if (step.value === 'instructor-password') { step.value = 'instructor-list'; selectedInstructorId.value = null }
+  else if (step.value === 'admin-password') { step.value = 'role'; selectedRole.value = null }
 }
 
 function resetLogin() {
@@ -208,12 +217,9 @@ function resetLogin() {
   selectedLevel.value = null
   selectedSession.value = null
   selectedInstructorId.value = null
-  instructorPassword.value = ''
-  adminPassword.value = ''
   selectedStudentId.value = null
   selectedStudentNama.value = ''
   selectedStudentNpm.value = ''
-  studentPassword.value = ''
   loginError.value = ''
 }
 </script>
@@ -264,7 +270,7 @@ function resetLogin() {
           <div class="login-header">
             <div class="login-icon">📊</div>
             <h1>Pilih Level Kelas</h1>
-            <p>Pilih level kelas Anda (1–4).</p>
+            <p>Pilih level kelas Anda (1–4, Apoteker).</p>
           </div>
 
           <div class="level-grid">
@@ -275,7 +281,7 @@ function resetLogin() {
               @click="selectLevel(level)"
             >
               <span class="level-num">{{ level }}</span>
-              <span class="level-label">Level {{ level }}</span>
+              <span class="level-label">{{ getLevelLabel(level) }}</span>
             </button>
           </div>
         </template>
@@ -307,7 +313,7 @@ function resetLogin() {
             <div class="login-icon">👥</div>
             <h1>Pilih Identitas</h1>
             <p>
-              Level {{ selectedLevel }} •
+              {{ getLevelLabel(selectedLevel) }} •
               {{ selectedSession === 'morning' ? 'Pagi' : 'Malam' }}
               — {{ filteredStudents.length }} mahasiswa
             </p>
@@ -341,45 +347,6 @@ function resetLogin() {
           </div>
         </template>
 
-        <!-- ══════ STEP 5a: Student Password ══════ -->
-        <template v-if="step === 'student-password'">
-          <div class="login-header">
-            <div class="login-icon">🔑</div>
-            <h1>Selamat datang,</h1>
-            <p class="instructor-greeting">{{ selectedStudentNama }}</p>
-          </div>
-
-          <form class="password-form" @submit.prevent="loginAsStudentWithPassword">
-            <div class="form-group">
-              <label for="student-password">Password</label>
-              <div class="password-wrapper">
-                <input
-                  id="student-password"
-                  v-model="studentPassword"
-                  :type="showStudentPassword ? 'text' : 'password'"
-                  placeholder="Masukkan password"
-                  autocomplete="current-password"
-                />
-                <button type="button" class="password-toggle" @click="showStudentPassword = !showStudentPassword" :title="showStudentPassword ? 'Sembunyikan password' : 'Tampilkan password'">
-                  {{ showStudentPassword ? '🙈' : '👁️' }}
-                </button>
-              </div>
-            </div>
-
-            <div v-if="loginError" class="error-msg">
-              {{ loginError }}
-            </div>
-
-            <button
-              type="submit"
-              class="btn btn-primary"
-              :disabled="isLoggingIn || !studentPassword"
-            >
-              {{ isLoggingIn ? 'Memproses...' : 'Masuk' }}
-            </button>
-          </form>
-        </template>
-
         <!-- ══════ STEP 2b: Instructor List ══════ -->
         <template v-if="step === 'instructor-list'">
           <div class="login-header">
@@ -404,86 +371,120 @@ function resetLogin() {
           </div>
         </template>
 
+        <!-- ══════ STEP 5a: Student Password ══════ -->
+        <template v-if="step === 'student-password'">
+          <div class="login-header">
+            <div class="login-icon">🔑</div>
+            <h1>Masukkan Password</h1>
+            <p class="instructor-greeting">{{ selectedStudentNama }}</p>
+            <p>{{ selectedStudentNpm }}</p>
+          </div>
+
+          <div v-if="isLoggingIn" class="loading-state">
+            <div class="spinner" />
+            <p>Memproses login...</p>
+          </div>
+
+          <div v-else class="password-form">
+            <div class="form-group">
+              <label class="form-label">Password</label>
+              <div class="password-wrapper">
+                <input
+                  v-model="password"
+                  :type="showPassword ? 'text' : 'password'"
+                  class="form-input"
+                  placeholder="Masukkan password"
+                  @keyup.enter="onPasswordEnter"
+                  autofocus
+                />
+                <button type="button" class="password-toggle" @click="showPassword = !showPassword" :title="showPassword ? 'Sembunyikan' : 'Tampilkan'">
+                  {{ showPassword ? '🙈' : '👁️' }}
+                </button>
+              </div>
+              <p class="form-hint" v-if="isDemoMode">Demo: <code>mahasiswa123</code></p>
+            </div>
+            <button class="btn btn-primary" style="width:100%" @click="submitStudentLogin">
+              Masuk
+            </button>
+          </div>
+        </template>
+
         <!-- ══════ STEP 3b: Instructor Password ══════ -->
         <template v-if="step === 'instructor-password'">
           <div class="login-header">
             <div class="login-icon">🔑</div>
-            <h1>Selamat datang,</h1>
+            <h1>Masukkan Password</h1>
             <p class="instructor-greeting">{{ selectedInstructorName }}</p>
           </div>
 
-          <form class="password-form" @submit.prevent="loginAsInstructor">
+          <div v-if="isLoggingIn" class="loading-state">
+            <div class="spinner" />
+            <p>Memproses login...</p>
+          </div>
+
+          <div v-else class="password-form">
             <div class="form-group">
-              <label for="password">Password</label>
+              <label class="form-label">Password</label>
               <div class="password-wrapper">
                 <input
-                  id="password"
-                  v-model="instructorPassword"
-                  :type="showInstructorPassword ? 'text' : 'password'"
+                  v-model="password"
+                  :type="showPassword ? 'text' : 'password'"
+                  class="form-input"
                   placeholder="Masukkan password"
-                  autocomplete="current-password"
+                  @keyup.enter="onPasswordEnter"
+                  autofocus
                 />
-                <button type="button" class="password-toggle" @click="showInstructorPassword = !showInstructorPassword" :title="showInstructorPassword ? 'Sembunyikan password' : 'Tampilkan password'">
-                  {{ showInstructorPassword ? '🙈' : '👁️' }}
+                <button type="button" class="password-toggle" @click="showPassword = !showPassword" :title="showPassword ? 'Sembunyikan' : 'Tampilkan'">
+                  {{ showPassword ? '🙈' : '👁️' }}
                 </button>
               </div>
+              <p class="form-hint" v-if="isDemoMode">Demo: <code>instruktur123</code></p>
             </div>
-
-            <div v-if="loginError" class="error-msg">
-              {{ loginError }}
-            </div>
-
-            <button
-              type="submit"
-              class="btn btn-primary"
-              :disabled="isLoggingIn || !instructorPassword"
-            >
-              {{ isLoggingIn ? 'Memproses...' : 'Masuk' }}
+            <button class="btn btn-primary" style="width:100%" @click="submitInstructorLogin">
+              Masuk
             </button>
-          </form>
+          </div>
         </template>
 
-        <!-- ══════ STEP 2c: Admin Password ══════ -->
+        <!-- ══════ STEP 1c: Admin Password ══════ -->
         <template v-if="step === 'admin-password'">
           <div class="login-header">
-            <div class="login-icon">🛠️</div>
-            <h1>Login Administrator</h1>
+            <div class="login-icon">🛡️</div>
+            <h1>Masuk Administrator</h1>
             <p>Masukkan password administrator untuk melanjutkan.</p>
           </div>
 
-          <form class="password-form" @submit.prevent="loginAsAdmin">
+          <div v-if="isLoggingIn" class="loading-state">
+            <div class="spinner" />
+            <p>Memproses login...</p>
+          </div>
+
+          <div v-else class="password-form">
             <div class="form-group">
-              <label for="admin-password">Password Administrator</label>
+              <label class="form-label">Password</label>
               <div class="password-wrapper">
                 <input
-                  id="admin-password"
-                  v-model="adminPassword"
-                  :type="showAdminPassword ? 'text' : 'password'"
+                  v-model="password"
+                  :type="showPassword ? 'text' : 'password'"
+                  class="form-input"
                   placeholder="Masukkan password"
-                  autocomplete="current-password"
+                  @keyup.enter="onPasswordEnter"
+                  autofocus
                 />
-                <button type="button" class="password-toggle" @click="showAdminPassword = !showAdminPassword" :title="showAdminPassword ? 'Sembunyikan password' : 'Tampilkan password'">
-                  {{ showAdminPassword ? '🙈' : '👁️' }}
+                <button type="button" class="password-toggle" @click="showPassword = !showPassword" :title="showPassword ? 'Sembunyikan' : 'Tampilkan'">
+                  {{ showPassword ? '🙈' : '👁️' }}
                 </button>
               </div>
+              <p class="form-hint" v-if="isDemoMode">Demo: <code>admin123</code></p>
             </div>
-
-            <div v-if="loginError" class="error-msg">
-              {{ loginError }}
-            </div>
-
-            <button
-              type="submit"
-              class="btn btn-primary"
-              :disabled="isLoggingIn || !adminPassword"
-            >
-              {{ isLoggingIn ? 'Memproses...' : 'Masuk' }}
+            <button class="btn btn-primary" style="width:100%" @click="submitAdminLogin">
+              Masuk
             </button>
-          </form>
+          </div>
         </template>
 
-        <!-- Error message (for roster/level steps) -->
-        <div v-if="loginError && step !== 'student-password' && step !== 'instructor-password' && step !== 'admin-password'" class="error-msg">
+        <!-- Error message -->
+        <div v-if="loginError" class="error-msg">
           {{ loginError }}
         </div>
       </div>
@@ -522,6 +523,24 @@ function resetLogin() {
   font-size: 0.8rem;
   margin-bottom: 1.5rem;
   text-align: center;
+}
+
+.demo-hint {
+  background-color: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+  border-radius: var(--radius-md);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
+}
+
+.demo-hint code {
+  background: #dbeafe;
+  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
+  font-family: monospace;
+  font-weight: 600;
 }
 
 .btn-back {
@@ -811,6 +830,43 @@ function resetLogin() {
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--color-neutral-700);
+}
+
+.password-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-wrapper .form-input {
+  width: 100%;
+  padding-right: 2.5rem;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 0.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.25rem;
+  padding: 0.25rem;
+  line-height: 1;
+}
+
+.form-hint {
+  font-size: 0.75rem;
+  color: var(--color-neutral-400);
+  margin-top: 0.125rem;
+}
+
+.form-hint code {
+  background: var(--color-neutral-100);
+  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
+  font-family: monospace;
+  font-weight: 600;
+  color: var(--color-neutral-600);
 }
 
 /* ── Error ───────────────────────────────── */

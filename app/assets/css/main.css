@@ -62,6 +62,57 @@
   /* Layout */
   --sidebar-width: 260px;
   --header-height: 64px;
+
+  /* Surface & background (used instead of hardcoded white/gray) */
+  --color-surface: #ffffff;
+  --color-background: #f8fafc;
+}
+
+/* ============================================
+   Dark Mode — CSS Variable Overrides
+   Activated when <html> has data-theme="dark"
+   ============================================ */
+[data-theme="dark"] {
+  /* Primary palette — lighter for dark backgrounds */
+  --color-primary-50: #1e293b;
+  --color-primary-100: #1e3a5f;
+  --color-primary-200: #1e4a8a;
+  --color-primary-300: #2563eb;
+  --color-primary-400: #3b82f6;
+  --color-primary-500: #60a5fa;
+  --color-primary-600: #60a5fa;
+  --color-primary-700: #93c5fd;
+  --color-primary-800: #bfdbfe;
+  --color-primary-900: #dbeafe;
+
+  /* Neutral palette — dark surface, light text */
+  --color-neutral-50: #0f172a;
+  --color-neutral-100: #1e293b;
+  --color-neutral-200: #334155;
+  --color-neutral-300: #475569;
+  --color-neutral-400: #64748b;
+  --color-neutral-500: #94a3b8;
+  --color-neutral-600: #cbd5e1;
+  --color-neutral-700: #e2e8f0;
+  --color-neutral-800: #f1f5f9;
+  --color-neutral-900: #f8fafc;
+
+  /* Semantic — slightly brighter for dark */
+  --color-success: #4ade80;
+  --color-error: #f87171;
+  --color-warning: #fbbf24;
+  --color-info: #60a5fa;
+
+  /* Shadows — stronger on dark */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.5), 0 4px 6px -4px rgb(0 0 0 / 0.4);
+
+  /* Override hardcoded white/light backgrounds */
+  color-scheme: dark;
+
+  --color-surface: #1e293b;
+  --color-background: #0f172a;
 }
 
 /* ============================================
@@ -133,7 +184,7 @@ input, select, textarea {
   padding: 0.625rem 0.75rem;
   border: 1px solid var(--color-neutral-300);
   border-radius: var(--radius-md);
-  background-color: white;
+  background-color: var(--color-surface);
   color: var(--color-neutral-800);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
@@ -167,7 +218,7 @@ button {
   padding: 0.625rem 0.75rem;
   border: 1px solid var(--color-neutral-300);
   border-radius: var(--radius-md);
-  background-color: white;
+  background-color: var(--color-surface);
   color: var(--color-neutral-800);
   font-size: 0.9375rem;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -230,6 +281,73 @@ button {
   margin-top: 1.5rem;
   padding-top: 1rem;
   border-top: 1px solid var(--color-neutral-200);
+}
+
+.form-select {
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--color-neutral-300);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  color: var(--color-neutral-800);
+  font-size: 0.9375rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.form-select:focus {
+  outline: none;
+  border-color: var(--color-primary-500);
+  box-shadow: 0 0 0 3px var(--color-primary-100);
+}
+
+.form-textarea {
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--color-neutral-300);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  color: var(--color-neutral-800);
+  font-size: 0.9375rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 80px;
+}
+
+.form-textarea:focus {
+  outline: none;
+  border-color: var(--color-primary-500);
+  box-shadow: 0 0 0 3px var(--color-primary-100);
+}
+
+/* ── Admin CRUD Patterns ── */
+
+.form-card {
+  padding: 1.25rem;
+  margin-bottom: 1.25rem;
+  border: 1px solid var(--color-primary-300);
+  background: #f0f7ff;
+}
+
+.confirm-card {
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+  border: 1px solid var(--color-error);
+  background: #fef2f2;
+}
+
+.confirm-card p {
+  margin: 0 0 0.75rem;
+  font-size: 0.875rem;
+  color: #b91c1c;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
 }
 
 .form-readonly {
@@ -383,7 +501,7 @@ button {
    Card
    ============================================ */
 .card {
-  background-color: white;
+  background-color: var(--color-surface);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--color-neutral-200);

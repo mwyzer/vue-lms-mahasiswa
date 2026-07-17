@@ -119,14 +119,14 @@ Use Supabase when configured, demo data otherwise.
 ### Phase 7 — Lesson Progress
 ```
 Read PRD.md and implement Phase 7 only.
-Build lesson detail: prev/next nav, mark complete, persist progress, calculate progress, preserve demo mode.
+Build lesson detail: prev/next nav, sidebar lesson list, toggle complete/uncomplete, persist progress, calculate progress, keyboard shortcuts, preserve demo mode.
 Respect all RLS policies.
 ```
 
 ### Phase 8 — Assignments
 ```
 Read PRD.md and implement Phase 8 only.
-Build assignments: Pinia store, list, search/filter, detail, submission form, update, status, grade/feedback.
+Build assignments: Pinia store, list, search/filter, detail, countdown timer, character counter, submission form, update, status, grade/feedback.
 Students only access own submissions.
 ```
 
@@ -137,24 +137,27 @@ Build instructor module: dashboard, course management, lesson CRUD, assignment C
 All under /instructor/* routes. Respect RLS policies.
 ```
 
-### Phase 10 — Profile
+### Phase 10 — Admin Module
 ```
-Read PRD.md and implement Phase 10 only.
-Build profile for both students and instructors: page, edit form, validation, avatar preview, Supabase update, loading/success/error states.
-Students only update own profile. Instructors only update own profile.
-```
-
-### Phase 10 — Testing & Accessibility
-```
-Read PRD.md and implement Phase 10 only.
-Add Vitest, Vue Test Utils, Playwright. Write unit, component, and E2E tests.
-Improve accessibility and keyboard navigation.
-Do not rewrite stable features unless needed.
+Read PRD.md and docs/09-routing-dan-autentikasi.md. Implement Phase 10 only.
+Build admin module: dashboard layout, sidebar, CRUD students (add/edit/delete), CRUD instructors (add/edit/delete), CRUD courses (add/edit/delete), view all assignments.
+All under /admin/* routes. Respect RLS policies.
 ```
 
-### Phase 11 — Deployment
+### Phase 11 — Profile & AI Chat
 ```
 Read PRD.md and implement Phase 11 only.
+Build profile for students, instructors, and admins: page, edit form, validation, avatar preview, Supabase update, loading/success/error states.
+Build AI Chat assistant page at /ai/chat.
+Build code playground at /playground.
+Users only update own profile.
+```
+
+### Phase 12 — Testing & Deployment
+```
+Read PRD.md and implement Phase 12 only.
+Add Vitest, Vue Test Utils, Playwright. Write unit (99+), component, and E2E tests (student + instructor flows + a11y).
+Prepare PWA icons and configuration.
 Prepare for Vercel: review env vars, build scripts, production build, deployment instructions, update README, smoke test routes.
 Do not add new features.
 ```

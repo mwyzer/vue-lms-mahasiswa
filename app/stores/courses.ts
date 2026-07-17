@@ -27,6 +27,8 @@ const DEMO_COURSES: Course[] = [
   { id: 'c11', instructor_id: 'i1', kode: 'MK401', nama: 'Rekayasa Perangkat Lunak', deskripsi: 'Metodologi pengembangan perangkat lunak.', level: 4, session_time: 'morning', color: '#84cc16', icon: '🛠️' },
   { id: 'c12', instructor_id: 'i2', kode: 'MK402', nama: 'Kecerdasan Buatan', deskripsi: 'Machine learning, NLP, dan AI fundamentals.', level: 4, session_time: 'morning', color: '#f97316', icon: '🤖' },
   { id: 'c13', instructor_id: 'i3', kode: 'MK403', nama: 'Keamanan Informasi', deskripsi: 'Kriptografi, ethical hacking, security audit.', level: 4, session_time: 'evening', color: '#dc2626', icon: '🔒' },
+  { id: 'c14', instructor_id: 'i1', kode: 'MK501', nama: 'Farmakologi', deskripsi: 'Prinsip dasar farmakologi dan interaksi obat.', level: 5, session_time: 'morning', color: '#0891b2', icon: '💊' },
+  { id: 'c15', instructor_id: 'i2', kode: 'MK502', nama: 'Farmasi Klinik', deskripsi: 'Pelayanan kefarmasian di rumah sakit dan klinik.', level: 5, session_time: 'evening', color: '#0d9488', icon: '🏥' },
 ]
 
 const DEMO_ENROLLMENTS: Record<string, string[]> = {
@@ -35,7 +37,8 @@ const DEMO_ENROLLMENTS: Record<string, string[]> = {
   's6': ['c5', 'c6'], 's7': ['c5', 'c6'], 's8': ['c7'],
   's9': ['c8', 'c9'], 's10': ['c8', 'c9'], 's11': ['c10'],
   's12': ['c11', 'c12'], 's13': ['c11', 'c12'], 's14': ['c13'], 's15': ['c13'],
-  'i1': ['c1', 'c4', 'c5', 'c8', 'c11'],
+  's16': ['c14', 'c15'], 's17': ['c14', 'c15'],
+  'i1': ['c1', 'c4', 'c5', 'c8', 'c11', 'c14'],
   'i2': ['c2', 'c6', 'c9', 'c12'],
   'i3': ['c3', 'c7', 'c10', 'c13'],
 }
@@ -174,7 +177,7 @@ export const useCoursesStore = defineStore('courses', {
     allCourses(): Course[] {
       const store = useCoursesStore()
       void store.demoVersion
-      return store.isDemoMode ? DEMO_COURSES : store.sbCourses
+      return store.isDemoMode ? [...DEMO_COURSES] : [...store.sbCourses]
     },
 
     /** Get lessons for current course. */
@@ -365,6 +368,82 @@ export const useCoursesStore = defineStore('courses', {
         }
       } catch (err) {
         console.error('Failed to save lesson progress:', err)
+      }
+    },
+
+    /**
+     * Toggle a lesson's completed status for the current student.
+     */
+    async toggleLessonCompleted(lessonId: string) {
+      const auth = useAuthStore()
+      if (!auth.user?.id) return
+
+      if (this.isDemoMode) {
+        const existing = DEMO_LESSON_PROGRESS[auth.user.id] || []
+        const already = existing.find((p) => p.lesson_id === lessonId)
+        if (already) {
+          // Remove from progress (unmark)
+          DEMO_LESSON_PROGRESS[auth.user.id] = existing.filter((p) => p.lesson_id !== lessonId)
+        } else {
+          // Mark as completed
+          existing.push({
+            id: `p-${Date.now()}`,
+            student_id: auth.user.id,
+            lesson_id: lessonId,
+            completed: true,
+            completed_at: new Date().toISOString(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          DEMO_LESSON_PROGRESS[auth.user.id] = existing
+        }
+        this.lessonProgress = DEMO_LESSON_PROGRESS[auth.user.id] || []
+        this.demoVersion++
+        return
+      }
+
+      // Production: toggle in Supabase
+      try {
+        const supabase = useNuxtApp().$supabase
+        const { data: existing } = await supabase
+          .from('lesson_progress')
+          .select('id, completed')
+          .eq('student_id', auth.user.id)
+          .eq('lesson_id', lessonId)
+          .maybeSingle()
+
+        if (existing) {
+          const newCompleted = !existing.completed
+          await supabase
+            .from('lesson_progress')
+            .update({
+              completed: newCompleted,
+              completed_at: newCompleted ? new Date().toISOString() : null,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', existing.id)
+        } else {
+          await supabase
+            .from('lesson_progress')
+            .insert({
+              student_id: auth.user.id,
+              lesson_id: lessonId,
+              completed: true,
+              completed_at: new Date().toISOString(),
+            })
+        }
+
+        // Refresh local progress map
+        const { data: refreshed } = await supabase
+          .from('lesson_progress')
+          .select('*')
+          .eq('student_id', auth.user.id)
+
+        if (refreshed) {
+          this.sbProgressMap[auth.user.id] = refreshed as LessonProgress[]
+        }
+      } catch (err) {
+        console.error('Failed to toggle lesson progress:', err)
       }
     },
 

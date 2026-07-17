@@ -311,15 +311,6 @@ async function confirmDelete(s: any) {
   margin: 0;
 }
 
-.form-card {
-  margin-bottom: 1.5rem;
-}
-
-.form-card h3 {
-  font-size: 1rem;
-  margin-bottom: 1rem;
-}
-
 .form-group {
   margin-bottom: 0.75rem;
 }

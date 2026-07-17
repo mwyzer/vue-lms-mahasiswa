@@ -10,7 +10,7 @@ Aplikasi harus tetap berfungsi ketika Supabase belum dikonfigurasi.
 - Demo mode tidak aktif di production jika Supabase sudah dikonfigurasi
 
 ### Cakupan Demo
-- Login, dashboard, mata kuliah, materi, tugas, profil
+- Login, dashboard, mata kuliah, materi, tugas, nilai, profil, kalender akademik, presensi, AI chat, playground
 
 ---
 
@@ -79,19 +79,25 @@ Contoh: *"Tugas gagal dikirim. Periksa koneksi internet Anda dan coba kembali."*
 
 ### Unit Testing
 - **Tools:** Vitest, Vue Test Utils
-- **Cakupan:** Auth store, course filter, progress calculation, assignment status, form validation, date formatting, error mapping
+- **Cakupan:** Auth store (login, role, middleware), course store (filter, progress), assignment store (status, submission), components (render, props, slots)
+- **Total:** 139+ tests (stores + components)
 
 ### Component Testing
-- Login form, stat card, course card, assignment card, progress bar, empty state, error alert, sidebar
+- AiChat, EmptyState, PageHeader, ProgressBar, SessionBadge, StatCard — render, props, slots, edge cases
 
 ### E2E Testing (Playwright)
 1. Membuka landing page
-2. Login
-3. Membuka dashboard
-4. Membuka mata kuliah
-5. Menandai materi selesai
-6. Membuka tugas
-7. Mengirim submission
-8. Membuka profil
-9. Logout
-10. Route dashboard tidak dapat dibuka setelah logout
+2. Login mahasiswa (pilih role → level → session → nama)
+3. Login instruktur (pilih role → nama)
+4. Membuka dashboard
+5. Membuka mata kuliah
+6. Menandai materi selesai
+7. Membuka tugas
+8. Mengirim submission
+9. Membuka profil
+10. Logout
+11. Route dashboard tidak dapat dibuka setelah logout
+
+### Aksesibilitas (Playwright a11y)
+- 8 spek E2E aksesibilitas (landing, login, dashboard, courses, lessons, assignments, profile, instructor)
+- WCAG 2.1 Level AA compliance check

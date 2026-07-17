@@ -12,8 +12,11 @@ const navigation = computed(() => [
   { label: 'Dashboard', icon: '📊', to: '/admin/dashboard' },
   { label: 'Mata Kuliah', icon: '📖', to: '/admin/courses' },
   { label: 'Tugas', icon: '📝', to: '/admin/assignments' },
+  { label: 'Kuis', icon: '❓', to: '/admin/quiz' },
   { label: 'Mahasiswa', icon: '👥', to: '/admin/students' },
   { label: 'Instruktur', icon: '👨‍🏫', to: '/admin/instructors' },
+  { label: 'Presensi', icon: '✅', to: '/instructor/attendance' },
+  { label: 'Kalender', icon: '📅', to: '/calendar' },
   { label: 'AI Tutor', icon: '🤖', to: '/ai/chat' },
   { label: 'Python', icon: '🐍', to: '/playground' },
   { label: 'Profil', icon: '👤', to: '/admin/profile' },
@@ -113,6 +116,7 @@ function closeSidebar() {
       </NuxtLink>
     </nav>
   </div>
+  <UpdatePrompt />
 </template>
 
 <style scoped>

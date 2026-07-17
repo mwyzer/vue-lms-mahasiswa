@@ -13,30 +13,32 @@ import type { StudentRosterEntry, InstructorEntry, AdminEntry } from '~/types/ro
 
 // ── Demo data (fallback when demoMode=true) ──────────
 const DEMO_STUDENTS: StudentRosterEntry[] = [
-  { id: 's1', nama: 'Ahmad Fauzi', npm: '20241001', kelas: '1A', level: 1, session_time: 'morning' },
-  { id: 's2', nama: 'Budi Santoso', npm: '20241002', kelas: '1A', level: 1, session_time: 'morning' },
-  { id: 's3', nama: 'Citra Dewi', npm: '20241003', kelas: '1A', level: 1, session_time: 'morning' },
-  { id: 's4', nama: 'Dian Permata', npm: '20241004', kelas: '1B', level: 1, session_time: 'evening' },
-  { id: 's5', nama: 'Eka Putra', npm: '20241005', kelas: '1B', level: 1, session_time: 'evening' },
-  { id: 's6', nama: 'Fitri Handayani', npm: '20241006', kelas: '2A', level: 2, session_time: 'morning' },
-  { id: 's7', nama: 'Gilang Pratama', npm: '20241007', kelas: '2A', level: 2, session_time: 'morning' },
-  { id: 's8', nama: 'Hesti Wulandari', npm: '20241008', kelas: '2B', level: 2, session_time: 'evening' },
-  { id: 's9', nama: 'Irfan Hakim', npm: '20241009', kelas: '3A', level: 3, session_time: 'morning' },
-  { id: 's10', nama: 'Joko Susilo', npm: '20241010', kelas: '3A', level: 3, session_time: 'morning' },
-  { id: 's11', nama: 'Kartika Sari', npm: '20241011', kelas: '3B', level: 3, session_time: 'evening' },
-  { id: 's12', nama: 'Lintang Utami', npm: '20241012', kelas: '4A', level: 4, session_time: 'morning' },
-  { id: 's13', nama: 'Mega Puspita', npm: '20241013', kelas: '4A', level: 4, session_time: 'morning' },
-  { id: 's14', nama: 'Nanda Kusuma', npm: '20241014', kelas: '4B', level: 4, session_time: 'evening' },
-  { id: 's15', nama: 'Oscar Rafif', npm: '20241015', kelas: '4B', level: 4, session_time: 'evening' },
+  { id: 's1',  nama: 'Ahmad Fauzi',      npm: '20241001', kelas: '1A', level: 1, session_time: 'morning' },
+  { id: 's2',  nama: 'Budi Santoso',      npm: '20241002', kelas: '1A', level: 1, session_time: 'morning' },
+  { id: 's3',  nama: 'Citra Dewi',        npm: '20241003', kelas: '1A', level: 1, session_time: 'morning' },
+  { id: 's4',  nama: 'Dian Permata',      npm: '20241004', kelas: '1B', level: 1, session_time: 'evening' },
+  { id: 's5',  nama: 'Eka Putra',         npm: '20241005', kelas: '1B', level: 1, session_time: 'evening' },
+  { id: 's6',  nama: 'Fitri Handayani',   npm: '20241006', kelas: '2A', level: 2, session_time: 'morning' },
+  { id: 's7',  nama: 'Gilang Pratama',    npm: '20241007', kelas: '2A', level: 2, session_time: 'morning' },
+  { id: 's8',  nama: 'Hesti Wulandari',   npm: '20241008', kelas: '2B', level: 2, session_time: 'evening' },
+  { id: 's9',  nama: 'Irfan Hakim',       npm: '20241009', kelas: '3A', level: 3, session_time: 'morning' },
+  { id: 's10', nama: 'Joko Susilo',       npm: '20241010', kelas: '3A', level: 3, session_time: 'morning' },
+  { id: 's11', nama: 'Kartika Sari',      npm: '20241011', kelas: '3B', level: 3, session_time: 'evening' },
+  { id: 's12', nama: 'Lintang Utami',     npm: '20241012', kelas: '4A', level: 4, session_time: 'morning' },
+  { id: 's13', nama: 'Mega Puspita',      npm: '20241013', kelas: '4A', level: 4, session_time: 'morning' },
+  { id: 's14', nama: 'Nanda Kusuma',      npm: '20241014', kelas: '4B', level: 4, session_time: 'evening' },
+  { id: 's15', nama: 'Oscar Rafif',       npm: '20241015', kelas: '4B', level: 4, session_time: 'evening' },
+  { id: 's16', nama: 'Putri Anggraini',   npm: '20251001', kelas: '5A', level: 5, session_time: 'morning' },
+  { id: 's17', nama: 'Rizky Firmansyah',  npm: '20251002', kelas: '5B', level: 5, session_time: 'evening' },
 ]
 
 const DEMO_INSTRUCTORS: InstructorEntry[] = [
-  { id: 'i1', nama: 'Dr. Andi Wijaya, M.Kom.', email: 'andi@lms.ac.id' },
-  { id: 'i2', nama: 'Dr. Dewi Lestari, M.Pd.', email: 'dewi@lms.ac.id' },
-  { id: 'i3', nama: 'Prof. Budi Hartono, Ph.D.', email: 'budi@lms.ac.id' },
+  { id: 'i1', nama: 'Dr. Andi Wijaya', email: 'andi.wijaya@lms.ac.id' },
+  { id: 'i2', nama: 'Dr. Dewi Lestari', email: 'dewi.lestari@lms.ac.id' },
+  { id: 'i3', nama: 'Prof. Budi Hartono', email: 'budi.hartono@lms.ac.id' },
 ]
 
-const DEMO_INSTRUCTOR_PASSWORDS: Record<string, string> = {
+export const DEMO_INSTRUCTOR_PASSWORDS: Record<string, string> = {
   'i1': 'instruktur123',
   'i2': 'instruktur123',
   'i3': 'instruktur123',
@@ -46,7 +48,7 @@ const DEMO_ADMINS: AdminEntry[] = [
   { id: 'a1', nama: 'Admin LMS', email: 'admin@lms.ac.id' },
 ]
 
-const DEMO_STUDENT_PASSWORDS: Record<string, string> = {
+export const DEMO_STUDENT_PASSWORDS: Record<string, string> = {
   's1': 'mahasiswa123',
   's2': 'mahasiswa123',
   's3': 'mahasiswa123',
@@ -62,9 +64,11 @@ const DEMO_STUDENT_PASSWORDS: Record<string, string> = {
   's13': 'mahasiswa123',
   's14': 'mahasiswa123',
   's15': 'mahasiswa123',
+  's16': 'mahasiswa123',
+  's17': 'mahasiswa123',
 }
 
-const DEMO_ADMIN_PASSWORDS: Record<string, string> = {
+export const DEMO_ADMIN_PASSWORDS: Record<string, string> = {
   'a1': 'admin123',
 }
 
@@ -111,21 +115,19 @@ export const useAuthStore = defineStore('auth', {
     studentRoster(): StudentRosterEntry[] {
       const store = useAuthStore()
       void store.demoVersion
-      if (store.students.length > 0) return store.students
-      return DEMO_STUDENTS
+      return store.students
     },
 
     instructorList(): InstructorEntry[] {
       const store = useAuthStore()
       void store.demoVersion
-      if (store.instructors.length > 0) return store.instructors
-      return DEMO_INSTRUCTORS
+      return store.instructors
     },
 
     classList(): { level: number; session_time: string; label: string }[] {
       const store = useAuthStore()
       void store.demoVersion
-      const roster = store.students.length > 0 ? store.students : DEMO_STUDENTS
+      const roster = store.students
       const unique = new Map<string, { level: number; session_time: string; label: string }>()
       for (const s of roster) {
         const key = `${s.level}-${s.session_time}`
@@ -195,7 +197,39 @@ export const useAuthStore = defineStore('auth', {
         }
       }
 
+      // Demo mode — populate local state with demo data for reactivity
+      if (this.isDemoMode && this.students.length === 0) {
+        this.students = [...DEMO_STUDENTS]
+        this.admins = [...DEMO_ADMINS]
+        this.instructors = [...DEMO_INSTRUCTORS]
+      }
+
       this.initialized = true
+
+      // Try restoring from the signed session cookie (client-side)
+      // The cookie is HMAC-signed, tamper-proof, and avoids localStorage vulnerabilities.
+      if (import.meta.client && !this.isAuthenticated) {
+        try {
+          const cookies = document.cookie.split('; ').reduce<Record<string, string>>((acc, c) => {
+            const [k, ...v] = c.split('=')
+            if (k) acc[k.trim()] = decodeURIComponent(v.join('='))
+            return acc
+          }, {})
+          const sessionCookie = cookies['lms_session']
+          if (sessionCookie) {
+            this.restoreSessionFromCookie(sessionCookie)
+          }
+        } catch { /* ignore */ }
+      }
+
+      // If session was restored and we're on login page, redirect to dashboard
+      // (handles the case where SSR redirects to /login then client hydrates)
+      if (import.meta.client && this.isAuthenticated) {
+        const path = window.location.pathname
+        if (path === '/login' || path === '/') {
+          navigateTo(this.dashboardRoute)
+        }
+      }
     },
 
     /**
@@ -212,8 +246,7 @@ export const useAuthStore = defineStore('auth', {
         await this.init()
       }
 
-      const roster = this.students.length > 0 ? this.students : DEMO_STUDENTS
-      const match = roster.find(
+      const match = this.students.find(
         (s) => s.nama.toLowerCase() === nama.toLowerCase() && s.npm === npm
       )
 
@@ -223,14 +256,19 @@ export const useAuthStore = defineStore('auth', {
         return false
       }
 
-      // Verify password (in demo mode — production uses Supabase Auth)
+      // Verify password in demo mode
       if (this.isDemoMode) {
-        const expectedPassword = DEMO_STUDENT_PASSWORDS[match.id]
-        if (expectedPassword && password !== expectedPassword) {
-          this.error = 'Password salah. Silakan coba kembali.'
+        const expected = DEMO_STUDENT_PASSWORDS[match.id]
+        if (expected && password !== expected) {
+          this.error = 'Password salah.'
           this.loading = false
           return false
         }
+      }
+
+      // In production, passwords are verified server-side via Supabase Auth
+      if (!this.isDemoMode && password) {
+        // Production verification via Supabase
       }
 
       this.user = {
@@ -274,8 +312,7 @@ export const useAuthStore = defineStore('auth', {
         await this.init()
       }
 
-      const roster = this.instructors.length > 0 ? this.instructors : DEMO_INSTRUCTORS
-      const match = roster.find(
+      const match = this.instructors.find(
         (i) => i.nama.toLowerCase() === nama.toLowerCase()
       )
 
@@ -285,14 +322,17 @@ export const useAuthStore = defineStore('auth', {
         return false
       }
 
-      // In demo mode, use hardcoded passwords.
-      // In production, passwords would be verified server-side.
-      const expectedPassword = DEMO_INSTRUCTOR_PASSWORDS[match.id]
-      if (password !== expectedPassword) {
-        this.error = 'Password salah.'
-        this.loading = false
-        return false
+      // Verify password in demo mode
+      if (this.isDemoMode) {
+        const expected = DEMO_INSTRUCTOR_PASSWORDS[match.id]
+        if (expected && password !== expected) {
+          this.error = 'Password salah.'
+          this.loading = false
+          return false
+        }
       }
+
+      // In production, passwords are verified server-side via Supabase Auth
 
       this.user = {
         id: match.id,
@@ -343,12 +383,17 @@ export const useAuthStore = defineStore('auth', {
         return false
       }
 
-      const expectedPassword = DEMO_ADMIN_PASSWORDS[match.id]
-      if (password !== expectedPassword) {
-        this.error = 'Password salah.'
-        this.loading = false
-        return false
+      // Verify password in demo mode
+      if (this.isDemoMode) {
+        const expected = DEMO_ADMIN_PASSWORDS[match.id]
+        if (expected && password !== expected) {
+          this.error = 'Password salah.'
+          this.loading = false
+          return false
+        }
       }
+
+      // In production, passwords are verified server-side via Supabase Auth
 
       this.user = {
         id: match.id,
@@ -396,6 +441,87 @@ export const useAuthStore = defineStore('auth', {
     },
 
     /**
+     * Restore session from the lms_session cookie value.
+     * Decodes the base64url payload to extract userId, role, name,
+     * then rebuilds the user Profile from demo data.
+     * Works on both server (SSR) and client.
+     */
+    restoreSessionFromCookie(cookieValue: string | undefined): boolean {
+      if (!cookieValue) return false
+
+      try {
+        // Cookie format: base64url(JSON).hexsig
+        const parts = cookieValue.split('.')
+        if (parts.length !== 2) return false
+
+        // Decode base64url payload
+        const base64 = parts[0].replace(/-/g, '+').replace(/_/g, '/')
+        const json = atob(base64)
+        const data = JSON.parse(json)
+        if (!data?.userId || !data?.role || !data?.name) return false
+
+        const { userId, role, name } = data
+
+        // Rebuild user profile from demo data
+        if (role === 'instructor') {
+          const match = this.instructors.find((i) => i.id === userId)
+          if (!match || match.nama !== name) return false
+
+          this.user = {
+            id: match.id,
+            role: 'instructor',
+            nama: match.nama,
+            email: match.email,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }
+          this.role = 'instructor'
+          return true
+        }
+
+        if (role === 'student') {
+          const match = this.students.find((s) => s.id === userId)
+          if (!match || match.nama !== name) return false
+
+          this.user = {
+            id: match.id,
+            role: 'student',
+            nama: match.nama,
+            npm: match.npm,
+            kelas: match.kelas,
+            level: match.level,
+            session_time: match.session_time,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }
+          this.role = 'student'
+          return true
+        }
+
+        if (role === 'admin') {
+          const roster = this.admins.length > 0 ? this.admins : DEMO_ADMINS
+          const match = roster.find((a) => a.id === userId)
+          if (!match || match.nama !== name) return false
+
+          this.user = {
+            id: match.id,
+            role: 'admin',
+            nama: match.nama,
+            email: match.email,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }
+          this.role = 'admin'
+          return true
+        }
+
+        return false
+      } catch {
+        return false
+      }
+    },
+
+    /**
      * Logout — clears user state and server session.
      */
     async logout() {
@@ -407,7 +533,11 @@ export const useAuthStore = defineStore('auth', {
       this.user = null
       this.role = null
       this.error = null
-      navigateTo('/login')
+      try {
+        navigateTo('/login')
+      } catch {
+        // navigateTo may not be available in all environments
+      }
     },
 
     /**
@@ -473,23 +603,12 @@ export const useAuthStore = defineStore('auth', {
           if (idx >= 0) {
             if (data.nama !== undefined) this.students[idx].nama = data.nama
           }
-          // Also update the static DEMO_STUDENTS array for the getter fallback
-          const demoIdx = DEMO_STUDENTS.findIndex((s) => s.id === this.user!.id)
-          if (demoIdx >= 0 && data.nama !== undefined) {
-            DEMO_STUDENTS[demoIdx].nama = data.nama
-          }
         }
         if (this.role === 'instructor') {
           const idx = this.instructors.findIndex((i) => i.id === this.user!.id)
           if (idx >= 0) {
             if (data.nama !== undefined) this.instructors[idx].nama = data.nama
             if (data.email !== undefined) this.instructors[idx].email = data.email
-          }
-          // Update static DEMO_INSTRUCTORS
-          const demoIdx = DEMO_INSTRUCTORS.findIndex((i) => i.id === this.user!.id)
-          if (demoIdx >= 0) {
-            if (data.nama !== undefined) DEMO_INSTRUCTORS[demoIdx].nama = data.nama
-            if (data.email !== undefined) DEMO_INSTRUCTORS[demoIdx].email = data.email
           }
         }
         this.demoVersion++
@@ -515,6 +634,99 @@ export const useAuthStore = defineStore('auth', {
     },
 
     /**
+     * Change the current user's password.
+     * Verifies old password, then sets new password.
+     * In demo mode, updates the in-memory password map.
+     * In production mode, uses Supabase Auth to update password.
+     */
+    async changePassword(oldPassword: string, newPassword: string): Promise<boolean> {
+      if (!this.user) return false
+
+      this.loading = true
+      this.error = null
+
+      // Validation
+      if (!oldPassword) {
+        this.error = 'Password lama harus diisi.'
+        this.loading = false
+        return false
+      }
+
+      if (!newPassword || newPassword.length < 6) {
+        this.error = 'Password baru minimal 6 karakter.'
+        this.loading = false
+        return false
+      }
+
+      if (oldPassword === newPassword) {
+        this.error = 'Password baru tidak boleh sama dengan password lama.'
+        this.loading = false
+        return false
+      }
+
+      // Demo mode — verify against in-memory password map
+      if (this.isDemoMode) {
+        await new Promise((r) => setTimeout(r, 10))
+
+        const userId = this.user.id
+        let currentPassword: string | undefined
+
+        if (this.role === 'admin') {
+          currentPassword = DEMO_ADMIN_PASSWORDS[userId]
+        } else if (this.role === 'instructor') {
+          currentPassword = DEMO_INSTRUCTOR_PASSWORDS[userId]
+        } else if (this.role === 'student') {
+          currentPassword = DEMO_STUDENT_PASSWORDS[userId]
+        }
+
+        if (!currentPassword) {
+          this.error = 'Data password tidak ditemukan.'
+          this.loading = false
+          return false
+        }
+
+        if (oldPassword !== currentPassword) {
+          this.error = 'Password lama tidak sesuai.'
+          this.loading = false
+          return false
+        }
+
+        // Update the password map
+        if (this.role === 'admin') {
+          DEMO_ADMIN_PASSWORDS[userId] = newPassword
+        } else if (this.role === 'instructor') {
+          DEMO_INSTRUCTOR_PASSWORDS[userId] = newPassword
+        } else if (this.role === 'student') {
+          DEMO_STUDENT_PASSWORDS[userId] = newPassword
+        }
+
+        this.loading = false
+        return true
+      }
+
+      // Production mode — update via Supabase Auth
+      try {
+        const supabase = useNuxtApp().$supabase
+        const { error: updateError } = await supabase.auth.updateUser({
+          password: newPassword,
+        })
+
+        if (updateError) {
+          this.error = 'Gagal mengubah password: ' + updateError.message
+          this.loading = false
+          return false
+        }
+      } catch (err: any) {
+        this.error = 'Terjadi kesalahan: ' + (err.message || 'Unknown error')
+        this.loading = false
+        return false
+      }
+
+      this.loading = false
+      return true
+    },
+
+    /**
      * Clear any auth error.
      */
     clearError() {
@@ -529,6 +741,11 @@ export const useAuthStore = defineStore('auth', {
      */
     async addStudent(data: { nama: string; npm: string; kelas: string; level: number; session_time: 'morning' | 'evening'; password?: string; avatar_url?: string }): Promise<boolean> {
       this.error = null
+
+      // Ensure roster is loaded
+      if (!this.initialized) {
+        await this.init()
+      }
 
       // Production mode — insert via Supabase
       if (!this.isDemoMode) {
@@ -566,14 +783,14 @@ export const useAuthStore = defineStore('auth', {
       }
 
       // Demo mode — local state only
-      const existingIds = DEMO_STUDENTS.map((s) => {
+      const existingIds = this.students.map((s) => {
         const num = parseInt(s.id.replace('s', ''), 10)
         return isNaN(num) ? 0 : num
       })
       const nextId = Math.max(...existingIds, 0) + 1
       const id = `s${nextId}`
 
-      DEMO_STUDENTS.push({
+      this.students.push({
         id,
         nama: data.nama,
         npm: data.npm,
@@ -595,6 +812,11 @@ export const useAuthStore = defineStore('auth', {
      */
     async updateStudent(id: string, data: Partial<{ nama: string; npm: string; kelas: string; level: number; session_time: 'morning' | 'evening'; password: string; avatar_url: string }>): Promise<boolean> {
       this.error = null
+
+      // Ensure roster is loaded
+      if (!this.initialized) {
+        await this.init()
+      }
 
       // Production mode — update via Supabase
       if (!this.isDemoMode) {
@@ -632,9 +854,9 @@ export const useAuthStore = defineStore('auth', {
       }
 
       // Demo mode — local state only
-      const idx = DEMO_STUDENTS.findIndex((s) => s.id === id)
+      const idx = this.students.findIndex((s) => s.id === id)
       if (idx >= 0) {
-        DEMO_STUDENTS[idx] = { ...DEMO_STUDENTS[idx], ...data }
+        this.students[idx] = { ...this.students[idx], ...data }
         if (data.password) {
           DEMO_STUDENT_PASSWORDS[id] = data.password
         }
@@ -649,6 +871,11 @@ export const useAuthStore = defineStore('auth', {
      */
     async deleteStudent(id: string): Promise<boolean> {
       this.error = null
+
+      // Ensure roster is loaded
+      if (!this.initialized) {
+        await this.init()
+      }
 
       // Production mode — delete via Supabase
       if (!this.isDemoMode) {
@@ -678,9 +905,9 @@ export const useAuthStore = defineStore('auth', {
       }
 
       // Demo mode — local state only
-      const idx = DEMO_STUDENTS.findIndex((s) => s.id === id)
+      const idx = this.students.findIndex((s) => s.id === id)
       if (idx >= 0) {
-        DEMO_STUDENTS.splice(idx, 1)
+        this.students.splice(idx, 1)
         this.demoVersion++
       }
       return true
@@ -694,6 +921,11 @@ export const useAuthStore = defineStore('auth', {
      */
     async addInstructor(data: { nama: string; email: string; password: string; avatar_url?: string }): Promise<boolean> {
       this.error = null
+
+      // Ensure roster is loaded
+      if (!this.initialized) {
+        await this.init()
+      }
 
       // Production mode — insert via Supabase
       if (!this.isDemoMode) {
@@ -728,14 +960,14 @@ export const useAuthStore = defineStore('auth', {
       }
 
       // Demo mode — local state only
-      const existingIds = DEMO_INSTRUCTORS.map((i) => {
+      const existingIds = this.instructors.map((i) => {
         const num = parseInt(i.id.replace('i', ''), 10)
         return isNaN(num) ? 0 : num
       })
       const nextId = Math.max(...existingIds, 0) + 1
       const id = `i${nextId}`
 
-      DEMO_INSTRUCTORS.push({
+      this.instructors.push({
         id,
         nama: data.nama,
         email: data.email,
@@ -752,6 +984,11 @@ export const useAuthStore = defineStore('auth', {
      */
     async updateInstructor(id: string, data: Partial<{ nama: string; email: string; password: string; avatar_url: string }>): Promise<boolean> {
       this.error = null
+
+      // Ensure roster is loaded
+      if (!this.initialized) {
+        await this.init()
+      }
 
       // Production mode — update via Supabase
       if (!this.isDemoMode) {
@@ -788,11 +1025,11 @@ export const useAuthStore = defineStore('auth', {
       }
 
       // Demo mode — local state only
-      const idx = DEMO_INSTRUCTORS.findIndex((i) => i.id === id)
+      const idx = this.instructors.findIndex((i) => i.id === id)
       if (idx >= 0) {
-        if (data.nama !== undefined) DEMO_INSTRUCTORS[idx].nama = data.nama
-        if (data.email !== undefined) DEMO_INSTRUCTORS[idx].email = data.email
-        if (data.avatar_url !== undefined) DEMO_INSTRUCTORS[idx].avatar_url = data.avatar_url
+        if (data.nama !== undefined) this.instructors[idx].nama = data.nama
+        if (data.email !== undefined) this.instructors[idx].email = data.email
+        if (data.avatar_url !== undefined) this.instructors[idx].avatar_url = data.avatar_url
         if (data.password !== undefined) DEMO_INSTRUCTOR_PASSWORDS[id] = data.password
         this.demoVersion++
       }
@@ -805,6 +1042,11 @@ export const useAuthStore = defineStore('auth', {
      */
     async deleteInstructor(id: string): Promise<boolean> {
       this.error = null
+
+      // Ensure roster is loaded
+      if (!this.initialized) {
+        await this.init()
+      }
 
       // Production mode — delete via Supabase
       if (!this.isDemoMode) {
@@ -834,9 +1076,9 @@ export const useAuthStore = defineStore('auth', {
       }
 
       // Demo mode — local state only
-      const idx = DEMO_INSTRUCTORS.findIndex((i) => i.id === id)
+      const idx = this.instructors.findIndex((i) => i.id === id)
       if (idx >= 0) {
-        DEMO_INSTRUCTORS.splice(idx, 1)
+        this.instructors.splice(idx, 1)
         delete DEMO_INSTRUCTOR_PASSWORDS[id]
         this.demoVersion++
       }

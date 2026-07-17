@@ -30,6 +30,7 @@
       </div>
     </footer>
   </div>
+  <UpdatePrompt />
 </template>
 
 <style scoped>

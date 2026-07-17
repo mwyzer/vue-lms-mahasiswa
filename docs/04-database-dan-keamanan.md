@@ -6,14 +6,14 @@
 | Kolom | Tipe | Keterangan |
 |-------|------|------------|
 | id | uuid | PK, terhubung ke auth.users.id |
-| full_name | text | |
+| role | text | 'student' / 'instructor' / 'admin' |
+| nama | text | Nama lengkap |
+| npm | text | NIM/NPM mahasiswa |
+| kelas | text | Kelas mahasiswa |
+| level | integer | Level: 1–4 |
+| session_time | text | 'morning' / 'evening' |
 | email | text | |
-| student_number | text | NIM |
-| study_program | text | Program studi |
-| entry_year | text | Angkatan |
 | avatar_url | text | |
-| bio | text | |
-| role | text | |
 | created_at | timestamptz | |
 | updated_at | timestamptz | |
 
@@ -21,17 +21,14 @@
 | Kolom | Tipe | Keterangan |
 |-------|------|------------|
 | id | uuid | PK |
-| code | text | Kode MK |
-| title | text | |
-| description | text | |
-| lecturer_name | text | Nama dosen (display) |
 | instructor_id | uuid | FK → profiles.id (role = 'instruktur') |
+| kode | text | Kode MK (contoh: MK101) |
+| nama | text | Nama mata kuliah |
+| deskripsi | text | |
 | level | integer | Level kelas: 1, 2, 3, atau 4 |
 | session_time | text | Waktu: 'morning' / 'evening' |
-| semester | text | |
-| credits | integer | SKS |
-| cover_url | text | |
-| status | text | draft / published / archived |
+| color | text | Warna card (hex) |
+| icon | text | Emoji icon |
 | created_at | timestamptz | |
 | updated_at | timestamptz | |
 
@@ -56,12 +53,9 @@
 |-------|------|------------|
 | id | uuid | PK |
 | course_id | uuid | FK → courses.id |
-| title | text | |
-| content | text | |
-| video_url | text | |
-| file_url | text | |
-| sort_order | integer | |
-| is_published | boolean | |
+| judul | text | Judul materi |
+| konten | text | Isi materi |
+| urutan | integer | Urutan materi |
 | created_at | timestamptz | |
 | updated_at | timestamptz | |
 
@@ -71,7 +65,7 @@
 | id | uuid | PK |
 | student_id | uuid | FK → profiles.id |
 | lesson_id | uuid | FK → lessons.id |
-| is_completed | boolean | |
+| completed | boolean | |
 | completed_at | timestamptz | |
 | created_at | timestamptz | |
 | updated_at | timestamptz | |
@@ -83,12 +77,10 @@
 |-------|------|------------|
 | id | uuid | PK |
 | course_id | uuid | FK → courses.id |
-| title | text | |
-| description | text | |
-| due_date | timestamptz | |
-| maximum_score | integer | |
-| attachment_url | text | |
-| is_published | boolean | |
+| instructor_id | uuid | FK → profiles.id |
+| judul | text | Judul tugas |
+| deskripsi | text | Instruksi tugas |
+| tenggat_waktu | timestamptz | Deadline |
 | created_at | timestamptz | |
 | updated_at | timestamptz | |
 
@@ -98,11 +90,9 @@
 | id | uuid | PK |
 | assignment_id | uuid | FK → assignments.id |
 | student_id | uuid | FK → profiles.id |
-| answer_text | text | |
-| submission_url | text | |
+| jawaban | text | Jawaban teks |
 | submitted_at | timestamptz | |
-| status | text | draft / submitted / late / graded |
-| score | integer | |
+| nilai | integer | Score |
 | feedback | text | |
 | graded_at | timestamptz | |
 | created_at | timestamptz | |
@@ -110,25 +100,47 @@
 
 **Unique constraint:** (assignment_id, student_id)
 
-### 8. announcements
+### 8. academic_events
 | Kolom | Tipe | Keterangan |
 |-------|------|------------|
 | id | uuid | PK |
-| course_id | uuid | FK → courses.id (nullable untuk umum) |
-| title | text | |
-| content | text | |
-| published_at | timestamptz | |
+| course_id | uuid | FK → courses.id (nullable) |
+| judul | text | Nama event |
+| deskripsi | text | Deskripsi event |
+| tipe | text | 'uts' / 'uas' / 'tugas' / 'libur' / 'acara' |
+| tanggal_mulai | timestamptz | Waktu mulai |
+| tanggal_selesai | timestamptz | Waktu selesai (nullable) |
 | created_at | timestamptz | |
 | updated_at | timestamptz | |
+
+### 9. attendance
+| Kolom | Tipe | Keterangan |
+|-------|------|------------|
+| id | uuid | PK |
+| course_id | uuid | FK → courses.id (ON DELETE CASCADE) |
+| student_id | uuid | FK → profiles.id (ON DELETE CASCADE) |
+| instructor_id | uuid | FK → profiles.id (ON DELETE CASCADE) |
+| tanggal | date | Tanggal pertemuan |
+| status | text | 'hadir' / 'izin' / 'sakit' / 'alpha' — CHECK constraint |
+| pertemuan | integer | Nomor pertemuan |
+| keterangan | text | Catatan tambahan (nullable) |
+| created_at | timestamptz | |
+| updated_at | timestamptz | |
+
+**Unique constraint:** (course_id, student_id, pertemuan)
+**Indexes:** idx_attendance_course, idx_attendance_student
+
+### announcements
+_Pengumuman belum diimplementasikan — akan ditambahkan di versi mendatang._
 
 ---
 
 ## Row Level Security (§13)
 
 ### profiles
-- ✅ Baca profil sendiri
+- ✅ Semua role: Baca profil sendiri
 - ✅ Update profil sendiri
-- ❌ Baca profil mahasiswa lain
+- ✅ Admin: Baca semua profil
 - ❌ Ubah role atau ID
 
 ### enrollments
@@ -162,3 +174,13 @@
 - ❌ Mahasiswa: Lihat submission mahasiswa lain
 - ✅ Instruktur: Baca submission dari MK yang diampu
 - ✅ Instruktur: Update score dan feedback
+
+### academic_events
+- ✅ Semua role login: Baca semua event
+- ❌ Ubah, buat, hapus event (dari seed saja)
+
+### attendance
+- ✅ Instruktur: Baca, buat, dan update presensi di MK yang diampu
+- ✅ Mahasiswa: Baca presensi milik sendiri
+- ❌ Mahasiswa: Ubah presensi
+- ❌ Lihat presensi mahasiswa lain

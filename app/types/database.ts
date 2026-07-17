@@ -92,3 +92,81 @@ export interface Announcement {
   created_at: string
   updated_at: string
 }
+
+/** Quiz & QuizQuestion — interactive quiz system */
+export interface Quiz {
+  id: string
+  course_id: string
+  instructor_id: string
+  judul: string
+  deskripsi?: string | null
+  time_limit_minutes: number
+  passing_score: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface QuizQuestion {
+  id: string
+  quiz_id: string
+  pertanyaan: string
+  pilihan_a: string
+  pilihan_b: string
+  pilihan_c: string
+  pilihan_d: string
+  jawaban_benar: 'a' | 'b' | 'c' | 'd'
+  urutan: number
+  created_at: string
+}
+
+export interface QuizAnswer {
+  id: string
+  quiz_id: string
+  student_id: string
+  question_id: string
+  jawaban: 'a' | 'b' | 'c' | 'd'
+  is_correct: boolean
+  submitted_at: string
+}
+
+export interface QuizAttempt {
+  id: string
+  quiz_id: string
+  student_id: string
+  score: number
+  total_questions: number
+  percentage: number
+  started_at: string
+  submitted_at: string
+}
+
+/** Attendance — student attendance/presensi records */
+export interface Attendance {
+  id: string
+  course_id: string
+  student_id: string
+  instructor_id: string
+  tanggal: string
+  status: 'hadir' | 'izin' | 'sakit' | 'alpha'
+  pertemuan: number
+  keterangan?: string | null
+  created_at: string
+  updated_at: string
+}
+
+/** AcademicEvent — academic calendar events */
+export interface AcademicEvent {
+  id: string
+  course_id?: string | null
+  judul: string
+  deskripsi?: string | null
+  kelas?: string | null
+  class_name?: string | null
+  tanggal_mulai: string
+  tanggal_selesai: string
+  tipe: 'uts' | 'uas' | 'tugas' | 'libur' | 'acara'
+  color?: string | null
+  created_at: string
+  updated_at: string
+}

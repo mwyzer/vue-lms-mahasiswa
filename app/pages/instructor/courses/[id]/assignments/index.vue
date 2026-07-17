@@ -13,23 +13,32 @@ const coursesStore = useCoursesStore()
 const assignmentsStore = useAssignmentsStore()
 const auth = useAuthStore()
 const notification = useNotification()
+const { exportCourseGrades } = useExportGrades()
 
 const courseId = computed(() => route.params.id as string)
 const showAddForm = ref(false)
+const showEditForm = ref<string | null>(null)
 const showGrading = ref<string | null>(null)
+// Direct grading state
+const directGradeAssignmentId = ref<string | null>(null)
+const directGradeStudents = ref<{ studentId: string; nilai: number; feedback: string }[]>([])
+const directGradingSave = ref(false)
 
-// New assignment form
-const newJudul = ref('')
-const newDeskripsi = ref('')
-const newTenggat = ref('')
+// New/Edit assignment form
+const formJudul = ref('')
+const formDeskripsi = ref('')
+const formTenggat = ref('')
 const saving = ref(false)
 
 // Grading form
 const gradeNilai = ref<number>(0)
 const gradeFeedback = ref('')
 const grading = ref(false)
+const selectedSubmissionId = ref<string | null>(null)
 
-onMounted(() => {
+onMounted(async () => {
+  await coursesStore.init()
+  await assignmentsStore.init()
   coursesStore.setCurrentCourse(courseId.value)
 })
 
@@ -54,33 +63,58 @@ function getStudentNpm(studentId: string): string {
 }
 
 function openAddForm() {
-  newJudul.value = ''
-  newDeskripsi.value = ''
-  newTenggat.value = ''
+  showEditForm.value = null
+  formJudul.value = ''
+  formDeskripsi.value = ''
+  formTenggat.value = ''
   showAddForm.value = true
 }
 
-function cancelAdd() {
+function openEditForm(a: any) {
   showAddForm.value = false
+  showEditForm.value = a.id
+  formJudul.value = a.judul
+  formDeskripsi.value = a.deskripsi || ''
+  formTenggat.value = a.tenggat_waktu ? new Date(a.tenggat_waktu).toISOString().slice(0, 16) : ''
 }
 
-function addAssignment() {
-  if (!newJudul.value.trim()) {
+function cancelForm() {
+  showAddForm.value = false
+  showEditForm.value = null
+}
+
+async function saveAssignment() {
+  if (!formJudul.value.trim()) {
     notification.warning('Judul tugas harus diisi.')
     return
   }
-  if (!newTenggat.value) {
+  if (!formTenggat.value) {
     notification.warning('Deadline harus diisi.')
     return
   }
   saving.value = true
-  const deadlineISO = new Date(newTenggat.value).toISOString()
-  setTimeout(() => {
-    assignmentsStore.addAssignment(courseId.value, newJudul.value.trim(), newDeskripsi.value.trim(), deadlineISO)
+  const deadlineISO = new Date(formTenggat.value).toISOString()
+
+  if (showEditForm.value) {
+    await assignmentsStore.updateAssignment(showEditForm.value, {
+      judul: formJudul.value.trim(),
+      deskripsi: formDeskripsi.value.trim(),
+      tenggat_waktu: deadlineISO,
+    })
+    notification.success('Tugas berhasil diperbarui!')
+    showEditForm.value = null
+  } else {
+    await assignmentsStore.addAssignment(courseId.value, formJudul.value.trim(), formDeskripsi.value.trim(), deadlineISO)
     notification.success('Tugas berhasil ditambahkan!')
     showAddForm.value = false
-    saving.value = false
-  }, 200)
+  }
+  saving.value = false
+}
+
+async function confirmDeleteAssignment(assignmentId: string) {
+  if (!confirm('Hapus tugas ini beserta semua pengumpulan?')) return
+  await assignmentsStore.deleteAssignment(assignmentId)
+  notification.success('Tugas berhasil dihapus.')
 }
 
 function openGrading(assignmentId: string) {
@@ -88,10 +122,50 @@ function openGrading(assignmentId: string) {
   assignmentsStore.setCurrentAssignment(assignmentId)
   gradeNilai.value = 0
   gradeFeedback.value = ''
+  selectedSubmissionId.value = null
 }
 
 function cancelGrading() {
   showGrading.value = null
+}
+
+// Direct grading for all students
+function openDirectGrade(assignmentId: string) {
+  directGradeAssignmentId.value = assignmentId
+  directGradeStudents.value = students.value.map(s => {
+    // Pre-fill if already graded
+    const existing = getSubmissions(assignmentId).find(sub => sub.student_id === s.id)
+    return {
+      studentId: s.id,
+      nilai: existing?.nilai ?? 100,
+      feedback: existing?.feedback ?? '',
+    }
+  })
+}
+
+function cancelDirectGrade() {
+  directGradeAssignmentId.value = null
+  directGradeStudents.value = []
+}
+
+async function saveDirectGrade() {
+  if (!directGradeAssignmentId.value) return
+  directGradingSave.value = true
+  let saved = 0
+  for (const g of directGradeStudents.value) {
+    const ok = await assignmentsStore.directGradeStudent(
+      courseId.value,
+      directGradeAssignmentId.value,
+      g.studentId,
+      g.nilai,
+      g.feedback,
+    )
+    if (ok) saved++
+  }
+  notification.success(`Nilai langsung disimpan untuk ${saved} mahasiswa!`)
+  directGradingSave.value = false
+  directGradeAssignmentId.value = null
+  directGradeStudents.value = []
 }
 
 function getSubmissions(assignmentId: string): any[] {
@@ -141,18 +215,27 @@ function formatDate(dateStr: string): string {
           <h1>Tugas: {{ course.nama }}</h1>
           <p class="text-muted">{{ course.kode }} • Kelola tugas dan penilaian</p>
         </div>
-        <button v-if="!showAddForm" class="btn btn-primary btn-sm" @click="openAddForm">
-          + Buat Tugas
-        </button>
+        <div class="header-actions">
+          <button
+            v-if="courseAssignments.length > 0"
+            class="btn btn-success btn-sm"
+            @click="exportCourseGrades(course.nama, courseAssignments, getSubmissions)"
+          >
+            📥 Export Nilai ke Excel
+          </button>
+          <button v-if="!showAddForm && !showEditForm" class="btn btn-primary btn-sm" @click="openAddForm">
+            + Buat Tugas
+          </button>
+        </div>
       </div>
 
-      <!-- Add assignment form -->
-      <div v-if="showAddForm" class="card form-card">
-        <h3>Buat Tugas Baru</h3>
+      <!-- Add/Edit assignment form -->
+      <div v-if="showAddForm || showEditForm" class="card form-card">
+        <h3>{{ showEditForm ? 'Edit Tugas' : 'Buat Tugas Baru' }}</h3>
         <div class="form-group">
           <label class="form-label">Judul Tugas</label>
           <input
-            v-model="newJudul"
+            v-model="formJudul"
             type="text"
             class="form-input"
             placeholder="Contoh: Tugas 1: Implementasi Array"
@@ -161,7 +244,7 @@ function formatDate(dateStr: string): string {
         <div class="form-group">
           <label class="form-label">Deskripsi</label>
           <textarea
-            v-model="newDeskripsi"
+            v-model="formDeskripsi"
             class="form-textarea"
             rows="3"
             placeholder="Deskripsi tugas..."
@@ -170,25 +253,25 @@ function formatDate(dateStr: string): string {
         <div class="form-group">
           <label class="form-label">Deadline</label>
           <input
-            v-model="newTenggat"
+            v-model="formTenggat"
             type="datetime-local"
             class="form-input"
           />
         </div>
         <div class="form-actions">
-          <button class="btn btn-ghost btn-sm" @click="cancelAdd">Batal</button>
+          <button class="btn btn-ghost btn-sm" @click="cancelForm">Batal</button>
           <button
             class="btn btn-primary btn-sm"
-            :disabled="saving || !newJudul.trim() || !newTenggat"
-            @click="addAssignment"
+            :disabled="saving || !formJudul.trim() || !formTenggat"
+            @click="saveAssignment"
           >
-            {{ saving ? 'Menyimpan...' : 'Simpan' }}
+            {{ saving ? 'Menyimpan...' : (showEditForm ? 'Perbarui' : 'Simpan') }}
           </button>
         </div>
       </div>
 
       <!-- Assignment list -->
-      <div v-if="courseAssignments.length === 0 && !showAddForm" class="empty-state card">
+      <div v-if="courseAssignments.length === 0 && !showAddForm && !showEditForm" class="empty-state card">
         <p>Belum ada tugas. Klik "Buat Tugas" untuk memulai.</p>
       </div>
 
@@ -202,6 +285,19 @@ function formatDate(dateStr: string): string {
             <div>
               <h3>{{ a.judul }}</h3>
               <p class="text-sm text-muted">Deadline: {{ formatDate(a.tenggat_waktu) }}</p>
+            </div>
+            <div class="assignment-actions">
+              <button class="btn btn-ghost btn-sm" @click="openEditForm(a)">✏️ Edit</button>
+              <button
+                class="btn btn-ghost btn-sm"
+                @click="openGrading(a.id)"
+              >
+                📋 Nilai
+              </button>
+              <button class="btn btn-secondary btn-sm" @click="openDirectGrade(a.id)">
+                🏆 Nilai Semua
+              </button>
+              <button class="btn btn-danger btn-sm" @click="confirmDeleteAssignment(a.id)">🗑️ Hapus</button>
             </div>
           </div>
           <p v-if="a.deskripsi" class="assignment-desc">{{ a.deskripsi }}</p>
@@ -258,8 +354,8 @@ function formatDate(dateStr: string): string {
                     <button class="btn btn-ghost btn-sm" @click="cancelGrading">Batal</button>
                     <button
                       class="btn btn-primary btn-sm"
-                      :disabled="grading"
-                      @click="submitGrade(sub.id)"
+                      :disabled="grading || !selectedSubmissionId"
+                      @click="submitGrade(selectedSubmissionId!)"
                     >
                       {{ grading ? 'Menyimpan...' : 'Simpan Nilai' }}
                     </button>
@@ -270,9 +366,56 @@ function formatDate(dateStr: string): string {
               <button
                 v-if="showGrading !== a.id"
                 class="btn btn-ghost btn-sm"
-                @click="openGrading(a.id)"
+                @click="openGrading(a.id); selectedSubmissionId = sub.id; gradeNilai = sub.nilai || 0; gradeFeedback = sub.feedback || ''"
               >
                 {{ sub.nilai != null ? 'Edit Nilai' : 'Beri Nilai' }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Direct Grade All Students -->
+          <div v-if="directGradeAssignmentId === a.id" class="direct-grade-section">
+            <div class="direct-grade-header">
+              <h4>🏆 Nilai Semua Mahasiswa</h4>
+              <button class="btn btn-ghost btn-sm" @click="cancelDirectGrade">Tutup</button>
+            </div>
+            <p class="text-sm text-muted">Beri nilai langsung untuk setiap mahasiswa (tanpa perlu pengumpulan).</p>
+
+            <div class="direct-grade-table">
+              <div class="direct-grade-row header-row">
+                <span class="dg-name">Nama</span>
+                <span class="dg-npm">NPM</span>
+                <span class="dg-nilai">Nilai</span>
+                <span class="dg-feedback">Feedback</span>
+              </div>
+              <div
+                v-for="dg in directGradeStudents"
+                :key="dg.studentId"
+                class="direct-grade-row"
+              >
+                <span class="dg-name">{{ getStudentName(dg.studentId) }}</span>
+                <span class="dg-npm text-sm text-muted">{{ getStudentNpm(dg.studentId) }}</span>
+                <input
+                  v-model.number="dg.nilai"
+                  type="number"
+                  class="form-input dg-nilai-input"
+                  min="0"
+                  max="100"
+                  placeholder="0-100"
+                />
+                <input
+                  v-model="dg.feedback"
+                  type="text"
+                  class="form-input dg-feedback-input"
+                  placeholder="Feedback opsional..."
+                />
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button class="btn btn-ghost btn-sm" @click="cancelDirectGrade">Batal</button>
+              <button class="btn btn-primary btn-sm" :disabled="directGradingSave" @click="saveDirectGrade">
+                {{ directGradingSave ? 'Menyimpan...' : '💾 Simpan Semua Nilai' }}
               </button>
             </div>
           </div>
@@ -302,6 +445,18 @@ function formatDate(dateStr: string): string {
 .page-header h1 {
   font-size: 1.25rem;
   margin-bottom: 0.25rem;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.btn-success {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #86efac;
 }
 
 .text-muted {
@@ -385,9 +540,22 @@ function formatDate(dateStr: string): string {
   padding: 1rem;
 }
 
+.assignment-header-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
 .assignment-header-card h3 {
   font-size: 1rem;
   margin-bottom: 0.25rem;
+}
+
+.assignment-actions {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
 }
 
 .assignment-desc {
@@ -462,5 +630,71 @@ function formatDate(dateStr: string): string {
   text-align: center;
   padding: 2rem;
   color: var(--color-neutral-500);
+}
+
+/* Direct grade all students */
+.direct-grade-section {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 2px solid var(--color-primary-200);
+}
+
+.direct-grade-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.direct-grade-header h4 {
+  font-size: 0.9375rem;
+  color: var(--color-primary-700);
+}
+
+.direct-grade-table {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.direct-grade-row {
+  display: grid;
+  grid-template-columns: 1fr 100px 80px 1fr;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.375rem 0;
+  border-bottom: 1px solid var(--color-neutral-100);
+}
+
+.direct-grade-row.header-row {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-neutral-500);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.dg-name {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.dg-nilai-input {
+  width: 70px !important;
+  text-align: center;
+}
+
+.dg-feedback-input {
+  width: 100% !important;
+}
+
+.btn-secondary {
+  background: var(--color-neutral-100);
+  color: var(--color-neutral-700);
+  border: 1px solid var(--color-neutral-300);
+}
+
+.btn-secondary:hover {
+  background: var(--color-neutral-200);
 }
 </style>

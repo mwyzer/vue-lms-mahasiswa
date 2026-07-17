@@ -7,7 +7,8 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare",
+    "postinstall": "nuxt prepare && node scripts/generate-pwa-icons.mjs",
+    "generate-icons": "node scripts/generate-pwa-icons.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
@@ -15,14 +16,18 @@
   "dependencies": {
     "@pinia/nuxt": "^0.11.3",
     "@supabase/supabase-js": "^2.110.4",
+    "@vite-pwa/nuxt": "^1.1.1",
+    "@vuestic/nuxt": "^1.0.21",
     "nuxt": "^4.4.8",
     "pinia": "^3.0.4",
     "vue": "^3.5.39",
-    "vue-router": "^5.1.0"
+    "vue-router": "^5.1.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",
     "@vue/test-utils": "^2.4.11",
+    "canvas": "^3.2.3",
     "happy-dom": "^20.10.6",
     "vitest": "^4.1.10"
   }

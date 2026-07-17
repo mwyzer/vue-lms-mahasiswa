@@ -21,6 +21,8 @@ export function useCourses() {
       store.fetchCoursesByLevel(level, session),
     markLessonCompleted: (lessonId: string) =>
       store.markLessonCompleted(lessonId),
+    toggleLessonCompleted: (lessonId: string) =>
+      store.toggleLessonCompleted(lessonId),
     addLesson: (courseId: string, judul: string, konten: string) =>
       store.addLesson(courseId, judul, konten),
     deleteLesson: (lessonId: string) =>

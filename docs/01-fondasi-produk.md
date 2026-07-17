@@ -5,7 +5,7 @@ LMS Mahasiswa adalah aplikasi Learning Management System sederhana yang membantu
 
 Aplikasi menggunakan Nuxt sebagai framework full-stack frontend, Supabase sebagai penyedia autentikasi dan PostgreSQL, serta Pinia untuk mengelola state aplikasi.
 
-MVP berfokus pada pengalaman mahasiswa. Fitur dosen dan administrator dapat dikembangkan setelah fitur mahasiswa stabil.
+MVP berfokus pada pengalaman mahasiswa, instruktur, dan administrator — ketiga role sudah diimplementasikan.
 
 ---
 
@@ -59,7 +59,19 @@ Ada 3 instruktur yang mengelola mata kuliah. Setiap instruktur memiliki:
 - Membuat dan mengelola tugas
 - Melihat submission mahasiswa
 - Memberikan nilai dan feedback
+- Memberikan nilai langsung (tanpa perlu pengumpulan tugas)
+- Mengelola presensi mahasiswa tiap pertemuan
+- Melihat rekap presensi lintas mata kuliah
 - Membuat pengumuman
+- Mengelola profil pribadi
+
+### Administrator (dalam MVP)
+- Login ke aplikasi (password: `admin123`)
+- CRUD Mahasiswa (tambah, lihat, edit, hapus)
+- CRUD Instruktur (tambah, lihat, edit, hapus)
+- CRUD Mata Kuliah (tambah, lihat, edit, hapus)
+- Lihat assignment seluruh mahasiswa
+- Dashboard admin dengan statistik
 - Mengelola profil pribadi
 
 ### Dosen (versi berikutnya)
@@ -67,12 +79,6 @@ Ada 3 instruktur yang mengelola mata kuliah. Setiap instruktur memiliki:
 - Melihat submission mahasiswa
 - Memberikan nilai dan feedback
 - Membuat pengumuman
-
-### Administrator (versi berikutnya)
-- Mengelola akun mahasiswa dan dosen
-- Mengelola semester dan program studi
-- Mengelola enrollment
-- Melihat statistik penggunaan LMS
 
 ---
 
@@ -82,24 +88,35 @@ Ada 3 instruktur yang mengelola mata kuliah. Setiap instruktur memiliki:
 - Landing page, login/logout, protected dashboard
 - Dashboard overview, daftar & detail mata kuliah
 - Level kelas (1–4) dan waktu pelaksanaan (pagi/malam) per mata kuliah
-- Daftar & detail materi, progress materi
+- Daftar & detail materi, progress materi (toggle complete/uncomplete)
 - Daftar & detail tugas, pengumpulan tugas (teks/URL)
 - Status submission, nilai dan feedback
 - Pengumuman, profil mahasiswa
 - Dashboard instruktur (3 instruktur)
-- Responsive design, loading/empty/error state
+- CRUD materi & tugas oleh instruktur
+- Penilaian submission oleh instruktur
+- Penilaian langsung (direct grading) — beri nilai ke semua mahasiswa sekaligus tanpa perlu pengumpulan
+- Presensi/kehadiran — instruktur mencatat kehadiran per pertemuan (hadir/izin/sakit/alpha)
+- Mahasiswa melihat rekap presensi dan persentase kehadiran sendiri
+- Kalender akademik dengan event UTS, UAS, tugas, libur
+- Tampilan timeline horizontal pada kalender
+- Admin CRUD mahasiswa, instruktur, dan mata kuliah
+- Dashboard admin dengan statistik
+- Sidebar navigasi pada materi (prev/next + daftar)
+- Countdown timer dan karakter counter pada tugas
+- AI Chat assistant
 - Demo mode tanpa Supabase
 - Deployment ke Vercel
 
 ### Fitur di luar MVP
-Video conference, live chat, forum diskusi, quiz interaktif, ujian dengan timer, plagiarism checker, integrasi pembayaran, integrasi sistem akademik, push/email notification, mobile app native, dashboard dosen/administrator lengkap, multi-campus, AI tutor, sertifikat otomatis.
+Video conference, live chat, forum diskusi, quiz interaktif, ujian dengan timer, plagiarism checker, integrasi pembayaran, integrasi sistem akademik, push/email notification, mobile app native, multi-campus, sertifikat otomatis.
 
 ---
 
 ## Roadmap Setelah MVP (§33)
-- **v1.1:** Dashboard dosen, CRUD mata kuliah/materi/tugas, penilaian submission, upload file
-- **v1.2:** Quiz, forum diskusi, notifikasi email, kalender akademik, export nilai
-- **v2.0:** Multi-role administrator, program studi, semester akademik, integrasi sistem akademik, PWA, push notification, AI learning assistant, analitik pembelajaran
+- **v1.1:** Quiz interaktif, forum diskusi, notifikasi email
+- **v1.2:** Export nilai, push notification
+- **v2.0:** Multi-campus, AI learning assistant (enhanced), analitik pembelajaran, plagiarism checker
 
 ---
 
@@ -110,6 +127,9 @@ MVP berhasil jika:
 - Mahasiswa dapat melihat mata kuliah & membaca materi
 - Progress materi tersimpan
 - Mahasiswa dapat melihat & mengirim tugas
+- Instruktur dapat mencatat presensi dan melihat rekap
+- Mahasiswa dapat melihat rekap presensi sendiri
+- Kalender akademik dengan event UTS, UAS, tugas, libur
 - Mahasiswa hanya dapat melihat data sendiri
 - Aplikasi responsif, production build & deployment berhasil
 - Tidak ada secret key pada frontend

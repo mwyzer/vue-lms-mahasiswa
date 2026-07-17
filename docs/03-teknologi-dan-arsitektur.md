@@ -11,7 +11,7 @@
 | Composition API | Pattern komponen |
 | Pinia | State management |
 | Nuxt Router | Routing |
-| Tailwind CSS | Styling |
+| Custom CSS Variables | Styling (CSS custom properties) |
 
 ### Backend
 | Teknologi | Keterangan |
@@ -23,7 +23,12 @@
 | Row Level Security | Otorisasi |
 
 ### Development Tools
-VS Code, Node.js 22+, npm, Git, GitHub, ESLint, Prettier, Vue DevTools, Supabase Dashboard
+VS Code, Node.js 18+, npm, Git, GitHub, ESLint, Vue DevTools, Supabase Dashboard, Vitest, Playwright
+
+### PWA
+- @vite-pwa/nuxt — Progressive Web App dengan auto-update
+- Ikon otomatis dari script `scripts/generate-pwa-icons.mjs`
+- Manifest, service worker, apple-touch-icon
 
 ### Deployment
 - Frontend: Vercel
@@ -64,13 +69,17 @@ lms-mahasiswa/
 ├── app/
 │   ├── assets/css/main.css
 │   ├── components/{common,dashboard,courses,lessons,assignments,profile,instructor}/
-│   ├── composables/{useAuth,useCourses,useAssignments,useNotification}.ts
-│   ├── layouts/{default,dashboard,instructor}.vue
-│   ├── middleware/{auth,guest,student,instructor}.ts
+│   ├── composables/{useAuth,useCourses,useAssignments,useNotification,useAiChat,usePyodide}.ts
+│   ├── layouts/{default,dashboard,instructor,admin}.vue
+│   ├── middleware/{auth,guest,student,instructor,admin}.ts
 │   ├── pages/
 │   │   ├── index.vue                    # Landing page
 │   │   ├── login.vue                    # Login role-based
 │   │   ├── dashboard.vue                # Student dashboard
+│   │   ├── profile.vue                  # Student profile
+│   │   ├── ai/chat.vue                  # AI Chat assistant
+│   │   ├── calendar/index.vue           # Kalender akademik (list/month/timeline views)
+│   │   ├── playground/index.vue         # Code playground (Pyodide)
 │   │   ├── courses/
 │   │   │   ├── index.vue                # Student course list
 │   │   │   ├── [id].vue                 # Student course detail
@@ -78,26 +87,50 @@ lms-mahasiswa/
 │   │   ├── assignments/
 │   │   │   ├── index.vue
 │   │   │   └── [id].vue
-│   │   ├── profile.vue                  # Student profile
+│   │   ├── student/
+│   │   │   ├── attendance/
+│   │   │   │   └── index.vue            # Rekap presensi mahasiswa
+│   │   │   └── grades/
+│   │   │       └── index.vue            # Hasil penilaian tugas
+│   │   ├── admin/
+│   │   │   ├── dashboard.vue
+│   │   │   ├── students.vue
+│   │   │   ├── instructors.vue
+│   │   │   ├── courses.vue
+│   │   │   ├── assignments.vue
+│   │   │   └── profile.vue
 │   │   └── instructor/
 │   │       ├── dashboard.vue
+│   │       ├── profile.vue
+│   │       ├── attendance/
+│   │       │   └── index.vue            # Rekap presensi semua MK
 │   │       ├── courses/
 │   │       │   ├── index.vue
 │   │       │   ├── [id].vue
 │   │       │   ├── [courseId]/lessons/{index,create,[lessonId],[lessonId]/edit}.vue
-│   │       │   └── [courseId]/assignments/{index,create,[assignmentId]}.vue
-│   │       ├── profile.vue
+│   │       │   ├── [courseId]/assignments/{index,create,[assignmentId]}.vue
+│   │       │   └── [courseId]/attendance/
+│   │       │       └── index.vue        # Presensi per pertemuan
 │   │       └── ...
-│   ├── plugins/supabase.client.ts
-│   ├── stores/{auth,courses,assignments,ui}.ts
-│   ├── types/{database,course,assignment,roster}.ts
+│   ├── plugins/{supabase.client,pwa.client}.ts
+│   ├── stores/{auth,courses,assignments,attendance,calendar,ui}.ts
+│   ├── types/{database,course,assignment,calendar,roster}.ts
 │   └── app.vue
+├── test/
+│   ├── setup.ts
+│   ├── components/{AiChat,EmptyState,PageHeader,ProgressBar,SessionBadge,StatCard}.test.ts
+│   ├── stores/
+│   └── e2e/
 ├── public/
 ├── supabase/{schema,policies,seed}.sql
 ├── docs/{01..09}/*.md
+├── scripts/generate-pwa-icons.mjs
 ├── .env.example
 ├── nuxt.config.ts
 ├── package.json
+├── playwright.config.ts
+├── vitest.config.ts
+└── README.md
 └── README.md
 ```
 

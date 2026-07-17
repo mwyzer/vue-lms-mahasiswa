@@ -13,6 +13,7 @@
 - **Mata Kuliah** — Daftar MK yang diikuti, detail materi, dan progress per MK
 - **Materi** — Belajar materi perkuliahan, tandai selesai, navigasi prev/next
 - **Tugas** — Lihat tugas, deadline, kumpulkan jawaban, lihat nilai & feedback
+- **Nilai** — Lihat hasil penilaian tugas, rata-rata nilai, dan feedback instruktur
 - **Profil** — Lihat data diri (NPM, kelas, level, sesi)
 
 ### 👨‍🏫 Untuk Instruktur (3 instruktur)
@@ -113,6 +114,7 @@ lms-mahasiswa/
 │   │   ├── profile.vue               # Student profile
 │   │   ├── courses/                  # Student courses
 │   │   ├── assignments/              # Student assignments
+│   │   ├── student/grades/           # Student grades
 │   │   └── instructor/               # Instructor pages
 │   ├── plugins/           # Nuxt plugins (supabase.client.ts)
 │   ├── stores/            # Pinia stores (auth, courses, assignments, ui)
@@ -137,11 +139,11 @@ lms-mahasiswa/
 | 5 | **Student Dashboard** | ✅ Selesai | Sidebar, stats cards, course grid, mobile drawer |
 | 6 | **Courses** | ✅ Selesai | List, detail, filter level/session, progress per MK |
 | 7 | **Lesson Progress** | ✅ Selesai | Detail materi, prev/next nav, mark-as-complete |
-| 8 | **Assignments** | ✅ Selesai | List, detail, submission form, grade & feedback |
+| 8 | **Assignments** | ✅ Selesai | List, detail, submission form, countdown timer, character counter, grade & feedback |
 | 9 | **Instructor Module** | ✅ Selesai | Dashboard, CRUD materi & tugas, grading submission |
-| 10 | **Profile** | ✅ Selesai | Edit profil (student, instructor, admin) dengan validasi |
-| 11 | **Testing & a11y** | ✅ Selesai | Vitest (119 tests), Playwright E2E (3 flows), a11y audits |
-| 12 | **Deployment** | ✅ Selesai | Vercel live, README, smoke test |
+| 10 | **Admin Module** | ✅ Selesai | Dashboard admin, CRUD students/instructors/courses |
+| 11 | **Profile & AI Chat** | ✅ Selesai | Edit profil (student, instructor, admin), AI Chat assistant, code playground |
+| 12 | **Testing & Deployment** | ✅ Selesai | Vitest (99+ tests), Playwright E2E (3 flows), a11y audits, Vercel live |
 
 ### 🧪 Test Coverage
 
@@ -152,6 +154,7 @@ lms-mahasiswa/
 | **E2E (Student Flow)** | Playwright | 1 spec | ✅ Pass |
 | **E2E (Instructor Flow)** | Playwright | 1 spec | ✅ Pass |
 | **E2E (Accessibility)** | Playwright | 8 specs | ✅ Pass |
+| **Total** | | **99+ unit + 10 E2E** | ✅ |
 
 ### 🧩 Reusable Components
 
@@ -162,6 +165,8 @@ lms-mahasiswa/
 | `EmptyState` | `app/components/common/EmptyState.vue` | Tampilan saat data kosong |
 | `SessionBadge` | `app/components/common/SessionBadge.vue` | Badge sesi Pagi/Malam |
 | `PageHeader` | `app/components/common/PageHeader.vue` | Header halaman dengan judul & subtitle |
+| `LessonSidebar` | `app/components/lessons/LessonSidebar.vue` | Sidebar daftar materi dengan progress |
+| `AiChat` | `app/components/common/AiChat.vue` | AI chat assistant |
 
 ### 🔑 Demo Login
 
@@ -170,6 +175,43 @@ lms-mahasiswa/
 | Mahasiswa | `Ahmad Fauzi` — `20241001` | `mahasiswa123` |
 | Instruktur | `Dr. Andi Wijaya, M.Kom.` | `instruktur123` |
 | Admin | `Admin LMS` | `admin123` |
+
+---
+
+## ✨ Fitur Detail
+
+### 🎓 Mahasiswa
+- **Dashboard** — Ringkasan aktivitas belajar, progress MK, tugas mendatang, statistik
+- **Mata Kuliah** — Daftar MK yang diikuti, detail materi (sidebar navigasi), progress per MK, toggle selesai/batal
+- **Materi** — Belajar materi perkuliahan, toggle complete, navigasi prev/next dengan keyboard (←/→)
+- **Tugas** — Lihat tugas, deadline (countdown timer), kumpulkan jawaban, lihat nilai & feedback
+- **AI Chat** — Tanya tentang materi, bantuan tugas
+- **Playground** — Code playground Python (Pyodide)
+- **Profil** — Lihat & edit data diri (NPM, kelas, level, sesi)
+
+### 👨‍🏫 Instruktur (3 instruktur)
+- **Dashboard** — Ringkasan MK yang diampu
+- **Mata Kuliah** — Kelola materi (CRUD), kelola tugas (CRUD), lihat mahasiswa terdaftar
+- **Tugas** — Buat tugas baru, beri nilai & feedback pada submission
+- **Mahasiswa** — Lihat seluruh mahasiswa terdaftar per level & sesi
+- **Profil** — Lihat & edit data diri
+
+### 🔧 Admin
+- **Dashboard** — Ringkasan total mahasiswa, instruktur, MK, tugas
+- **Mahasiswa** — CRUD data mahasiswa (tambah, edit, hapus)
+- **Instruktur** — CRUD data instruktur (tambah, edit, hapus)
+- **Mata Kuliah** — CRUD data mata kuliah (tambah, edit, hapus)
+- **Tugas** — Lihat seluruh tugas dan submission
+- **Profil** — Lihat & edit data diri
+
+### 🔧 Fitur Teknis
+- Login role-based (Mahasiswa via Nama+NPM+Password, Instruktur via Nama+Password, Admin via Password)
+- Show/hide toggle 👁️ pada semua field password
+- Admin CRUD Mahasiswa & Instruktur (Demo mode + Supabase production)
+- 4 Level kelas (1–4) dengan sesi Pagi & Malam
+- **Demo Mode** — Bisa dijalankan tanpa Supabase (data bawaan)
+- Responsive design (desktop & mobile)
+- PWA (Progressive Web App) dengan auto-update
 
 ---
 

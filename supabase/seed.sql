@@ -41,7 +41,9 @@ INSERT INTO profiles (id, role, nama, npm, kelas, level, session_time, is_demo) 
   ('s12', 'student', 'Lintang Utami',     '20241012', '4A', 4, 'morning', TRUE),
   ('s13', 'student', 'Mega Puspita',      '20241013', '4A', 4, 'morning', TRUE),
   ('s14', 'student', 'Nanda Kusuma',      '20241014', '4B', 4, 'evening', TRUE),
-  ('s15', 'student', 'Oscar Rafif',       '20241015', '4B', 4, 'evening', TRUE);
+  ('s15', 'student', 'Oscar Rafif',       '20241015', '4B', 4, 'evening', TRUE),
+  ('s16', 'student', 'Putri Anggraini',   '20251001', '5A', 5, 'morning', TRUE),
+  ('s17', 'student', 'Rizky Firmansyah',  '20251002', '5B', 5, 'evening', TRUE);
 
 -- ── Demo: Courses ────────────────────────────
 INSERT INTO courses (id, instructor_id, kode, nama, deskripsi, level, session_time, color, icon) VALUES
@@ -57,7 +59,9 @@ INSERT INTO courses (id, instructor_id, kode, nama, deskripsi, level, session_ti
   ('c10', 'i3', 'MK303', 'Jaringan Komputer',                 'TCP/IP, routing, switching.',                      3, 'evening', '#06b6d4', '🌐'),
   ('c11', 'i1', 'MK401', 'Rekayasa Perangkat Lunak',          'Metodologi pengembangan perangkat lunak.',         4, 'morning', '#84cc16', '🛠️'),
   ('c12', 'i2', 'MK402', 'Kecerdasan Buatan',                 'Machine learning, NLP, AI.',                       4, 'morning', '#f97316', '🤖'),
-  ('c13', 'i3', 'MK403', 'Keamanan Informasi',                'Kriptografi, ethical hacking.',                    4, 'evening', '#dc2626', '🔒');
+  ('c13', 'i3', 'MK403', 'Keamanan Informasi',                'Kriptografi, ethical hacking.',                    4, 'evening', '#dc2626', '🔒'),
+  ('c14', 'i1', 'MK501', 'Farmakologi',                       'Prinsip dasar farmakologi dan interaksi obat.',     5, 'morning', '#0891b2', '💊'),
+  ('c15', 'i2', 'MK502', 'Farmasi Klinik',                    'Pelayanan kefarmasian di rumah sakit dan klinik.',  5, 'evening', '#0d9488', '🏥');
 
 -- ── Demo: Enrollments ────────────────────────
 INSERT INTO enrollments (student_id, course_id) VALUES
@@ -75,7 +79,9 @@ INSERT INTO enrollments (student_id, course_id) VALUES
   ('s12', 'c11'), ('s12', 'c12'),
   ('s13', 'c11'), ('s13', 'c12'),
   ('s14', 'c13'),
-  ('s15', 'c13');
+  ('s15', 'c13'),
+  ('s16', 'c14'), ('s16', 'c15'),
+  ('s17', 'c14'), ('s17', 'c15');
 
 -- ── Demo: Lessons ────────────────────────────
 INSERT INTO lessons (id, course_id, judul, konten, urutan) VALUES

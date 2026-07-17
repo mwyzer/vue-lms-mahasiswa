@@ -32,7 +32,7 @@ Landing Page → /login
 - Banner "Demo Mode" tetap ditampilkan
 
 ### Production (Supabase)
-- Data login tetap dari tabel `profiles` (role = 'mahasiswa' / 'instruktur')
+- Data login tetap dari tabel `profiles` (role = 'mahasiswa' / 'instruktur' / 'admin')
 - Autentikasi diverifikasi melalui Supabase Auth + session
 - RLS memastikan mahasiswa hanya bisa login sebagai dirinya sendiri
 
@@ -55,7 +55,12 @@ Landing Page → /login
 | `/courses/[courseId]/lessons/[lessonId]` | Detail materi | `auth` |
 | `/assignments` | Daftar tugas | `auth` |
 | `/assignments/[id]` | Detail tugas + submission | `auth` |
+| `/student/grades` | Hasil penilaian tugas | `auth` |
 | `/profile` | Profil mahasiswa | `auth` |
+| `/ai/chat` | AI Chat assistant | `auth` |
+| `/playground` | Code playground | `auth` |
+| `/calendar` | Kalender akademik | `auth` |
+| `/student/attendance` | Presensi saya | `auth` |
 
 ### Instructor Routes (Instruktur)
 | Route | Halaman | Middleware |
@@ -71,7 +76,21 @@ Landing Page → /login
 | `/instructor/courses/[id]/assignments/create` | Buat tugas baru | `auth` |
 | `/instructor/courses/[id]/assignments/[assignmentId]` | Lihat submission mahasiswa | `auth` |
 | `/instructor/courses/[id]/students` | Daftar mahasiswa terdaftar | `auth` |
+| `/instructor/courses/[id]/attendance` | Presensi per pertemuan | `auth` |
+| `/instructor/attendance` | Rekap presensi semua MK | `auth` |
 | `/instructor/profile` | Profil instruktur | `auth` |
+
+### Admin Routes
+| Route | Halaman | Middleware |
+|-------|---------|-----------|
+| `/admin/dashboard` | Dashboard admin | `auth` + role check |
+| `/admin/students` | CRUD Mahasiswa | `auth` |
+| `/admin/instructors` | CRUD Instruktur | `auth` |
+| `/admin/courses` | CRUD Mata Kuliah | `auth` |
+| `/admin/assignments` | Semua tugas | `auth` |
+| `/admin/profile` | Profil admin | `auth` |
+| `/calendar` | Kalender akademik | `auth` |
+| `/instructor/attendance` | Rekap presensi | `auth` |
 
 ---
 
@@ -93,21 +112,32 @@ pages/
 │   ├── index.vue                # Student assignment list
 │   └── [id].vue                 # Student assignment detail
 ├── profile.vue                  # Student profile
+├── calendar/
+│   └── index.vue                # Kalender akademik (list/month/timeline)
+├── student/
+│   ├── attendance/
+│   │   └── index.vue            # Presensi mahasiswa
+│   └── grades/
+│       └── index.vue            # Hasil penilaian tugas
 │
 └── instructor/
     ├── dashboard.vue            # Instructor dashboard
     ├── courses/
     │   ├── index.vue            # Instructor course list
     │   └── [id].vue             # Instructor course detail
+    ├── attendance/
+    │   └── index.vue            # Rekap presensi semua MK
     ├── courses/[courseId]/
     │   ├── lessons/
     │   │   ├── index.vue        # Lesson list (manage)
     │   │   ├── create.vue       # Create lesson
     │   │   └── [lessonId].vue   # View lesson
-    │   └── assignments/
-    │       ├── index.vue        # Assignment list (manage)
-    │       ├── create.vue       # Create assignment
-    │       └── [assignmentId].vue # View submissions
+    │   ├── assignments/
+    │   │   ├── index.vue        # Assignment list (manage)
+    │   │   ├── create.vue       # Create assignment
+    │   │   └── [assignmentId].vue # View submissions
+    │   └── attendance/
+    │       └── index.vue        # Presensi per pertemuan
     └── profile.vue              # Instructor profile
 ```
 
@@ -125,6 +155,7 @@ pages/
 - Jika sudah → redirect ke role-specific dashboard:
   - role `mahasiswa` → `/dashboard`
   - role `instruktur` → `/instructor/dashboard`
+  - role `admin` → `/admin/dashboard`
 - Jika belum → lanjut
 
 ### `student` Middleware
@@ -137,6 +168,11 @@ pages/
 - Jika bukan → redirect ke `/dashboard`
 - Jika sudah → lanjut
 
+### `admin` Middleware
+- Cek apakah role adalah `admin`
+- Jika bukan → redirect ke `/dashboard`
+- Jika sudah → lanjut
+
 ---
 
 ## Layout
@@ -144,12 +180,17 @@ pages/
 ### Student Layout (`layouts/dashboard.vue`)
 - Sidebar navigasi mahasiswa
 - Header dengan nama & avatar
-- Menu: Dashboard, Mata Kuliah, Tugas, Profil, Logout
+- Menu: Dashboard, Mata Kuliah, Tugas, Nilai, Kuis & Ujian, Presensi, Kalender, AI Tutor, Python, Profil, Logout
 
 ### Instructor Layout (`layouts/instructor.vue`)
 - Sidebar navigasi instruktur
 - Header dengan nama & avatar
-- Menu: Dashboard, Mata Kuliah, Profil, Logout
+- Menu: Dashboard, Mata Kuliah, Tugas, Mahasiswa, Presensi, Kalender, AI Tutor, Python, Profil, Logout
+
+### Admin Layout (`layouts/admin.vue`)
+- Sidebar navigasi admin
+- Header dengan nama & avatar
+- Menu: Dashboard, Mata Kuliah, Tugas, Mahasiswa, Instruktur, Presensi, Kalender, AI Tutor, Python, Profil, Logout
 
 ### Default Layout (`layouts/default.vue`)
 - Landing page
@@ -169,24 +210,29 @@ pages/
                     ┌──────│   /login     │──────┐
                     │      └──────────────┘      │
                     ▼                            ▼
-          ┌──────────────────┐        ┌──────────────────┐
-          │ Role: Mahasiswa  │        │ Role: Instruktur  │
-          │ Pilih kelas +    │        │ Pilih nama        │
-          │ Pilih nama + NPM │        └────────┬─────────┘
-          └────────┬─────────┘                 │
-                   │                           │
-                   ▼                           ▼
-          ┌──────────────────┐        ┌──────────────────────┐
-          │  /dashboard      │        │  /instructor/dashboard│
-          │  /courses/*      │        │  /instructor/courses/*│
-          │  /assignments/*  │        │  /instructor/...      │
-          │  /profile        │        │  /instructor/profile  │
-          └──────────────────┘        └──────────────────────┘
-                   │                           │
-                   │          Logout            │
-                   └──────────┐   ┌────────────┘
-                              ▼   ▼
-                        ┌──────────────┐
-                        │   /login     │
+          ┌──────────────────┐        ┌──────────────────┐        ┌──────────────────┐
+          │ Role: Mahasiswa  │        │ Role: Instruktur  │        │  Role: Admin     │
+          │ Pilih kelas +    │        │ Pilih nama        │        │ Masukkan password│
+          │ Pilih nama + NPM │        └────────┬─────────┘        └────────┬─────────┘
+          └────────┬─────────┘                 │                           │
+                   │                           │                           │
+                   ▼                           ▼                           ▼
+          ┌──────────────────┐        ┌──────────────────────┐     ┌──────────────────┐
+          │  /dashboard      │        │  /instructor/dashboard│     │  /admin/dashboard │
+          │  /courses/*      │        │  /instructor/courses/*│     │  /admin/students  │
+          │  /assignments/*  │        │  /instructor/...      │     │  /admin/*         │
+          │  /profile        │        │  /calendar            │     │  /calendar        │
+          │  /calendar       │        │  /instructor/attendance│     │  /instructor/attendance│
+          │  /student/attendance │    │  /instructor/profile  │     │  /admin/profile   │
+          │  /student/grades   │    └──────────────────────┘     └──────────────────┘
+          │  /ai/chat         │
+          │  /playground      │
+          └──────────────────┘
+                   │                           │                           │
+                   │          Logout            │                           │
+                   └──────────┐   ┌────────────┘                           │
+                              ▼   ▼                                        │
+                        ┌──────────────┐                                   │
+                        │   /login     │◄──────────────────────────────────┘
                         └──────────────┘
 ```

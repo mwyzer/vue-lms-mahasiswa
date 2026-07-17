@@ -15,6 +15,7 @@ const notification = useNotification()
 const assignmentId = computed(() => route.params.id as string)
 const submitText = ref('')
 const submitting = ref(false)
+const examAutoSubmitted = ref(false)
 
 // Find the enriched assignment from myAssignments
 const myAssignments = computed(() => assignmentsStore.myAssignments as any[])
@@ -37,6 +38,74 @@ function isOverdue(): boolean {
   return new Date(assignment.value.tenggat_waktu) < new Date()
 }
 
+// Countdown timer — shows remaining time until deadline
+const timeRemaining = ref('')
+let countdownInterval: ReturnType<typeof setInterval> | null = null
+
+function updateCountdown() {
+  if (!assignment.value?.tenggat_waktu) {
+    timeRemaining.value = ''
+    return
+  }
+  const now = new Date().getTime()
+  const due = new Date(assignment.value.tenggat_waktu).getTime()
+  const diff = due - now
+
+  if (diff <= 0) {
+    timeRemaining.value = 'Terlewat'
+    return
+  }
+
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+
+  if (days > 0) {
+    timeRemaining.value = `${days} hari ${hours} jam lagi`
+  } else if (hours > 0) {
+    timeRemaining.value = `${hours} jam ${minutes} menit lagi`
+  } else {
+    timeRemaining.value = `${minutes} menit lagi`
+  }
+}
+
+onMounted(() => {
+  updateCountdown()
+  countdownInterval = setInterval(updateCountdown, 60000)
+})
+
+onUnmounted(() => {
+  if (countdownInterval) clearInterval(countdownInterval)
+})
+
+// ── Exam Guard (tab switch detection) ──────────
+function examSubmitCallback() {
+  // Auto-submit whatever text was entered
+  if (submitText.value.trim()) {
+    assignmentsStore.submitAssignment(assignmentId.value, submitText.value)
+  }
+  examAutoSubmitted.value = true
+}
+
+const examGuard = useExamGuard(assignmentId.value, examSubmitCallback, {
+  maxViolations: 1,
+  autoSubmit: true,
+})
+
+// Start monitoring when page loads and assignment is not yet submitted
+watch(
+  () => assignment.value,
+  (a) => {
+    if (a && !a.submission && !examAutoSubmitted.value) {
+      setTimeout(() => examGuard.start(), 500)
+    }
+  },
+  { immediate: true }
+)
+// ── End Exam Guard ──────────────────────────────
+
+const answerCharCount = computed(() => submitText.value.length)
+
 function handleSubmit() {
   if (!submitText.value.trim()) {
     notification.warning('Silakan isi jawaban terlebih dahulu.')
@@ -48,6 +117,7 @@ function handleSubmit() {
   setTimeout(() => {
     assignmentsStore.submitAssignment(assignmentId.value, submitText.value)
     notification.success('Tugas berhasil dikumpulkan!')
+    examGuard.stop()
     submitting.value = false
   }, 300)
 }
@@ -60,8 +130,27 @@ function handleSubmit() {
       ← Kembali ke Tugas
     </button>
 
+    <!-- Exam Monitoring Banner -->
+    <div
+      v-if="examGuard.isMonitoring.value && !assignment?.submission"
+      class="exam-banner"
+    >
+      <div class="exam-banner-icon">🛡️</div>
+      <div class="exam-banner-text">
+        <strong>Mode Ujian Aktif</strong>
+        <span>Jangan tinggalkan halaman ini. Berpindah tab akan mengakhiri ujian.</span>
+      </div>
+      <span class="exam-badge">Dipantau</span>
+    </div>
+
+    <!-- Auto-submitted notice (replaces content) -->
+    <div v-if="examAutoSubmitted" class="exam-submitted-notice card">
+      <p>⚠️ Ujian diakhiri karena Anda meninggalkan halaman ujian. Jawaban telah dikumpulkan secara otomatis.</p>
+      <NuxtLink to="/assignments" class="btn btn-primary btn-sm mt-1">Kembali ke Tugas</NuxtLink>
+    </div>
+
     <!-- Not found -->
-    <div v-if="!assignment" class="empty-state card">
+    <div v-else-if="!assignment" class="empty-state card">
       <p>Tugas tidak ditemukan.</p>
       <NuxtLink to="/assignments" class="btn btn-primary btn-sm mt-1">
         Kembali ke Daftar
@@ -80,6 +169,14 @@ function handleSubmit() {
           <div class="meta-item">
             <span class="meta-label">Deadline</span>
             <span class="meta-value">{{ formatDate(assignment.tenggat_waktu) }}</span>
+            <span
+              v-if="timeRemaining && !isOverdue()"
+              class="countdown text-xs"
+            >⏳ {{ timeRemaining }}</span>
+            <span
+              v-else-if="isOverdue()"
+              class="countdown overdue text-xs"
+            >⚠️ Terlewat</span>
           </div>
           <div class="meta-item">
             <span class="meta-label">Status</span>
@@ -164,15 +261,19 @@ function handleSubmit() {
             class="form-textarea"
             placeholder="Tulis jawaban Anda di sini..."
             rows="6"
-          />
-          <div class="submit-actions">
-            <button
-              class="btn btn-primary"
-              :disabled="submitting || !submitText.trim()"
-              @click="handleSubmit"
-            >
-              {{ submitting ? 'Menyimpan...' : 'Kumpulkan Tugas' }}
-            </button>
+          />          <div class="textarea-footer">
+            <span class="text-xs text-muted">{{ answerCharCount }} karakter</span>
+          </div>          <div class="submit-actions">
+            <div class="submit-row">
+              <span class="text-xs text-muted">{{ answerCharCount }} karakter</span>
+              <button
+                class="btn btn-primary"
+                :disabled="submitting || !submitText.trim()"
+                @click="handleSubmit"
+              >
+                {{ submitting ? 'Menyimpan...' : 'Kumpulkan Tugas' }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -228,6 +329,17 @@ function handleSubmit() {
   font-weight: 500;
 }
 
+.countdown {
+  color: var(--color-warning);
+  font-weight: 500;
+  margin-top: 0.125rem;
+}
+
+.countdown.overdue {
+  color: var(--color-error);
+  font-weight: 600;
+}
+
 .assignment-body,
 .submission-section {
   margin-bottom: 1rem;
@@ -267,6 +379,19 @@ function handleSubmit() {
 
 .submit-actions {
   margin-top: 0.75rem;
+}
+
+.submit-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.textarea-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.25rem;
 }
 
 .submission-status {
@@ -366,5 +491,62 @@ function handleSubmit() {
 
 .text-muted {
   color: var(--color-neutral-500);
+}
+
+/* ── Exam Guard ──────────────────────────── */
+.exam-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  border: 1px solid #f59e0b;
+  border-radius: 10px;
+  color: #92400e;
+}
+
+.exam-banner-icon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.exam-banner-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.exam-banner-text strong {
+  font-size: 0.875rem;
+}
+
+.exam-badge {
+  flex-shrink: 0;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
+  background-color: #f59e0b;
+  color: white;
+}
+
+.exam-submitted-notice {
+  text-align: center;
+  padding: 2rem;
+  margin-bottom: 1rem;
+  border-color: var(--color-error);
+  background-color: #fef2f2;
+  color: var(--color-error-700);
+}
+
+.exam-submitted-notice p {
+  margin-bottom: 1rem;
+  font-weight: 500;
 }
 </style>

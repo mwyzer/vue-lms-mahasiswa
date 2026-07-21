@@ -150,7 +150,77 @@ function writeChunk(res: { write: (chunk: string) => void }, word: string) {
   res.write(`data: ${JSON.stringify({ word })}\n\n`)
 }
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(
+  {
+    openAPI: {
+      summary: 'AI Chat',
+      description: `Mengirim pesan ke AI assistant LMS dan menerima balasan.\n\n**Mode Demo**: Menggunakan knowledge-base lokal untuk respons kontekstual.\n**Mode Produksi**: Menggunakan OpenAI-compatible API jika NUXT_AI_API_KEY diset.\n**Streaming**: Kirim header \`Accept: text/event-stream\` untuk respons streaming SSE.`,
+      tags: ['AI'],
+      security: [{ cookieAuth: [] }],
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              required: ['message'],
+              properties: {
+                message: {
+                  type: 'string',
+                  maxLength: 2000,
+                  description: 'Pesan pertanyaan untuk AI assistant',
+                  example: 'Jelaskan apa itu variabel dalam Python?',
+                },
+                context: {
+                  type: 'object',
+                  properties: {
+                    courses: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          nama: { type: 'string', description: 'Nama mata kuliah' },
+                          kode: { type: 'string', description: 'Kode mata kuliah' },
+                          deskripsi: { type: 'string', description: 'Deskripsi mata kuliah' },
+                        },
+                      },
+                      description: 'Daftar mata kuliah mahasiswa untuk konteks AI',
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      responses: {
+        200: {
+          description: 'Balasan AI berhasil',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  reply: { type: 'string', description: 'Balasan dari AI assistant', example: 'Variabel adalah tempat menyimpan data...' },
+                  sources: { type: 'array', items: { type: 'string' }, description: 'Sumber referensi (opsional)', nullable: true },
+                },
+              },
+            },
+            'text/event-stream': {
+              schema: {
+                type: 'string',
+                description: 'SSE stream — setiap chunk berformat `data: {"word": "..."}\\n\\n`',
+              },
+            },
+          },
+        },
+        400: { description: 'Pesan kosong atau terlalu panjang (>2000 karakter)' },
+        401: { description: 'Unauthorized — session cookie tidak valid' },
+        429: { description: 'Rate limit exceeded — 20 req/menit per user, 100 req/menit global' },
+      },
+    },
+  },
+  async (event) => {
   const body = await readBody<{ message: string; context?: Record<string, unknown> }>(event)
   const message = body?.message?.trim()
 

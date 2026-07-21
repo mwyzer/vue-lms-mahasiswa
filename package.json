@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@pinia/nuxt": "^0.11.3",
+    "@scalar/nuxt": "^0.6.59",
     "@supabase/supabase-js": "^2.110.4",
     "@vite-pwa/nuxt": "^1.1.1",
     "@vuestic/nuxt": "^1.0.21",

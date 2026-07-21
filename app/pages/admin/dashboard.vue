@@ -8,13 +8,21 @@ definePageMeta({
   middleware: ['auth', 'admin']
 })
 
+import { useDashboard } from '~/composables/useDashboard'
+import { useAiUsage } from '~/composables/useAiUsage'
+
 const auth = useAuthStore()
 const coursesStore = useCoursesStore()
 const assignmentsStore = useAssignmentsStore()
+const { data: aiUsage, loading: aiUsageLoading, error: aiUsageError, fetch: fetchAiUsage } = useAiUsage()
+const { greeting: getGreeting } = useDashboard()
+
+const greeting = computed(() => getGreeting())
 
 onMounted(() => {
   coursesStore.init()
   assignmentsStore.init()
+  fetchAiUsage()
 })
 
 const userName = computed(() => auth.user?.nama || 'Admin')
@@ -34,51 +42,6 @@ const studentsByLevel = computed(() => {
   return Object.entries(levels)
     .map(([level, count]) => ({ level: Number(level), count }))
     .sort((a, b) => a.level - b.level)
-})
-
-// Greeting
-const greeting = computed(() => {
-  const hour = new Date().getHours()
-  if (hour < 10) return 'Selamat Pagi'
-  if (hour < 15) return 'Selamat Siang'
-  if (hour < 18) return 'Selamat Sore'
-  return 'Selamat Malam'
-})
-
-// ── AI Usage Stats ──
-interface AiUsageData {
-  date: string
-  totalTokens: number
-  promptTokens: number
-  completionTokens: number
-  requestCount: number
-  budgetRemaining: number
-  budgetTotal: number
-  budgetPercent: number
-}
-
-const aiUsage = ref<AiUsageData | null>(null)
-const aiUsageLoading = ref(false)
-const aiUsageError = ref('')
-
-async function fetchAiUsage() {
-  aiUsageLoading.value = true
-  aiUsageError.value = ''
-  try {
-    const res = await fetch('/api/admin/ai-usage')
-    if (!res.ok) throw new Error(await res.text())
-    aiUsage.value = await res.json()
-  } catch (err: any) {
-    aiUsageError.value = err.message || 'Gagal memuat data AI usage.'
-  } finally {
-    aiUsageLoading.value = false
-  }
-}
-
-onMounted(() => {
-  coursesStore.init()
-  assignmentsStore.init()
-  fetchAiUsage()
 })
 </script>
 

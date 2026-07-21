@@ -18,6 +18,7 @@ const navigation = computed(() => [
   { label: 'Kalender', icon: '📅', to: '/calendar' },
   { label: 'AI Tutor', icon: '🤖', to: '/ai/chat' },
   { label: 'Python', icon: '🐍', to: '/playground' },
+  { label: 'API Docs', icon: '📋', to: '/_scalar', external: true },
   { label: 'Profil', icon: '👤', to: '/instructor/profile' }
 ])
 
@@ -59,17 +60,30 @@ function closeSidebar() {
       </div>
 
       <nav class="sidebar-nav">
-        <NuxtLink
-          v-for="item in navigation"
-          :key="item.to"
-          :to="item.to"
-          class="nav-item"
-          :class="{ active: route.path.startsWith(item.to) }"
-          @click="closeSidebar"
-        >
-          <span class="nav-icon">{{ item.icon }}</span>
-          <span class="nav-label">{{ item.label }}</span>
-        </NuxtLink>
+        <template v-for="item in navigation" :key="item.to">
+          <a
+            v-if="item.external"
+            :href="item.to"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="nav-item"
+            @click="closeSidebar"
+          >
+            <span class="nav-icon">{{ item.icon }}</span>
+            <span class="nav-label">{{ item.label }}</span>
+            <span class="nav-external">↗</span>
+          </a>
+          <NuxtLink
+            v-else
+            :to="item.to"
+            class="nav-item"
+            :class="{ active: route.path.startsWith(item.to) }"
+            @click="closeSidebar"
+          >
+            <span class="nav-icon">{{ item.icon }}</span>
+            <span class="nav-label">{{ item.label }}</span>
+          </NuxtLink>
+        </template>
       </nav>
 
       <div class="sidebar-footer">
@@ -207,6 +221,12 @@ function closeSidebar() {
   font-size: 1.25rem;
   width: 1.5rem;
   text-align: center;
+}
+
+.nav-external {
+  margin-left: auto;
+  font-size: 0.75rem;
+  opacity: 0.4;
 }
 
 .sidebar-footer {

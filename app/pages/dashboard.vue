@@ -14,12 +14,25 @@ definePageMeta({
   middleware: ['auth', 'student']
 })
 
+import { useDashboard } from '~/composables/useDashboard'
+
 const auth = useAuthStore()
 const coursesStore = useCoursesStore()
 const assignmentsStore = useAssignmentsStore()
 const announcementsStore = useAnnouncementsStore()
 const calendarStore = useCalendarStore()
 const quizStore = useQuizStore()
+
+const { formatDate, isCloseToDeadline, eventTypeClass, initRevealAnimations } = useDashboard()
+
+// Wrapped in computed for reactive template binding
+const greeting = computed(() => {
+  const hour = new Date().getHours()
+  if (hour < 10) return 'Selamat Pagi'
+  if (hour < 15) return 'Selamat Siang'
+  if (hour < 18) return 'Selamat Sore'
+  return 'Selamat Malam'
+})
 
 const myCourses = computed(() => coursesStore.myCourses)
 
@@ -29,24 +42,7 @@ onMounted(() => {
   announcementsStore.init()
   calendarStore.init()
   quizStore.init()
-
-  /* ── Bento reveal — stagger entrance via IntersectionObserver ── */
-  if (typeof IntersectionObserver !== 'undefined') {
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('is-inview')
-          observer.unobserve(entry.target)
-        }
-      })
-    }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' })
-
-    nextTick(() => {
-      document.querySelectorAll('.reveal').forEach((el) => observer.observe(el))
-    })
-  } else {
-    document.querySelectorAll('.reveal').forEach((el) => el.classList.add('is-inview'))
-  }
+  initRevealAnimations()
 })
 
 const userName = computed(() => auth.user?.nama || 'Mahasiswa')
@@ -76,15 +72,6 @@ const myQuizAttempts = computed(() => {
   return quizStore.attemptsByStudent(auth.user.id).slice(0, 5)
 })
 
-// Greeting based on time
-const greeting = computed(() => {
-  const hour = new Date().getHours()
-  if (hour < 10) return 'Selamat Pagi'
-  if (hour < 15) return 'Selamat Siang'
-  if (hour < 18) return 'Selamat Sore'
-  return 'Selamat Malam'
-})
-
 // Upcoming assignments (next 5)
 const upcomingAssignments = computed(() =>
   (assignmentsStore.myAssignments as any[])
@@ -92,28 +79,6 @@ const upcomingAssignments = computed(() =>
     .sort((a: any, b: any) => new Date(a.tenggat_waktu).getTime() - new Date(b.tenggat_waktu).getTime())
     .slice(0, 5)
 )
-
-function isCloseToDeadline(dateStr: string): boolean {
-  const diff = new Date(dateStr).getTime() - new Date().getTime()
-  return diff > 0 && diff < 24 * 60 * 60 * 1000 // Within 24 hours
-}
-
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('id-ID', {
-    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
-  })
-}
-
-// Event type helper — maps event type to a Scholar accent class
-function eventTypeClass(tipe?: string): string {
-  const map: Record<string, string> = {
-    uts: 'dot--danger',
-    uas: 'dot--warning',
-    tugas: 'dot--primary',
-    libur: 'dot--accent',
-  }
-  return map[tipe || ''] || 'dot--info'
-}
 </script>
 
 <template>

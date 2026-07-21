@@ -3,7 +3,7 @@ export default defineNuxtConfig({
   compatibilityDate: '2026-07-14',
   devtools: { enabled: true },
 
-  modules: ['@pinia/nuxt', '@vite-pwa/nuxt', '@vuestic/nuxt'],
+  modules: ['@pinia/nuxt', '@vite-pwa/nuxt', '@vuestic/nuxt', '@scalar/nuxt'],
 
   components: {
     dirs: [
@@ -96,7 +96,18 @@ export default defineNuxtConfig({
   },
 
   nitro: {
-    preset: 'vercel'
+    preset: 'vercel',
+    openAPI: {
+      meta: {
+        title: 'LMS Mahasiswa API',
+        description: 'REST API untuk Learning Management System — AI Chat, Authentication, dan Admin Analytics.',
+        version: '1.0.0',
+        contact: {
+          name: 'LMS Support',
+          email: 'admin@lms.ac.id',
+        },
+      },
+    },
   },
 
   srcDir: 'app/',

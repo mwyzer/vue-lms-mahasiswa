@@ -7,8 +7,11 @@ definePageMeta({
   middleware: ['auth', 'student']
 })
 
+import { useFileUtils } from '~/composables/useFileUtils'
+
 const auth = useAuthStore()
 const notification = useNotification()
+const { fileToBase64, validateImageFile } = useFileUtils()
 
 const user = computed(() => auth.user)
 
@@ -35,15 +38,10 @@ async function handlePhotoSelected(event: Event) {
   const file = input.files?.[0]
   if (!file) return
 
-  // Validate file type
-  if (!file.type.startsWith('image/')) {
-    notification.warning('Hanya file gambar yang diizinkan.')
-    return
-  }
-
-  // Validate size (max 2MB)
-  if (file.size > 2 * 1024 * 1024) {
-    notification.warning('Ukuran foto maksimal 2MB.')
+  // Validate (from composable)
+  const validationError = validateImageFile(file)
+  if (validationError) {
+    notification.warning(validationError)
     return
   }
 
@@ -73,15 +71,6 @@ async function removePhoto() {
     notification.error(auth.error || 'Gagal menghapus foto.')
   }
   uploadingPhoto.value = false
-}
-
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result as string)
-    reader.onerror = reject
-    reader.readAsDataURL(file)
-  })
 }
 
 function startEdit() {

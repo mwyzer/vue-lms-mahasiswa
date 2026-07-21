@@ -172,6 +172,32 @@ export function useAiChat() {
     state.messages = state.messages.filter((m) => m.id !== id)
   }
 
+  /**
+   * Format a Date for chat timestamps (Indonesian locale).
+   */
+  function formatTime(date: Date): string {
+    return new Intl.DateTimeFormat('id-ID', {
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(new Date(date))
+  }
+
+  /**
+   * Render markdown-style content to safe HTML.
+   * Handles code blocks, inline code, bold, italic, and line breaks.
+   */
+  function renderMarkdown(content: string): string {
+    return content
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+      .replace(/\n/g, '<br>')
+  }
+
   return {
     messages: computed(() => state.messages),
     isProcessing: computed(() => state.isProcessing),
@@ -182,5 +208,7 @@ export function useAiChat() {
     cancelResponse,
     clearChat,
     removeMessage,
+    formatTime,
+    renderMarkdown,
   }
 }

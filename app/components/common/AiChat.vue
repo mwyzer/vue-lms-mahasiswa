@@ -15,6 +15,8 @@ const {
   sendMessage,
   cancelResponse,
   clearChat,
+  formatTime,
+  renderMarkdown,
 } = useAiChat()
 
 const inputText = ref('')
@@ -61,25 +63,7 @@ function handleSend() {
   sendMessage(text)
 }
 
-function formatTime(date: Date): string {
-  return new Intl.DateTimeFormat('id-ID', {
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(date))
-}
-
-function getMessageContent(content: string): string {
-  // Escape HTML and render markdown-style formatting
-  return content
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*([^*]+)\*/g, '<em>$1</em>')
-    .replace(/\n/g, '<br>')
-}
+// formatTime and renderMarkdown are now imported from useAiChat composable
 
 const suggestions = [
   'Apa itu variabel dalam pemrograman?',
@@ -154,7 +138,7 @@ const suggestions = [
             <div
               v-if="msg.content"
               class="message-text"
-              v-html="getMessageContent(msg.content)"
+              v-html="renderMarkdown(msg.content)"
             />
             <div
               v-else-if="msg.role === 'assistant' && isProcessing && msg === messages[messages.length - 1]"

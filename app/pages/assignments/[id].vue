@@ -10,6 +10,7 @@ definePageMeta({
 const route = useRoute()
 const router = useRouter()
 const assignmentsStore = useAssignmentsStore()
+const { formatDate, isOverdue, useCountdown } = useAssignments()
 const notification = useNotification()
 
 const assignmentId = computed(() => route.params.id as string)
@@ -25,58 +26,17 @@ const assignment = computed(() =>
 
 onMounted(() => {
   assignmentsStore.setCurrentAssignment(assignmentId.value)
-})
-
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('id-ID', {
-    day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
-  })
-}
-
-function isOverdue(): boolean {
-  if (!assignment.value) return false
-  return new Date(assignment.value.tenggat_waktu) < new Date()
-}
-
-// Countdown timer — shows remaining time until deadline
-const timeRemaining = ref('')
-let countdownInterval: ReturnType<typeof setInterval> | null = null
-
-function updateCountdown() {
-  if (!assignment.value?.tenggat_waktu) {
-    timeRemaining.value = ''
-    return
-  }
-  const now = new Date().getTime()
-  const due = new Date(assignment.value.tenggat_waktu).getTime()
-  const diff = due - now
-
-  if (diff <= 0) {
-    timeRemaining.value = 'Terlewat'
-    return
-  }
-
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
-  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
-
-  if (days > 0) {
-    timeRemaining.value = `${days} hari ${hours} jam lagi`
-  } else if (hours > 0) {
-    timeRemaining.value = `${hours} jam ${minutes} menit lagi`
-  } else {
-    timeRemaining.value = `${minutes} menit lagi`
-  }
-}
-
-onMounted(() => {
-  updateCountdown()
-  countdownInterval = setInterval(updateCountdown, 60000)
+  countdown.start()
 })
 
 onUnmounted(() => {
-  if (countdownInterval) clearInterval(countdownInterval)
+  countdown.stop()
 })
+
+// ── Countdown Timer (from composable) ──────────
+const deadline = computed(() => assignment.value?.tenggat_waktu || '')
+const countdown = useCountdown(deadline.value)
+const timeRemaining = countdown.timeRemaining
 
 // ── Exam Guard (tab switch detection) ──────────
 function examSubmitCallback() {
@@ -170,11 +130,11 @@ function handleSubmit() {
             <span class="meta-label">Deadline</span>
             <span class="meta-value">{{ formatDate(assignment.tenggat_waktu) }}</span>
             <span
-              v-if="timeRemaining && !isOverdue()"
+              v-if="timeRemaining && !isOverdue(assignment.tenggat_waktu)"
               class="countdown text-xs"
             >⏳ {{ timeRemaining }}</span>
             <span
-              v-else-if="isOverdue()"
+              v-else-if="isOverdue(assignment.tenggat_waktu)"
               class="countdown overdue text-xs"
             >⚠️ Terlewat</span>
           </div>
@@ -189,7 +149,7 @@ function handleSubmit() {
               class="badge badge-primary"
             >Sudah Dikumpulkan</span>
             <span
-              v-else-if="isOverdue()"
+              v-else-if="isOverdue(assignment.tenggat_waktu)"
               class="badge badge-danger"
             >Terlewat</span>
             <span

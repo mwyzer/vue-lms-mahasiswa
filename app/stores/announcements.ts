@@ -110,8 +110,8 @@ export const useAnnouncementsStore = defineStore('announcements', {
       this.error = null
 
       try {
-        const config = useRuntimeConfig()
-        this.isDemoMode = config.public.demoMode === 'true'
+        const ui = useUiStore()
+        this.isDemoMode = ui.isDemoMode
 
         if (this.isDemoMode) {
           this.announcements = [...DEMO_ANNOUNCEMENTS]

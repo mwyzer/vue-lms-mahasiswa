@@ -75,9 +75,6 @@ interface CoursesState {
   loading: boolean
   error: string | null
 
-  // Demo reactivity version (incremented on mutations to force getter re-evaluation)
-  demoVersion: number
-
   // Supabase data cache
   isDemoMode: boolean
   initialized: boolean
@@ -98,7 +95,6 @@ export const useCoursesStore = defineStore('courses', {
     enrollments: [],
     loading: false,
     error: null,
-    demoVersion: 0,
     isDemoMode: true,
     initialized: false,
     sbCourses: [],
@@ -112,24 +108,21 @@ export const useCoursesStore = defineStore('courses', {
   getters: {
     /** Courses for the current user. */
     myCourses(): CourseWithProgress[] {
-      const store = useCoursesStore()
       const auth = useAuthStore()
       if (!auth.user) return []
-      // Track demoVersion for reactivity when DEMO_* arrays are mutated
-      void store.demoVersion
 
-      const courses = store.isDemoMode ? DEMO_COURSES : store.sbCourses
+      const courses = this.isDemoMode ? this.courses : this.sbCourses
       const enrollMap: Record<string, string[]> = {}
 
-      if (store.isDemoMode) {
+      if (this.isDemoMode) {
         Object.assign(enrollMap, DEMO_ENROLLMENTS)
       } else {
-        for (const e of store.sbEnrollments) {
+        for (const e of this.sbEnrollments) {
           if (!enrollMap[e.student_id]) enrollMap[e.student_id] = []
           enrollMap[e.student_id].push(e.course_id)
         }
         // Build instructor enrollments from courses
-        for (const c of store.sbCourses) {
+        for (const c of this.sbCourses) {
           if (!enrollMap[c.instructor_id]) enrollMap[c.instructor_id] = []
           if (!enrollMap[c.instructor_id].includes(c.id)) {
             enrollMap[c.instructor_id].push(c.id)
@@ -151,12 +144,12 @@ export const useCoursesStore = defineStore('courses', {
         let courseLessons: Lesson[]
         let progressMap: Record<string, LessonProgress[]>
 
-        if (store.isDemoMode) {
+        if (this.isDemoMode) {
           courseLessons = DEMO_LESSONS[cid] || []
           progressMap = DEMO_LESSON_PROGRESS
         } else {
-          courseLessons = store.sbCourseMap[cid] || []
-          progressMap = store.sbProgressMap
+          courseLessons = this.sbCourseMap[cid] || []
+          progressMap = this.sbProgressMap
         }
 
         const completedLessons = (progressMap[auth.user!.id] || [])
@@ -175,26 +168,23 @@ export const useCoursesStore = defineStore('courses', {
 
     /** All courses (for admin/instructor overview). */
     allCourses(): Course[] {
-      const store = useCoursesStore()
-      void store.demoVersion
-      return store.isDemoMode ? [...DEMO_COURSES] : [...store.sbCourses]
+      return this.isDemoMode ? this.courses : this.sbCourses
     },
 
     /** Get lessons for current course. */
     currentLessons(): LessonWithProgress[] {
-      const store = useCoursesStore()
       const auth = useAuthStore()
-      if (!auth.user || !store.currentCourse) return []
+      if (!auth.user || !this.currentCourse) return []
 
       let courseLessons: Lesson[]
       let progress: LessonProgress[]
 
-      if (store.isDemoMode) {
-        courseLessons = DEMO_LESSONS[store.currentCourse.id] || []
+      if (this.isDemoMode) {
+        courseLessons = DEMO_LESSONS[this.currentCourse.id] || []
         progress = DEMO_LESSON_PROGRESS[auth.user.id] || []
       } else {
-        courseLessons = store.sbCourseMap[store.currentCourse.id] || []
-        progress = store.sbProgressMap[auth.user.id] || []
+        courseLessons = this.sbCourseMap[this.currentCourse.id] || []
+        progress = this.sbProgressMap[auth.user.id] || []
       }
 
       return courseLessons.map((lesson) => ({
@@ -210,8 +200,8 @@ export const useCoursesStore = defineStore('courses', {
      */
     async init() {
       if (this.initialized) return
-      const config = useRuntimeConfig()
-      this.isDemoMode = config.public.demoMode !== 'false'
+      const ui = useUiStore()
+      this.isDemoMode = ui.isDemoMode
 
       if (!this.isDemoMode) {
         try {
@@ -219,15 +209,18 @@ export const useCoursesStore = defineStore('courses', {
           this.loading = true
 
           // Fetch all courses
-          const { data: courses } = await supabase.from('courses').select('*').order('level').order('session_time')
+          const { data: courses, error: coursesErr } = await supabase.from('courses').select('*').order('level').order('session_time')
+          if (coursesErr) throw coursesErr
           if (courses) this.sbCourses = courses as Course[]
 
           // Fetch enrollments
-          const { data: enrollments } = await supabase.from('enrollments').select('student_id, course_id')
+          const { data: enrollments, error: enrollErr } = await supabase.from('enrollments').select('student_id, course_id')
+          if (enrollErr) throw enrollErr
           if (enrollments) this.sbEnrollments = enrollments
 
           // Fetch all lessons
-          const { data: lessons } = await supabase.from('lessons').select('*').order('urutan')
+          const { data: lessons, error: lessonsErr } = await supabase.from('lessons').select('*').order('urutan')
+          if (lessonsErr) throw lessonsErr
           if (lessons) {
             this.sbLessons = lessons as Lesson[]
             // Build course → lessons map
@@ -240,7 +233,8 @@ export const useCoursesStore = defineStore('courses', {
           }
 
           // Fetch lesson progress
-          const { data: progress } = await supabase.from('lesson_progress').select('*')
+          const { data: progress, error: progressErr } = await supabase.from('lesson_progress').select('*')
+          if (progressErr) throw progressErr
           if (progress) {
             this.sbProgress = progress as LessonProgress[]
             // Build student → progress map
@@ -251,6 +245,12 @@ export const useCoursesStore = defineStore('courses', {
             }
             this.sbProgressMap = pMap
           }
+
+          // If Supabase returned no courses at all, fall back to demo
+          if (this.sbCourses.length === 0) {
+            console.warn('Supabase returned zero courses — falling back to demo data.')
+            this.isDemoMode = true
+          }
         } catch (err) {
           console.error('Failed to fetch courses from Supabase, falling back to demo:', err)
           this.isDemoMode = true
@@ -259,14 +259,26 @@ export const useCoursesStore = defineStore('courses', {
         }
       }
 
+      // Seed reactive courses from demo data
+      if (this.isDemoMode) {
+        this.courses = [...DEMO_COURSES]
+      }
+
       this.initialized = true
+    },
+
+    /** Sync demo data into reactive state to trigger getter re-evaluation. */
+    _syncDemo() {
+      if (this.isDemoMode) {
+        this.courses = [...DEMO_COURSES]
+      }
     },
 
     /**
      * Set the currently viewed course.
      */
     setCurrentCourse(courseId: string) {
-      const courses = this.isDemoMode ? DEMO_COURSES : this.sbCourses
+      const courses = this.isDemoMode ? this.courses : this.sbCourses
       const course = courses.find((c) => c.id === courseId)
       if (course) {
         this.currentCourse = course
@@ -325,7 +337,7 @@ export const useCoursesStore = defineStore('courses', {
           DEMO_LESSON_PROGRESS[auth.user.id] = existing
         }
         this.lessonProgress = DEMO_LESSON_PROGRESS[auth.user.id] || []
-        this.demoVersion++
+        this._syncDemo()
         return
       }
 
@@ -398,7 +410,7 @@ export const useCoursesStore = defineStore('courses', {
           DEMO_LESSON_PROGRESS[auth.user.id] = existing
         }
         this.lessonProgress = DEMO_LESSON_PROGRESS[auth.user.id] || []
-        this.demoVersion++
+        this._syncDemo()
         return
       }
 
@@ -467,7 +479,7 @@ export const useCoursesStore = defineStore('courses', {
         if (this.currentCourse?.id === courseId) {
           this.lessons = DEMO_LESSONS[courseId] || []
         }
-        this.demoVersion++
+        this._syncDemo()
         return
       }
 
@@ -534,6 +546,51 @@ export const useCoursesStore = defineStore('courses', {
       }
     },
 
+    /**
+     * Update an existing lesson (instructor).
+     */
+    async updateLesson(lessonId: string, data: { judul?: string; konten?: string }) {
+      if (this.isDemoMode) {
+        for (const courseId in DEMO_LESSONS) {
+          const idx = DEMO_LESSONS[courseId].findIndex((l) => l.id === lessonId)
+          if (idx >= 0) {
+            if (data.judul !== undefined) DEMO_LESSONS[courseId][idx].judul = data.judul
+            if (data.konten !== undefined) DEMO_LESSONS[courseId][idx].konten = data.konten
+            DEMO_LESSONS[courseId][idx].updated_at = new Date().toISOString()
+            break
+          }
+        }
+        if (this.currentCourse) {
+          this.lessons = DEMO_LESSONS[this.currentCourse.id] || []
+        }
+        return
+      }
+
+      // Production: update in Supabase
+      try {
+        const supabase = useNuxtApp().$supabase
+        const payload: Record<string, unknown> = { updated_at: new Date().toISOString() }
+        if (data.judul !== undefined) payload.judul = data.judul
+        if (data.konten !== undefined) payload.konten = data.konten
+
+        await supabase.from('lessons').update(payload).eq('id', lessonId)
+
+        // Update local cache
+        for (const courseId in this.sbCourseMap) {
+          const idx = this.sbCourseMap[courseId].findIndex((l) => l.id === lessonId)
+          if (idx >= 0) {
+            Object.assign(this.sbCourseMap[courseId][idx], payload)
+            break
+          }
+        }
+        if (this.currentCourse) {
+          this.lessons = this.sbCourseMap[this.currentCourse.id] || []
+        }
+      } catch (err) {
+        console.error('Failed to update lesson:', err)
+      }
+    },
+
     // ── Admin: Course CRUD ─────────────────────────────────────
 
     /**
@@ -570,14 +627,14 @@ export const useCoursesStore = defineStore('courses', {
         // Also add instructor enrollment
         if (!DEMO_ENROLLMENTS[data.instructor_id]) DEMO_ENROLLMENTS[data.instructor_id] = []
         DEMO_ENROLLMENTS[data.instructor_id].push(`c${maxNum + 1}`)
-        this.demoVersion++
+        this._syncDemo()
         return
       }
 
       // Production: insert into Supabase
       try {
         const supabase = useNuxtApp().$supabase
-        const { data: newCourse } = await supabase
+        const { data: newCourse, error } = await supabase
           .from('courses')
           .insert({
             kode: data.kode,
@@ -592,11 +649,13 @@ export const useCoursesStore = defineStore('courses', {
           .select()
           .single()
 
-        if (newCourse) {
-          this.sbCourses.push(newCourse as Course)
-        }
+        if (error) throw error
+        if (!newCourse) throw new Error('Gagal menambahkan mata kuliah — tidak ada data yang dikembalikan.')
+
+        this.sbCourses.push(newCourse as Course)
       } catch (err) {
         console.error('Failed to add course:', err)
+        throw err
       }
     },
 
@@ -618,14 +677,16 @@ export const useCoursesStore = defineStore('courses', {
         if (idx >= 0) {
           DEMO_COURSES[idx] = { ...DEMO_COURSES[idx], ...data, updated_at: new Date().toISOString() }
         }
-        this.demoVersion++
+        this._syncDemo()
         return
       }
 
       // Production: update in Supabase
       try {
         const supabase = useNuxtApp().$supabase
-        await supabase.from('courses').update(data).eq('id', id)
+        const { error } = await supabase.from('courses').update(data).eq('id', id)
+
+        if (error) throw error
 
         // Update local cache
         const idx = this.sbCourses.findIndex((c) => c.id === id)
@@ -634,6 +695,7 @@ export const useCoursesStore = defineStore('courses', {
         }
       } catch (err) {
         console.error('Failed to update course:', err)
+        throw err
       }
     },
 
@@ -658,14 +720,16 @@ export const useCoursesStore = defineStore('courses', {
             (p) => !DEMO_LESSONS[id]?.some((l) => l.id === p.lesson_id)
           )
         }
-        this.demoVersion++
+        this._syncDemo()
         return
       }
 
       // Production: delete from Supabase
       try {
         const supabase = useNuxtApp().$supabase
-        await supabase.from('courses').delete().eq('id', id)
+        const { error } = await supabase.from('courses').delete().eq('id', id)
+
+        if (error) throw error
 
         // Remove from local cache
         this.sbCourses = this.sbCourses.filter((c) => c.id !== id)
@@ -673,6 +737,7 @@ export const useCoursesStore = defineStore('courses', {
         delete this.sbCourseMap[id]
       } catch (err) {
         console.error('Failed to delete course:', err)
+        throw err
       }
     },
   },

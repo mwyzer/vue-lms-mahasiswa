@@ -2,6 +2,11 @@
 /**
  * Quiz Attempt Page — Take an interactive quiz with timer and auto-grading.
  */
+definePageMeta({
+  layout: 'dashboard',
+  middleware: ['auth', 'student']
+})
+
 import { useAuthStore } from '~/stores/auth'
 import { useQuizStore } from '~/stores/quiz'
 import { useNotification } from '~/composables/useNotification'

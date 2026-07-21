@@ -66,6 +66,45 @@
   /* Surface & background (used instead of hardcoded white/gray) */
   --color-surface: #ffffff;
   --color-background: #f8fafc;
+
+  /* ═══════════════════════════════════════════════════════
+     Scholar theme axes (Hallmark-inspired design tokens)
+     Axes · light / academic-serif + sans / deep-indigo
+     ═══════════════════════════════════════════════════════ */
+  /* Paper — warm off-white, like textbook paper */
+  --color-paper:      oklch(99% 0.006 80);
+  --color-paper-2:    oklch(96% 0.008 80);
+  --color-paper-3:    oklch(93% 0.010 80);
+
+  /* Ink — sepia-tinged dark, easier on eyes for extended reading */
+  --color-ink:        oklch(18% 0.012 60);
+  --color-ink-2:      oklch(35% 0.010 60);
+  --color-ink-muted:  oklch(52% 0.008 60);
+
+  /* Accent — deep indigo (academic, authoritative, trustworthy) */
+  --color-accent:     oklch(44% 0.12 270);
+  --color-accent-soft:  oklch(60% 0.08 270 / 0.15);
+  --color-accent-deep:  oklch(32% 0.14 270);
+  --color-glow:       oklch(60% 0.08 270 / 0.08);
+
+  /* Type roles — serif for display (scholarly), sans for body (readable) */
+  --font-display: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+  --font-body:    'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-label:   'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+
+  /* Motion — deliberate, not bouncy */
+  --ease-out:     cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring:  cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast:     180ms;
+  --dur-base:     280ms;
+  --dur-slow:     420ms;
+
+  /* Card geometry — tighter, academic */
+  --radius-card:  6px;
+  --radius-pill:  9999px;
+  --radius-input: 6px;
+  --shadow-card:  0 1px 3px oklch(0% 0 0 / 0.06), 0 1px 2px oklch(0% 0 0 / 0.04);
+  --shadow-card-hover: 0 10px 24px -8px oklch(18% 0.012 60 / 0.12);
 }
 
 /* ============================================
@@ -113,6 +152,20 @@
 
   --color-surface: #1e293b;
   --color-background: #0f172a;
+
+  /* Scholar theme axes — dark mode */
+  --color-paper:      oklch(15% 0.010 265);
+  --color-paper-2:    oklch(19% 0.012 265);
+  --color-paper-3:    oklch(24% 0.014 263);
+  --color-ink:        oklch(95% 0.006 262);
+  --color-ink-2:      oklch(78% 0.008 262);
+  --color-ink-muted:  oklch(58% 0.010 262);
+  --color-accent:     oklch(65% 0.10 270);
+  --color-accent-soft: oklch(55% 0.08 270 / 0.20);
+  --color-accent-deep: oklch(72% 0.10 270);
+  --color-glow:       oklch(65% 0.10 270 / 0.08);
+  --shadow-card:  0 1px 3px oklch(0% 0 0 / 0.25), 0 1px 2px oklch(0% 0 0 / 0.2);
+  --shadow-card-hover: 0 10px 24px -8px oklch(0% 0 0 / 0.4);
 }
 
 /* ============================================
@@ -502,10 +555,15 @@ button {
    ============================================ */
 .card {
   background-color: var(--color-surface);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
   border: 1px solid var(--color-neutral-200);
   padding: 1.5rem;
+  transition: box-shadow var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out);
+}
+
+.card:hover {
+  box-shadow: var(--shadow-card-hover);
 }
 
 .card-header {

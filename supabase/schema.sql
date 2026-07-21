@@ -10,11 +10,11 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- 1. Profiles (students + instructors)
 CREATE TABLE profiles (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  role VARCHAR(20) NOT NULL CHECK (role IN ('student', 'instructor')),
+  role VARCHAR(20) NOT NULL CHECK (role IN ('student', 'instructor', 'admin')),
   nama VARCHAR(255) NOT NULL,
   npm VARCHAR(20) UNIQUE,                    -- only for students
   kelas VARCHAR(10),                         -- only for students (e.g. '1A', '2B')
-  level INTEGER CHECK (level BETWEEN 1 AND 4), -- only for students
+  level INTEGER CHECK (level BETWEEN 1 AND 5), -- only for students
   session_time VARCHAR(10) CHECK (session_time IN ('morning', 'evening')), -- only for students
   email VARCHAR(255) UNIQUE,                 -- only for instructors
   avatar_url TEXT,
@@ -30,7 +30,7 @@ CREATE TABLE courses (
   kode VARCHAR(20) NOT NULL UNIQUE,
   nama VARCHAR(255) NOT NULL,
   deskripsi TEXT,
-  level INTEGER NOT NULL CHECK (level BETWEEN 1 AND 4),
+  level INTEGER NOT NULL CHECK (level BETWEEN 1 AND 5),
   session_time VARCHAR(10) NOT NULL CHECK (session_time IN ('morning', 'evening')),
   color VARCHAR(7),
   icon VARCHAR(10),

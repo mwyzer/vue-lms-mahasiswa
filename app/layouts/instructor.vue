@@ -21,6 +21,14 @@ const navigation = computed(() => [
   { label: 'Profil', icon: '👤', to: '/instructor/profile' }
 ])
 
+/** Curated 4-item subset for mobile bottom nav */
+const mobileNav = computed(() => [
+  { label: 'Home', icon: '📊', to: '/instructor/dashboard' },
+  { label: 'Kursus', icon: '📖', to: '/instructor/courses' },
+  { label: 'Tugas', icon: '📝', to: '/instructor/assignments' },
+  { label: 'Presensi', icon: '✅', to: '/instructor/attendance' },
+])
+
 const sidebarOpen = ref(false)
 
 function toggleSidebar() {
@@ -104,7 +112,7 @@ function closeSidebar() {
     <!-- Bottom Navigation (Mobile) -->
     <nav class="bottom-nav">
       <NuxtLink
-        v-for="item in navigation"
+        v-for="item in mobileNav"
         :key="item.to"
         :to="item.to"
         class="bottom-nav-item"
@@ -329,11 +337,11 @@ function closeSidebar() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.125rem;
-  padding: 0.375rem 0.375rem;
+  gap: 0.25rem;
+  padding: 0.5rem 0.5rem;
   text-decoration: none;
   color: var(--color-neutral-500);
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   font-weight: 500;
   transition: color 0.15s ease;
   flex: 1;
@@ -350,16 +358,13 @@ function closeSidebar() {
 }
 
 .bottom-nav-icon {
-  font-size: 1.25rem;
+  font-size: 1.5rem;
   line-height: 1;
 }
 
 .bottom-nav-label {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
 }
 
 @media (max-width: 767px) {
@@ -374,8 +379,8 @@ function closeSidebar() {
     z-index: 100;
     justify-content: space-around;
     align-items: stretch;
-    padding: 0.375rem 0;
-    padding-bottom: max(0.375rem, env(safe-area-inset-bottom, 0.375rem));
+    padding: 0.5rem 0;
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0.5rem));
     box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.06);
   }
 
@@ -384,7 +389,7 @@ function closeSidebar() {
   }
 
   .content {
-    padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
   }
 }
 </style>

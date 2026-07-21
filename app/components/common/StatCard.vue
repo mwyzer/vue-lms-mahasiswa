@@ -2,31 +2,45 @@
 /**
  * StatCard — Displays a statistic with icon, value, and label.
  *
+ * Uses Scholar theme tokens instead of hardcoded colors.
+ *
  * Props:
  * - icon: Emoji or text icon to display
  * - value: The main numeric/stat value
  * - label: Description of the stat
- * - bgColor: Background color for the icon area (default: #dbeafe)
- * - iconColor: Icon/text color (default: #1d4ed8)
+ * - variant: Color variant — 'primary' | 'success' | 'warning' | 'info' | 'accent' (default: 'primary')
+ * - bgColor: Override background for the icon area (uses variant if omitted)
+ * - iconColor: Override icon/text color (uses variant if omitted)
  */
-defineProps<{
+const props = withDefaults(defineProps<{
   icon: string
   value: string | number
   label: string
+  variant?: 'primary' | 'success' | 'warning' | 'info' | 'accent'
   bgColor?: string
   iconColor?: string
-}>()
+}>(), {
+  variant: 'primary',
+})
+
+const variantStyles: Record<string, { bg: string; fg: string }> = {
+  primary: { bg: 'var(--color-accent-soft)', fg: 'var(--color-accent-deep)' },
+  success: { bg: 'oklch(88% 0.10 145 / 0.3)', fg: 'oklch(38% 0.12 145)' },
+  warning: { bg: 'oklch(88% 0.10 85 / 0.3)', fg: 'oklch(45% 0.14 75)' },
+  info:    { bg: 'oklch(88% 0.06 240 / 0.3)', fg: 'oklch(38% 0.08 240)' },
+  accent:  { bg: 'var(--color-accent-soft)', fg: 'var(--color-accent)' },
+}
 </script>
 
 <template>
-  <div class="card stat-card">
-    <div
-      class="stat-icon"
-      :style="{
-        backgroundColor: bgColor || '#dbeafe',
-        color: iconColor || '#1d4ed8'
-      }"
-    >
+  <div
+    class="card stat-card"
+    :style="{
+      '--stat-bg': bgColor || variantStyles[variant].bg,
+      '--stat-fg': iconColor || variantStyles[variant].fg,
+    }"
+  >
+    <div class="stat-icon">
       {{ icon }}
     </div>
     <div class="stat-body">
@@ -53,6 +67,8 @@ defineProps<{
   justify-content: center;
   font-size: 1.5rem;
   flex-shrink: 0;
+  background-color: var(--stat-bg);
+  color: var(--stat-fg);
 }
 
 .stat-body {

@@ -44,7 +44,7 @@ CREATE TABLE courses (
   kode VARCHAR(20) NOT NULL UNIQUE,
   nama VARCHAR(255) NOT NULL,
   deskripsi TEXT,
-  level INTEGER NOT NULL CHECK (level BETWEEN 1 AND 4),
+  level INTEGER NOT NULL CHECK (level BETWEEN 1 AND 5),
   session_time VARCHAR(10) NOT NULL CHECK (session_time IN ('morning', 'evening')),
   color VARCHAR(7),
   icon VARCHAR(10),

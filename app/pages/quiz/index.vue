@@ -2,6 +2,11 @@
 /**
  * Quiz Index Page — Lists all available quizzes for the student.
  */
+definePageMeta({
+  layout: 'dashboard',
+  middleware: ['auth', 'student']
+})
+
 import { useAuthStore } from '~/stores/auth'
 import { useQuizStore } from '~/stores/quiz'
 

@@ -36,7 +36,6 @@ export const useCalendarStore = defineStore('calendar', {
     initialized: false,
     loading: false,
     error: null as string | null,
-    demoVersion: 0,
     events: [] as AcademicEvent[],
   }),
 
@@ -102,14 +101,41 @@ export const useCalendarStore = defineStore('calendar', {
   },
 
   actions: {
-    init() {
+    async init() {
       if (this.initialized) return
+      const ui = useUiStore()
+      this.isDemoMode = ui.isDemoMode
+
+      if (!this.isDemoMode) {
+        try {
+          this.loading = true
+          const supabase = useNuxtApp().$supabase
+          const { data } = await supabase
+            .from('academic_events')
+            .select('*')
+            .order('tanggal_mulai')
+
+          if (data && data.length > 0) {
+            this.events = data as AcademicEvent[]
+          } else {
+            // Fall back to demo if no data
+            this.events = DEMO_EVENTS
+          }
+        } catch (err) {
+          console.error('Failed to fetch academic events from Supabase, falling back to demo:', err)
+          this.events = DEMO_EVENTS
+        } finally {
+          this.loading = false
+        }
+      } else {
+        this.events = DEMO_EVENTS
+      }
+
       this.initialized = true
-      this.events = DEMO_EVENTS
     },
 
     /** Add a new event */
-    addEvent(event: Omit<AcademicEvent, 'id' | 'created_at' | 'updated_at'>) {
+    async addEvent(event: Omit<AcademicEvent, 'id' | 'created_at' | 'updated_at'>) {
       const now = new Date().toISOString()
       const newEvent: AcademicEvent = {
         ...event,
@@ -117,24 +143,76 @@ export const useCalendarStore = defineStore('calendar', {
         created_at: now,
         updated_at: now,
       }
-      this.events.push(newEvent)
-      this.demoVersion++
+
+      if (!this.isDemoMode) {
+        try {
+          const supabase = useNuxtApp().$supabase
+          // Strip demo-only fields (kelas, class_name) before sending to Supabase
+          const { kelas: _, class_name: _c, ...dbEvent } = newEvent as any
+          const { data } = await supabase
+            .from('academic_events')
+            .insert({
+              course_id: dbEvent.course_id || null,
+              judul: dbEvent.judul,
+              deskripsi: dbEvent.deskripsi || null,
+              tanggal_mulai: dbEvent.tanggal_mulai,
+              tanggal_selesai: dbEvent.tanggal_selesai,
+              tipe: dbEvent.tipe,
+              color: dbEvent.color || null,
+            })
+            .select()
+            .single()
+
+          if (data) {
+            // Use the server-generated ID and timestamps
+            this.events.push(data as AcademicEvent)
+            return data as AcademicEvent
+          }
+        } catch (err) {
+          console.error('Failed to add event to Supabase:', err)
+          return null
+        }
+      } else {
+        this.events.push(newEvent)
+      }
+
       return newEvent
     },
 
     /** Update an existing event */
-    updateEvent(id: string, data: Partial<AcademicEvent>) {
+    async updateEvent(id: string, data: Partial<AcademicEvent>) {
       const event = this.events.find(e => e.id === id)
-      if (event) {
-        Object.assign(event, data, { updated_at: new Date().toISOString() })
-        this.demoVersion++
+      if (!event) return
+
+      Object.assign(event, data, { updated_at: new Date().toISOString() })
+
+      if (!this.isDemoMode) {
+        try {
+          const supabase = useNuxtApp().$supabase
+          // Strip demo-only fields (kelas, class_name) before sending to Supabase
+          const { kelas: _, class_name: _c, id: _id, created_at: _cr, ...dbData } = data as any
+          await supabase
+            .from('academic_events')
+            .update({ ...dbData, updated_at: new Date().toISOString() })
+            .eq('id', id)
+        } catch (err) {
+          console.error('Failed to update event in Supabase:', err)
+        }
       }
     },
 
     /** Delete an event */
-    deleteEvent(id: string) {
+    async deleteEvent(id: string) {
       this.events = this.events.filter(e => e.id !== id)
-      this.demoVersion++
+
+      if (!this.isDemoMode) {
+        try {
+          const supabase = useNuxtApp().$supabase
+          await supabase.from('academic_events').delete().eq('id', id)
+        } catch (err) {
+          console.error('Failed to delete event from Supabase:', err)
+        }
+      }
     },
 
     /** Format date for display */

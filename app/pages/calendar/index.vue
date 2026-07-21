@@ -2,6 +2,11 @@
 /**
  * Academic Calendar Page — View all academic events in month/list views.
  */
+definePageMeta({
+  layout: 'dashboard',
+  middleware: ['auth']
+})
+
 import { useCalendarStore } from '~/stores/calendar'
 import { useAuthStore } from '~/stores/auth'
 
@@ -216,19 +221,19 @@ async function saveEvent() {
   }
 
   if (editingEventId.value) {
-    calendarStore.updateEvent(editingEventId.value, data)
+    await calendarStore.updateEvent(editingEventId.value, data)
   } else {
-    calendarStore.addEvent(data)
+    await calendarStore.addEvent(data)
   }
 
   saving.value = false
   closeModal()
 }
 
-function confirmDeleteEvent(id: string) {
+async function confirmDeleteEvent(id: string) {
   deletingId.value = id
   if (confirm('Hapus event ini?')) {
-    calendarStore.deleteEvent(id)
+    await calendarStore.deleteEvent(id)
   }
   deletingId.value = null
 }

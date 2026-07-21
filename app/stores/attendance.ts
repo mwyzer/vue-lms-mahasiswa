@@ -41,7 +41,6 @@ interface AttendanceState {
   records: Attendance[]
   loading: boolean
   error: string | null
-  demoVersion: number
   isDemoMode: boolean
   initialized: boolean
   sbRecords: Attendance[]
@@ -52,7 +51,6 @@ export const useAttendanceStore = defineStore('attendance', {
     records: [],
     loading: false,
     error: null,
-    demoVersion: 0,
     isDemoMode: true,
     initialized: false,
     sbRecords: [],
@@ -61,9 +59,7 @@ export const useAttendanceStore = defineStore('attendance', {
   getters: {
     /** All attendance records with student names */
     allRecords(): (Attendance & { student_name?: string; student_npm?: string; course_name?: string })[] {
-      const store = useAttendanceStore()
-      void store.demoVersion
-      const records = store.isDemoMode ? DEMO_ATTENDANCE : store.sbRecords
+      const records = this.isDemoMode ? this.records : this.sbRecords
       const auth = useAuthStore()
       const roster = auth.studentRoster
 
@@ -98,7 +94,7 @@ export const useAttendanceStore = defineStore('attendance', {
     /** Summary: total meetings for a course */
     totalMeetings(): (courseId: string) => number {
       return (courseId: string) => {
-        const records = this.isDemoMode ? DEMO_ATTENDANCE : this.sbRecords
+        const records = this.isDemoMode ? this.records : this.sbRecords
         const meetings = new Set(records.filter(r => r.course_id === courseId).map(r => r.pertemuan))
         return meetings.size
       }
@@ -124,27 +120,46 @@ export const useAttendanceStore = defineStore('attendance', {
   },
 
   actions: {
-    init() {
+    async init() {
       if (this.initialized) return
       const config = useRuntimeConfig()
-      this.isDemoMode = config.public.demoMode !== 'false'
+      const ui = useUiStore()
+      this.isDemoMode = ui.isDemoMode
 
       if (!this.isDemoMode) {
         // Production: fetch from Supabase
-        this.loading = true
-        const supabase = useNuxtApp().$supabase
-        supabase.from('attendance').select('*').order('tanggal', { ascending: false })
-          .then(({ data }) => {
-            if (data) this.sbRecords = data as Attendance[]
-          })
-          .catch(err => {
-            console.error('Failed to fetch attendance:', err)
-            this.isDemoMode = true
-          })
-          .finally(() => { this.loading = false })
+        try {
+          this.loading = true
+          const supabase = useNuxtApp().$supabase
+          const { data, error } = await supabase
+            .from('attendance')
+            .select('*')
+            .order('tanggal', { ascending: false })
+
+          if (error) throw error
+
+          if (data) this.sbRecords = data as Attendance[]
+        } catch (err) {
+          console.error('Failed to fetch attendance:', err)
+          this.isDemoMode = true
+        } finally {
+          this.loading = false
+        }
+      }
+
+      // Seed reactive records from demo data
+      if (this.isDemoMode) {
+        this.records = [...DEMO_ATTENDANCE]
       }
 
       this.initialized = true
+    },
+
+    /** Sync demo data into reactive state to trigger getter re-evaluation. */
+    _syncDemo() {
+      if (this.isDemoMode) {
+        this.records = [...DEMO_ATTENDANCE]
+      }
     },
 
     /**
@@ -186,7 +201,7 @@ export const useAttendanceStore = defineStore('attendance', {
             updated_at: now,
           })
         }
-        this.demoVersion++
+        this._syncDemo()
         return true
       }
 

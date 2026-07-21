@@ -8,6 +8,15 @@
 --     Photos stored in Supabase DB (avatar_url column)
 -- ============================================
 
+-- ── Fix constraints before seeding ──────────
+ALTER TABLE courses DROP CONSTRAINT IF EXISTS courses_level_check;
+ALTER TABLE courses ADD CONSTRAINT courses_level_check
+  CHECK (level BETWEEN 1 AND 5);
+
+ALTER TABLE profiles DROP CONSTRAINT IF EXISTS profiles_role_check;
+ALTER TABLE profiles ADD CONSTRAINT profiles_role_check
+  CHECK (role IN ('student', 'instructor', 'admin'));
+
 -- ============================================
 -- A. DEMO ACCOUNTS  (is_demo = TRUE)
 --    Match the hardcoded arrays in auth.ts.

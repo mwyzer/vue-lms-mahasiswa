@@ -9,7 +9,6 @@ definePageMeta({
 })
 
 import type { Assignment } from '~/types/database'
-import { DEMO_ASSIGNMENTS } from '~/stores/assignments'
 
 const assignmentsStore = useAssignmentsStore()
 const coursesStore = useCoursesStore()
@@ -27,11 +26,8 @@ const instructors = computed(() => auth.instructorList)
 
 /** Reactive view of all assignments with course info joined */
 const allAssignments = computed(() => {
-  // Force reactivity when demo data mutates
-  void assignmentsStore.demoVersion
-
   if (assignmentsStore.isDemoMode) {
-    return DEMO_ASSIGNMENTS.map((a: Assignment) => ({
+    return assignmentsStore.assignments.map((a: any) => ({
       ...a,
       course_name: coursesStore.allCourses.find((c: any) => c.id === a.course_id)?.nama || '',
       course_kode: coursesStore.allCourses.find((c: any) => c.id === a.course_id)?.kode || '',

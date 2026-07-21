@@ -42,9 +42,6 @@ interface AssignmentsState {
   loading: boolean
   error: string | null
 
-  // Demo reactivity version (incremented on mutations to force getter re-evaluation)
-  demoVersion: number
-
   // Supabase data cache
   isDemoMode: boolean
   initialized: boolean
@@ -60,7 +57,6 @@ export const useAssignmentsStore = defineStore('assignments', {
     submissions: [],
     loading: false,
     error: null,
-    demoVersion: 0,
     isDemoMode: true,
     initialized: false,
     sbAssignments: [],
@@ -71,15 +67,12 @@ export const useAssignmentsStore = defineStore('assignments', {
   getters: {
     /** Assignments visible to the current user. */
     myAssignments(): AssignmentWithCourse[] {
-      const store = useAssignmentsStore()
       const auth = useAuthStore()
       if (!auth.user) return []
-      // Track demoVersion for reactivity when DEMO_* arrays are mutated
-      void store.demoVersion
 
-      const assignments = store.isDemoMode ? DEMO_ASSIGNMENTS : store.sbAssignments
-      const submissions = store.isDemoMode ? DEMO_SUBMISSIONS : store.sbSubmissions
-      const courseNames = store.isDemoMode ? DEMO_COURSE_NAMES : store.sbCourseNames
+      const assignments = this.isDemoMode ? this.assignments : this.sbAssignments
+      const submissions = this.isDemoMode ? this.submissions : this.sbSubmissions
+      const courseNames = this.isDemoMode ? DEMO_COURSE_NAMES : this.sbCourseNames
 
       if (auth.isStudent) {
         const coursesStore = useCoursesStore()
@@ -114,8 +107,7 @@ export const useAssignmentsStore = defineStore('assignments', {
     /** Submissions for a given assignment (for instructor grading). */
     submissionsForAssignment(): (assignmentId: string) => SubmissionWithStudent[] {
       return (assignmentId: string) => {
-        const store = useAssignmentsStore()
-        const submissions = store.isDemoMode ? DEMO_SUBMISSIONS : store.sbSubmissions
+        const submissions = this.isDemoMode ? this.submissions : this.sbSubmissions
         const auth = useAuthStore()
 
         // Get student names from auth store
@@ -139,7 +131,8 @@ export const useAssignmentsStore = defineStore('assignments', {
     async init() {
       if (this.initialized) return
       const config = useRuntimeConfig()
-      this.isDemoMode = config.public.demoMode !== 'false'
+      const ui = useUiStore()
+      this.isDemoMode = ui.isDemoMode
 
       if (!this.isDemoMode) {
         try {
@@ -197,14 +190,28 @@ export const useAssignmentsStore = defineStore('assignments', {
         }
       }
 
+      // Seed reactive state from demo data
+      if (this.isDemoMode) {
+        this.assignments = [...DEMO_ASSIGNMENTS]
+        this.submissions = [...DEMO_SUBMISSIONS]
+      }
+
       this.initialized = true
+    },
+
+    /** Sync demo data into reactive state to trigger getter re-evaluation. */
+    _syncDemo() {
+      if (this.isDemoMode) {
+        this.assignments = [...DEMO_ASSIGNMENTS]
+        this.submissions = [...DEMO_SUBMISSIONS]
+      }
     },
 
     /**
      * Set the currently viewed assignment.
      */
     setCurrentAssignment(assignmentId: string) {
-      const assignments = this.isDemoMode ? DEMO_ASSIGNMENTS : this.sbAssignments
+      const assignments = this.isDemoMode ? this.assignments : this.sbAssignments
       const assignment = assignments.find((a) => a.id === assignmentId)
       if (assignment) {
         this.currentAssignment = assignment
@@ -240,7 +247,7 @@ export const useAssignmentsStore = defineStore('assignments', {
         this.submissions = DEMO_SUBMISSIONS.filter(
           (s) => s.assignment_id === assignmentId
         )
-        this.demoVersion++
+        this._syncDemo()
         return
       }
 
@@ -310,7 +317,7 @@ export const useAssignmentsStore = defineStore('assignments', {
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
-        this.demoVersion++
+        this._syncDemo()
         return
       }
 
@@ -349,7 +356,7 @@ export const useAssignmentsStore = defineStore('assignments', {
           if (data.tenggat_waktu !== undefined) DEMO_ASSIGNMENTS[idx].tenggat_waktu = data.tenggat_waktu
           DEMO_ASSIGNMENTS[idx].updated_at = new Date().toISOString()
         }
-        this.demoVersion++
+        this._syncDemo()
         return
       }
 
@@ -388,7 +395,7 @@ export const useAssignmentsStore = defineStore('assignments', {
             }
           }
         }
-        this.demoVersion++
+        this._syncDemo()
         return
       }
 
@@ -417,7 +424,7 @@ export const useAssignmentsStore = defineStore('assignments', {
             graded_at: new Date().toISOString(),
           }
         }
-        this.demoVersion++
+        this._syncDemo()
         return
       }
 
@@ -481,7 +488,7 @@ export const useAssignmentsStore = defineStore('assignments', {
           const idx = DEMO_SUBMISSIONS.indexOf(sub)
           DEMO_SUBMISSIONS[idx] = { ...sub, nilai, feedback, graded_at: new Date().toISOString() }
         }
-        this.demoVersion++
+        this._syncDemo()
         return true
       }
 

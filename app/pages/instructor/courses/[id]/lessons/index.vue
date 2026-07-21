@@ -18,6 +18,13 @@ const newJudul = ref('')
 const newKonten = ref('')
 const saving = ref(false)
 
+// Edit state
+const editingLessonId = ref<string | null>(null)
+const editJudul = ref('')
+const editKonten = ref('')
+
+const showEditForm = computed(() => editingLessonId.value !== null)
+
 onMounted(async () => {
   await coursesStore.init()
   coursesStore.setCurrentCourse(courseId.value)
@@ -50,6 +57,36 @@ function addLesson() {
     showAddForm.value = false
     saving.value = false
   }, 200)
+}
+
+function openEditForm(lesson: { id: string; judul: string; konten?: string | null }) {
+  editingLessonId.value = lesson.id
+  editJudul.value = lesson.judul
+  editKonten.value = lesson.konten || ''
+  showAddForm.value = false
+}
+
+function cancelEdit() {
+  editingLessonId.value = null
+  editJudul.value = ''
+  editKonten.value = ''
+}
+
+async function saveEdit() {
+  if (!editingLessonId.value || !editJudul.value.trim()) {
+    notification.warning('Judul materi harus diisi.')
+    return
+  }
+  saving.value = true
+  await coursesStore.updateLesson(editingLessonId.value, {
+    judul: editJudul.value.trim(),
+    konten: editKonten.value.trim(),
+  })
+  notification.success('Materi berhasil diperbarui!')
+  editingLessonId.value = null
+  editJudul.value = ''
+  editKonten.value = ''
+  saving.value = false
 }
 
 function confirmDelete(lessonId: string, judul: string) {
@@ -115,6 +152,39 @@ function confirmDelete(lessonId: string, judul: string) {
         </div>
       </div>
 
+      <!-- Edit lesson form -->
+      <div v-if="showEditForm" class="card form-card">
+        <h3>Edit Materi</h3>
+        <div class="form-group">
+          <label class="form-label">Judul Materi</label>
+          <input
+            v-model="editJudul"
+            type="text"
+            class="form-input"
+            placeholder="Contoh: Pengantar Pemrograman"
+          />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Konten</label>
+          <textarea
+            v-model="editKonten"
+            class="form-textarea"
+            rows="4"
+            placeholder="Tulis konten materi di sini..."
+          />
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-ghost btn-sm" @click="cancelEdit">Batal</button>
+          <button
+            class="btn btn-primary btn-sm"
+            :disabled="saving || !editJudul.trim()"
+            @click="saveEdit"
+          >
+            {{ saving ? 'Menyimpan...' : 'Perbarui' }}
+          </button>
+        </div>
+      </div>
+
       <!-- Lesson list -->
       <div v-if="lessons.length === 0" class="empty-state card">
         <p>Belum ada materi. Klik "Tambah Materi" untuk memulai.</p>
@@ -136,6 +206,12 @@ function confirmDelete(lessonId: string, judul: string) {
             </div>
           </div>
           <div class="lesson-actions">
+            <button
+              class="btn btn-ghost btn-sm"
+              @click="openEditForm(lesson)"
+            >
+              Edit
+            </button>
             <button
               class="btn btn-danger btn-sm"
               @click="confirmDelete(lesson.id, lesson.judul)"

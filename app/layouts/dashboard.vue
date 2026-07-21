@@ -21,6 +21,14 @@ const navigation = computed(() => [
   { label: 'Profil', icon: '👤', to: '/profile' }
 ])
 
+/** Curated 4-item subset for mobile bottom nav */
+const mobileNav = computed(() => [
+  { label: 'Home', icon: '📊', to: '/dashboard' },
+  { label: 'Kursus', icon: '📖', to: '/courses' },
+  { label: 'Tugas', icon: '📝', to: '/assignments' },
+  { label: 'Kuis', icon: '✍️', to: '/quiz' },
+])
+
 const sidebarOpen = ref(false)
 
 function toggleSidebar() {
@@ -105,7 +113,7 @@ function closeSidebar() {
     <!-- Bottom Navigation (Mobile) -->
     <nav class="bottom-nav">
       <NuxtLink
-        v-for="item in navigation"
+        v-for="item in mobileNav"
         :key="item.to"
         :to="item.to"
         class="bottom-nav-item"
@@ -330,11 +338,11 @@ function closeSidebar() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.125rem;
-  padding: 0.375rem 0.375rem;
+  gap: 0.25rem;
+  padding: 0.5rem 0.5rem;
   text-decoration: none;
   color: var(--color-neutral-500);
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   font-weight: 500;
   transition: color 0.15s ease;
   flex: 1;
@@ -351,16 +359,13 @@ function closeSidebar() {
 }
 
 .bottom-nav-icon {
-  font-size: 1.25rem;
+  font-size: 1.5rem;
   line-height: 1;
 }
 
 .bottom-nav-label {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
 }
 
 @media (max-width: 767px) {

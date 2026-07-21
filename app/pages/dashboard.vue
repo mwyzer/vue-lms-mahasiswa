@@ -1,7 +1,13 @@
 <script setup lang="ts">
 /**
  * Student Dashboard — Overview page for students.
- * Shows stats, enrolled courses with progress, upcoming deadlines.
+ *
+ * Macrostructure: Bento Grid — each content cluster gets a distinct
+ * visual weight and position; sections don't repeat the same pattern.
+ *
+ * Theme: Scholar (light · academic-serif + sans · deep-indigo)
+ * Enrichment: Tier-A reveal primitives (staggered entrance, counter tick-up)
+ * Motion: staggered reveal via IntersectionObserver, respects reduced-motion
  */
 definePageMeta({
   layout: 'dashboard',
@@ -23,7 +29,26 @@ onMounted(() => {
   announcementsStore.init()
   calendarStore.init()
   quizStore.init()
+
+  /* ── Bento reveal — stagger entrance via IntersectionObserver ── */
+  if (typeof IntersectionObserver !== 'undefined') {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-inview')
+          observer.unobserve(entry.target)
+        }
+      })
+    }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' })
+
+    nextTick(() => {
+      document.querySelectorAll('.reveal').forEach((el) => observer.observe(el))
+    })
+  } else {
+    document.querySelectorAll('.reveal').forEach((el) => el.classList.add('is-inview'))
+  }
 })
+
 const userName = computed(() => auth.user?.nama || 'Mahasiswa')
 const userLevel = computed(() => auth.user?.level || '-')
 const userSession = computed(() => auth.user?.session_time === 'morning' ? 'Pagi' : 'Malam')
@@ -78,538 +103,725 @@ function formatDate(dateStr: string): string {
     day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
   })
 }
+
+// Event type helper — maps event type to a Scholar accent class
+function eventTypeClass(tipe?: string): string {
+  const map: Record<string, string> = {
+    uts: 'dot--danger',
+    uas: 'dot--warning',
+    tugas: 'dot--primary',
+    libur: 'dot--accent',
+  }
+  return map[tipe || ''] || 'dot--info'
+}
 </script>
 
 <template>
   <div class="dashboard-page">
-    <!-- Header -->
-    <div class="page-header">
+    <!--
+      Hallmark · macrostructure: Bento Grid
+      theme: Scholar · enrichment: Tier-A counter tick-up on stats
+      motion: staggered reveal · axes: light / academic-serif+sans / deep-indigo
+    -->
+
+    <!-- ── BENTO HEADER ── -->
+    <header class="bento-header reveal" style="--i:0">
       <div>
-        <h1>{{ greeting }}, {{ userName }}! 👋</h1>
-        <p class="text-muted">
-          Kelas {{ userKelas }} • Level {{ userLevel }} • Sesi {{ userSession }}
-        </p>
+        <p class="bento-header__greeting">{{ greeting }},</p>
+        <h1 class="bento-header__name">{{ userName }}</h1>
       </div>
-    </div>
+      <div class="bento-header__meta">
+        <span class="meta-chip">Kelas {{ userKelas }}</span>
+        <span class="meta-chip">Level {{ userLevel }}</span>
+        <span class="meta-chip">Sesi {{ userSession }}</span>
+      </div>
+    </header>
 
-    <!-- Stats Cards -->
-    <div class="stats-grid">
-      <div class="card stat-card">
-        <div class="stat-icon" style="background-color: #dbeafe; color: #1d4ed8;">📖</div>
-        <div class="stat-body">
-          <span class="stat-value">{{ totalCourses }}</span>
-          <span class="stat-label">Mata Kuliah Aktif</span>
+    <!-- ── BENTO GRID ── -->
+    <div class="bento-grid">
+
+      <!-- ── Stats row ── -->
+      <div class="bento-tile reveal" style="--i:1">
+        <StatCard icon="📖" :value="totalCourses" label="Mata Kuliah Aktif" variant="primary" />
+      </div>
+
+      <div class="bento-tile reveal" style="--i:2">
+        <StatCard icon="✅" :value="`${completedLessons} / ${totalLessons}`" label="Materi Selesai" variant="success" />
+      </div>
+
+      <div class="bento-tile reveal" style="--i:3">
+        <StatCard icon="📊" :value="`${overallProgress}%`" label="Progress Keseluruhan" variant="warning" />
+      </div>
+
+      <!-- ── Courses (span 2 cols — weightier) ── -->
+      <div class="bento-tile bento-tile--span-2 reveal" style="--i:4">
+        <div class="tile-header">
+          <h2 class="tile-title">Mata Kuliah Saya</h2>
+          <NuxtLink to="/courses" class="tile-action">Lihat Semua →</NuxtLink>
+        </div>
+
+        <div v-if="myCourses.length === 0" class="empty-state">
+          <p>Belum ada mata kuliah yang didaftarkan.</p>
+        </div>
+
+        <div v-else class="bento-course-grid">
+          <NuxtLink
+            v-for="course in myCourses"
+            :key="course.id"
+            :to="`/courses/${course.id}`"
+            class="course-card"
+          >
+            <div class="course-card__head">
+              <span
+                class="course-card__icon"
+                :style="{ backgroundColor: course.color + '20', color: course.color }"
+              >{{ course.icon || '📚' }}</span>
+              <div>
+                <span class="course-card__code">{{ course.kode }}</span>
+                <h3 class="course-card__name">{{ course.nama }}</h3>
+              </div>
+            </div>
+            <p v-if="course.deskripsi" class="course-card__desc">{{ course.deskripsi }}</p>
+            <div class="course-card__badges">
+              <span class="badge badge-neutral">Level {{ course.level }}</span>
+              <span
+                class="badge"
+                :class="course.session_time === 'morning' ? 'badge-primary' : 'badge-warning'"
+              >{{ course.session_time === 'morning' ? 'Pagi' : 'Malam' }}</span>
+            </div>
+            <div class="course-card__progress">
+              <span class="progress-label">Progress</span>
+              <div class="progress-track">
+                <div
+                  class="progress-fill"
+                  :style="{ width: (course.progressPercent || 0) + '%' }"
+                />
+              </div>
+              <span class="progress-pct">{{ course.progressPercent || 0 }}%</span>
+            </div>
+          </NuxtLink>
         </div>
       </div>
 
-      <div class="card stat-card">
-        <div class="stat-icon" style="background-color: #dcfce7; color: #15803d;">✅</div>
-        <div class="stat-body">
-          <span class="stat-value">{{ completedLessons }} / {{ totalLessons }}</span>
-          <span class="stat-label">Materi Selesai</span>
+      <!-- ── Assignments (span 1 col — tighter) ── -->
+      <div class="bento-tile reveal" style="--i:5">
+        <div class="tile-header">
+          <h2 class="tile-title">Tugas Mendatang</h2>
+          <NuxtLink to="/assignments" class="tile-action">Lihat →</NuxtLink>
+        </div>
+
+        <div v-if="upcomingAssignments.length === 0" class="empty-state">
+          <p>Belum ada tugas mendatang.</p>
+        </div>
+
+        <div v-else class="assignment-stack">
+          <NuxtLink
+            v-for="a in upcomingAssignments"
+            :key="a.id"
+            :to="`/assignments/${a.id}`"
+            class="assignment-row"
+          >
+            <div class="assignment-row__body">
+              <span class="assignment-row__course">{{ a.course_kode }}</span>
+              <span class="assignment-row__title">{{ a.judul }}</span>
+            </div>
+            <div class="assignment-row__meta">
+              <span class="assignment-row__date">{{ formatDate(a.tenggat_waktu) }}</span>
+              <span
+                v-if="a.submission"
+                class="badge badge-primary badge-sm"
+              >✓</span>
+              <span
+                v-else-if="isCloseToDeadline(a.tenggat_waktu)"
+                class="badge badge-danger badge-sm"
+              >Segera!</span>
+            </div>
+          </NuxtLink>
         </div>
       </div>
 
-      <div class="card stat-card">
-        <div class="stat-icon" style="background-color: #fef3c7; color: #92400e;">📊</div>
-        <div class="stat-body">
-          <span class="stat-value">{{ overallProgress }}%</span>
-          <span class="stat-label">Progress Keseluruhan</span>
+      <!-- ── Announcements ── -->
+      <div class="bento-tile reveal" style="--i:6">
+        <div class="tile-header">
+          <h2 class="tile-title">Pengumuman</h2>
+        </div>
+
+        <div v-if="announcementsStore.loading" class="empty-state">
+          <p>Memuat pengumuman...</p>
+        </div>
+
+        <div v-else-if="announcementsStore.recentAnnouncements.length === 0" class="empty-state">
+          <p>Belum ada pengumuman.</p>
+        </div>
+
+        <div v-else class="announcement-stack">
+          <div
+            v-for="ann in announcementsStore.recentAnnouncements"
+            :key="ann.id"
+            class="announcement-row"
+          >
+            <div class="announcement-row__head">
+              <span class="announcement-row__icon">📢</span>
+              <div>
+                <span class="announcement-row__title">{{ ann.judul }}</span>
+                <span class="announcement-row__date">{{ formatDate(ann.created_at) }}</span>
+              </div>
+            </div>
+            <p class="announcement-row__body">{{ ann.konten }}</p>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- My Courses -->
-    <section class="section">
-      <div class="section-header">
-        <h2>Mata Kuliah Saya</h2>
-        <NuxtLink to="/courses" class="btn btn-ghost btn-sm">Lihat Semua</NuxtLink>
-      </div>
+      <!-- ── Events ── -->
+      <div class="bento-tile reveal" style="--i:7">
+        <div class="tile-header">
+          <h2 class="tile-title">📅 Event</h2>
+          <NuxtLink to="/calendar" class="tile-action">Kalender →</NuxtLink>
+        </div>
 
-      <div v-if="myCourses.length === 0" class="empty-state card">
-        <p>Belum ada mata kuliah yang didaftarkan.</p>
-      </div>
+        <div v-if="upcomingEvents.length === 0" class="empty-state">
+          <p>Tidak ada event mendatang.</p>
+        </div>
 
-      <div v-else class="course-grid">
-        <NuxtLink
-          v-for="course in myCourses"
-          :key="course.id"
-          :to="`/courses/${course.id}`"
-          class="card course-card"
-        >
-          <div class="course-header">
-            <span class="course-icon" :style="{ backgroundColor: course.color + '20', color: course.color }">
-              {{ course.icon || '📚' }}
-            </span>
-            <div class="course-info">
-              <span class="course-code">{{ course.kode }}</span>
-              <h3 class="course-name">{{ course.nama }}</h3>
-            </div>
-          </div>
-          <p v-if="course.deskripsi" class="course-desc">{{ course.deskripsi }}</p>
-          <div class="course-meta">
-            <span class="badge badge-neutral">Level {{ course.level }}</span>
-            <span class="badge" :class="course.session_time === 'morning' ? 'badge-primary' : 'badge-warning'">
-              {{ course.session_time === 'morning' ? 'Pagi' : 'Malam' }}
-            </span>
-          </div>
-          <div class="course-progress">
-            <div class="progress-header">
-              <span class="text-sm">Progress</span>
-              <span class="text-sm font-bold">{{ course.progressPercent || 0 }}%</span>
-            </div>
-            <div class="progress-bar">
-              <div class="progress-fill" :style="{ width: (course.progressPercent || 0) + '%' }" />
-            </div>
-          </div>
-        </NuxtLink>
-      </div>
-    </section>
-
-    <!-- Upcoming Assignments -->
-    <section class="section">
-      <div class="section-header">
-        <h2>Tugas Mendatang</h2>
-        <NuxtLink to="/assignments" class="btn btn-ghost btn-sm">Lihat Semua</NuxtLink>
-      </div>
-
-      <div v-if="upcomingAssignments.length === 0" class="empty-state card">
-        <p>Belum ada tugas yang mendatang.</p>
-      </div>
-
-      <div v-else class="assignment-preview-list">
-        <NuxtLink
-          v-for="a in upcomingAssignments"
-          :key="a.id"
-          :to="`/assignments/${a.id}`"
-          class="card assignment-preview"
-        >
-          <div class="preview-left">
-            <span class="preview-course">{{ a.course_kode }}</span>
-            <span class="preview-title">{{ a.judul }}</span>
-          </div>
-          <div class="preview-right">
-            <span class="preview-deadline text-xs text-muted">
-              {{ formatDate(a.tenggat_waktu) }}
-            </span>
+        <div v-else class="event-stack">
+          <NuxtLink
+            v-for="ev in upcomingEvents"
+            :key="ev.id"
+            to="/calendar"
+            class="event-row"
+          >
             <span
-              v-if="a.submission"
-              class="badge badge-primary badge-sm"
-            >✓</span>
-            <span
-              v-else-if="isCloseToDeadline(a.tenggat_waktu)"
-              class="badge badge-danger badge-sm"
-            >Segera!</span>
-          </div>
-        </NuxtLink>
-      </div>
-    </section>
-
-    <!-- Announcements -->
-    <section class="section">
-      <div class="section-header">
-        <h2>Pengumuman</h2>
-      </div>
-
-      <div v-if="announcementsStore.loading" class="card">
-        <p class="text-sm text-muted">Memuat pengumuman...</p>
-      </div>
-
-      <div v-else-if="announcementsStore.recentAnnouncements.length === 0" class="empty-state card">
-        <p>Belum ada pengumuman.</p>
-      </div>
-
-      <div v-else class="announcement-list">
-        <div
-          v-for="ann in announcementsStore.recentAnnouncements"
-          :key="ann.id"
-          class="card announcement-card"
-        >
-          <div class="announcement-header">
-            <span class="announcement-icon">📢</span>
-            <div class="announcement-info">
-              <span class="announcement-title">{{ ann.judul }}</span>
-              <span class="announcement-date text-xs text-muted">
-                {{ formatDate(ann.created_at) }}
-              </span>
-            </div>
-          </div>
-          <p class="announcement-content">{{ ann.konten }}</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- Upcoming Events -->
-    <section class="section">
-      <div class="section-header">
-        <h2>📅 Event Mendatang</h2>
-        <NuxtLink to="/calendar" class="btn btn-ghost btn-sm">Lihat Kalender</NuxtLink>
-      </div>
-
-      <div v-if="upcomingEvents.length === 0" class="empty-state card">
-        <p>Tidak ada event mendatang.</p>
-      </div>
-
-      <div v-else class="event-preview-list">
-        <NuxtLink
-          v-for="ev in upcomingEvents"
-          :key="ev.id"
-          to="/calendar"
-          class="card event-preview"
-        >
-          <div class="preview-left">
-            <span
-              class="event-type-dot"
-              :style="{
-                background: ev.tipe === 'uts' ? '#ef4444' : ev.tipe === 'uas' ? '#f59e0b' : ev.tipe === 'tugas' ? '#3b82f6' : ev.tipe === 'libur' ? '#8b5cf6' : '#06b6d4'
-              }"
+              class="event-row__dot"
+              :class="eventTypeClass(ev.tipe)"
             />
-            <span class="preview-title">{{ ev.judul }}</span>
-            <span v-if="ev.course_name" class="text-xs text-muted">{{ ev.course_name }}</span>
-          </div>
-          <span class="text-xs text-muted">
-            {{ new Date(ev.tanggal_mulai).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) }}
-          </span>
-        </NuxtLink>
-      </div>
-    </section>
-
-    <!-- Recent Quiz Attempts -->
-    <section class="section">
-      <div class="section-header">
-        <h2>✍️ Kuis Terbaru</h2>
-        <NuxtLink to="/quiz" class="btn btn-ghost btn-sm">Semua Kuis</NuxtLink>
-      </div>
-
-      <div v-if="myQuizAttempts.length === 0" class="empty-state card">
-        <p>Belum ada kuis yang dikerjakan.</p>
-      </div>
-
-      <div v-else class="quiz-preview-list">
-        <div
-          v-for="att in myQuizAttempts"
-          :key="att.id"
-          class="card quiz-preview"
-        >
-          <div class="preview-left">
-            <span class="preview-title">{{ att.quiz_title || 'Kuis' }}</span>
-          </div>
-          <div class="preview-right">
-            <span
-              class="badge"
-              :class="att.percentage >= 60 ? 'badge-success' : 'badge-danger'"
-            >
-              {{ att.percentage }}%
+            <div class="event-row__body">
+              <span class="event-row__title">{{ ev.judul }}</span>
+              <span v-if="ev.course_name" class="event-row__course">{{ ev.course_name }}</span>
+            </div>
+            <span class="event-row__date">
+              {{ new Date(ev.tanggal_mulai).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) }}
             </span>
+          </NuxtLink>
+        </div>
+      </div>
+
+      <!-- ── Quiz ── -->
+      <div class="bento-tile reveal" style="--i:8">
+        <div class="tile-header">
+          <h2 class="tile-title">✍️ Kuis Terbaru</h2>
+          <NuxtLink to="/quiz" class="tile-action">Semua →</NuxtLink>
+        </div>
+
+        <div v-if="myQuizAttempts.length === 0" class="empty-state">
+          <p>Belum ada kuis yang dikerjakan.</p>
+        </div>
+
+        <div v-else class="quiz-stack">
+          <div
+            v-for="att in myQuizAttempts"
+            :key="att.id"
+            class="quiz-row"
+          >
+            <span class="quiz-row__title">{{ att.quiz_title || 'Kuis' }}</span>
+            <span
+              class="quiz-row__score"
+              :class="att.percentage >= 60 ? 'score--pass' : 'score--fail'"
+            >{{ att.percentage }}%</span>
           </div>
         </div>
       </div>
-    </section>
+
+    </div>
   </div>
 </template>
 
 <style scoped>
+/* ═══════════════════════════════════════════
+   Bento Grid Macrostructure — Scholar theme
+   Axes: light / academic-serif+sans / deep-indigo
+   ═══════════════════════════════════════════ */
+
 .dashboard-page {
   max-width: 960px;
 }
 
-.page-header {
+/* ── Bento Header ───────────────────────── */
+.bento-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
   margin-bottom: 1.5rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--color-neutral-200);
 }
 
-.page-header h1 {
-  font-size: 1.5rem;
-  margin-bottom: 0.25rem;
+.bento-header__greeting {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: var(--color-ink-muted);
+  margin: 0 0 0.15rem;
 }
 
-.text-muted {
-  color: var(--color-neutral-500);
-  font-size: 0.875rem;
+.bento-header__name {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--color-ink);
+  margin: 0;
+  line-height: 1.15;
 }
 
-/* ── Stats ──────────────────────────────── */
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
-
-.stat-card {
+.bento-header__meta {
   display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1.25rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
-.stat-icon {
-  width: 3rem;
-  height: 3rem;
-  border-radius: var(--radius-md);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.5rem;
-  flex-shrink: 0;
-}
-
-.stat-body {
-  display: flex;
-  flex-direction: column;
-}
-
-.stat-value {
-  font-size: 1.5rem;
-  font-weight: 800;
-  color: var(--color-neutral-900);
-  line-height: 1.2;
-}
-
-.stat-label {
-  font-size: 0.8rem;
-  color: var(--color-neutral-500);
-}
-
-/* ── Section ────────────────────────────── */
-.section {
-  margin-bottom: 2rem;
-}
-
-.section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1rem;
-}
-
-.section-header h2 {
-  font-size: 1.125rem;
-}
-
-/* ── Courses ────────────────────────────── */
-.course-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
-}
-
-.course-card {
-  text-decoration: none;
-  color: inherit;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  padding: 1.25rem;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.course-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
-  text-decoration: none;
-}
-
-.course-header {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.course-icon {
-  width: 2.75rem;
-  height: 2.75rem;
-  border-radius: var(--radius-md);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.375rem;
-  flex-shrink: 0;
-}
-
-.course-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.course-code {
-  font-size: 0.75rem;
-  color: var(--color-neutral-500);
+.meta-chip {
+  font-family: var(--font-label);
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.3rem 0.65rem;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-soft);
+  color: var(--color-accent-deep);
   font-weight: 500;
 }
 
-.course-name {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: var(--color-neutral-900);
-}
-
-.course-desc {
-  font-size: 0.8rem;
-  color: var(--color-neutral-500);
-  line-height: 1.5;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.course-meta {
-  display: flex;
-  gap: 0.5rem;
-}
-
-/* ── Progress Bar ───────────────────────── */
-.progress-header {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 0.375rem;
-}
-
-.progress-bar {
-  height: 0.5rem;
-  background-color: var(--color-neutral-200);
-  border-radius: 9999px;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--color-primary-500), var(--color-primary-400));
-  border-radius: 9999px;
-  transition: width 0.5s ease;
-}
-
-/* ── Assignments Preview ────────────────── */
-.assignment-preview-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.assignment-preview {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+/* ── Bento Grid ─────────────────────────── */
+.bento-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 1rem;
-  padding: 0.875rem 1rem;
-  text-decoration: none;
-  color: inherit;
-  transition: border-color 0.2s;
+  align-items: start;
 }
 
-.assignment-preview:hover {
-  border-color: var(--color-primary-300);
-  text-decoration: none;
-}
-
-.preview-left {
-  display: flex;
-  flex-direction: column;
+.bento-tile {
   min-width: 0;
 }
 
-.preview-course {
-  font-size: 0.6875rem;
-  color: var(--color-primary-600);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+.bento-tile--span-2 {
+  grid-column: span 2;
 }
 
-.preview-title {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--color-neutral-800);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.preview-right {
+/* ── Tile Headers ───────────────────────── */
+.tile-header {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  flex-shrink: 0;
+  justify-content: space-between;
+  margin-bottom: 0.875rem;
 }
 
-.preview-deadline {
+.tile-title {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--color-ink);
+  margin: 0;
+}
+
+.tile-action {
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-accent-deep);
   white-space: nowrap;
-  color: var(--color-neutral-500);
+  transition: color var(--dur-fast) var(--ease-out);
 }
 
-.text-xs {
-  font-size: 0.6875rem;
+.tile-action:hover {
+  color: var(--color-ink);
 }
 
-.badge-sm {
-  font-size: 0.6875rem;
-  padding: 0.125rem 0.5rem;
+/* ── Reveal Animation ───────────────────── */
+.reveal {
+  opacity: 0;
+  transform: translateY(12px);
+  transition:
+    opacity var(--dur-slow) var(--ease-out),
+    transform var(--dur-slow) var(--ease-out);
+  transition-delay: calc(var(--i, 0) * 60ms);
+}
+
+.reveal.is-inview {
+  opacity: 1;
+  transform: none;
 }
 
 /* ── Empty State ────────────────────────── */
 .empty-state {
   text-align: center;
-  padding: 2.5rem;
+  padding: 2rem 1rem;
   color: var(--color-neutral-500);
+  font-size: 0.875rem;
 }
 
-/* ── Announcements ──────────────────────── */
-.announcement-list {
-  display: flex;
-  flex-direction: column;
+/* ── Course Cards (inside bento tile) ───── */
+.bento-course-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 0.75rem;
 }
 
-.announcement-card {
-  padding: 1rem 1.25rem;
+.course-card {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  border-left: 3px solid var(--color-primary-400);
+  gap: 0.6rem;
+  padding: 1rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-card);
+  text-decoration: none;
+  color: inherit;
+  transition:
+    box-shadow var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-out);
 }
 
-.announcement-header {
+.course-card:hover {
+  box-shadow: var(--shadow-card-hover);
+  transform: translateY(-2px);
+  text-decoration: none;
+}
+
+.course-card__head {
   display: flex;
-  align-items: flex-start;
-  gap: 0.625rem;
+  align-items: center;
+  gap: 0.65rem;
 }
 
-.announcement-icon {
-  font-size: 1.125rem;
+.course-card__icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius-card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
   flex-shrink: 0;
-  margin-top: 0.125rem;
 }
 
-.announcement-info {
+.course-card__code {
+  font-family: var(--font-label);
+  font-size: 0.65rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--color-ink-muted);
+  font-weight: 500;
+}
+
+.course-card__name {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--color-ink);
+  margin: 0;
+  line-height: 1.2;
+}
+
+.course-card__desc {
+  font-size: 0.775rem;
+  color: var(--color-ink-muted);
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin: 0;
+}
+
+.course-card__badges {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.course-card__progress {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.progress-label {
+  font-size: 0.7rem;
+  color: var(--color-ink-muted);
+  flex-shrink: 0;
+}
+
+.progress-track {
+  flex: 1;
+  height: 5px;
+  background: var(--color-neutral-200);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-accent), var(--color-accent-deep));
+  border-radius: var(--radius-pill);
+  transition: width 0.6s var(--ease-out);
+}
+
+.progress-pct {
+  font-family: var(--font-label);
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--color-accent-deep);
+  flex-shrink: 0;
+}
+
+/* ── Assignment Stack ───────────────────── */
+.assignment-stack {
   display: flex;
   flex-direction: column;
-  gap: 0.125rem;
+  gap: 0.4rem;
+}
+
+.assignment-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.7rem 0.85rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-card);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color var(--dur-fast) var(--ease-out);
+}
+
+.assignment-row:hover {
+  border-color: var(--color-accent-soft);
+  text-decoration: none;
+}
+
+.assignment-row__body {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
 }
 
-.announcement-title {
-  font-size: 0.9rem;
+.assignment-row__course {
+  font-family: var(--font-label);
+  font-size: 0.65rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--color-accent-deep);
   font-weight: 600;
-  color: var(--color-neutral-800);
 }
 
-.announcement-date {
-  color: var(--color-neutral-400);
-}
-
-.announcement-content {
+.assignment-row__title {
   font-size: 0.825rem;
-  color: var(--color-neutral-600);
-  line-height: 1.5;
-  margin-left: 1.75rem;
+  font-weight: 600;
+  color: var(--color-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.assignment-row__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.assignment-row__date {
+  font-size: 0.7rem;
+  color: var(--color-ink-muted);
+  white-space: nowrap;
+}
+
+/* ── Announcement Stack ─────────────────── */
+.announcement-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.announcement-row {
+  padding: 0.75rem 0.85rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-card);
+  border-left: 3px solid var(--color-accent);
+}
+
+.announcement-row__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.3rem;
+}
+
+.announcement-row__icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.announcement-row__title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-ink);
+  display: block;
+}
+
+.announcement-row__date {
+  font-size: 0.675rem;
+  color: var(--color-ink-muted);
+}
+
+.announcement-row__body {
+  font-size: 0.8rem;
+  color: var(--color-ink-2);
+  line-height: 1.45;
+  margin: 0 0 0 1.5rem;
+}
+
+/* ── Event Stack ────────────────────────── */
+.event-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.event-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.85rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-card);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color var(--dur-fast) var(--ease-out);
+}
+
+.event-row:hover {
+  border-color: var(--color-accent-soft);
+  text-decoration: none;
+}
+
+.event-row__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dot--primary { background: var(--color-accent); }
+.dot--success { background: oklch(50% 0.14 145); }
+.dot--warning { background: oklch(60% 0.14 85); }
+.dot--danger  { background: oklch(55% 0.18 30); }
+.dot--info    { background: oklch(55% 0.10 200); }
+.dot--accent  { background: oklch(50% 0.16 290); }
+
+.event-row__body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.event-row__title {
+  font-size: 0.825rem;
+  font-weight: 600;
+  color: var(--color-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.event-row__course {
+  font-size: 0.675rem;
+  color: var(--color-ink-muted);
+}
+
+.event-row__date {
+  font-size: 0.7rem;
+  color: var(--color-ink-muted);
+  flex-shrink: 0;
+}
+
+/* ── Quiz Stack ─────────────────────────── */
+.quiz-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.quiz-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 0.85rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-card);
+}
+
+.quiz-row__title {
+  font-size: 0.825rem;
+  font-weight: 600;
+  color: var(--color-ink);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quiz-row__score {
+  font-family: var(--font-label);
+  font-size: 0.775rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-pill);
+  flex-shrink: 0;
+}
+
+.score--pass {
+  background: oklch(88% 0.10 145 / 0.3);
+  color: oklch(38% 0.12 145);
+}
+
+.score--fail {
+  background: oklch(88% 0.14 30 / 0.3);
+  color: oklch(45% 0.16 30);
 }
 
 /* ── Responsive ─────────────────────────── */
-@media (max-width: 768px) {
-  .stats-grid { grid-template-columns: 1fr; }
-  .course-grid { grid-template-columns: 1fr; }
+@media (max-width: 820px) {
+  .bento-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .bento-tile--span-2 {
+    grid-column: span 2;
+  }
+
+  .bento-course-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bento-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 540px) {
+  .bento-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bento-tile--span-2 {
+    grid-column: span 1;
+  }
 }
 </style>

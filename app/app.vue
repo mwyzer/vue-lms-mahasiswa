@@ -8,6 +8,11 @@
 import { useUiStore } from '~/stores/ui'
 
 const ui = useUiStore()
+
+onMounted(() => {
+  ui.initTheme()
+  ui.initDemoMode()
+})
 </script>
 
 <template>

@@ -22,6 +22,27 @@ globalThis.nextTick = nextTick
 // Nuxt auto-imports are available as globals at runtime.
 // We set them on globalThis so store files can access them without explicit imports.
 
+// ── Auto-imported stores (Pinia composables from ~/stores) ──
+// Stores now reference useUiStore() internally; Nuxt auto-imports these.
+// In tests they must be available as globals.
+import { useUiStore } from '../stores/ui'
+import { useAuthStore } from '../stores/auth'
+import { useCoursesStore } from '../stores/courses'
+import { useAssignmentsStore } from '../stores/assignments'
+import { useQuizStore } from '../stores/quiz'
+import { useAttendanceStore } from '../stores/attendance'
+import { useAnnouncementsStore } from '../stores/announcements'
+import { useCalendarStore } from '../stores/calendar'
+
+globalThis.useUiStore = useUiStore
+globalThis.useAuthStore = useAuthStore
+globalThis.useCoursesStore = useCoursesStore
+globalThis.useAssignmentsStore = useAssignmentsStore
+globalThis.useQuizStore = useQuizStore
+globalThis.useAttendanceStore = useAttendanceStore
+globalThis.useAnnouncementsStore = useAnnouncementsStore
+globalThis.useCalendarStore = useCalendarStore
+
 const mockSupabaseClient = {
   from: vi.fn().mockReturnThis(),
   select: vi.fn().mockReturnThis(),

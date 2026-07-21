@@ -126,7 +126,6 @@ hideToast()
 events: AcademicEvent[]
 loading: boolean
 error: string | null
-demoVersion: number
 ```
 
 ### Actions
@@ -151,7 +150,6 @@ eventsByMonth(year, month)  // Events in a specific month
 records: AttendanceWithNames[]  // Full attendance with student/course names
 loading: boolean
 error: string | null
-demoVersion: number
 isDemoMode: boolean
 initialized: boolean
 sbRecords: Attendance[]         // Supabase records
@@ -173,4 +171,59 @@ recordsByMeeting(courseId, pertemuan)   // Filter by course + meeting
 recordsByDate(courseId, tanggal)        // Filter by course + date
 totalMeetings(courseId)                 // Number of unique pertemuan for a course
 studentStats(studentId, courseId)       // { total, hadir, izin, sakit, alpha, persentase }
+```
+
+---
+
+## Demo Data Reactivity Pattern
+
+### Why `_syncDemo()` Replaces `demoVersion`
+
+Module-level `const` arrays (e.g. `const DEMO_COURSES = [...]`) are **not reactive** in Vue.
+When a store action mutates them directly, Vue's `Proxy`-based reactivity cannot detect the change,
+so getters that read from those arrays never recompute.
+
+The old `demoVersion: number` counter was bumped on every mutation and read in getters via
+`void this.demoVersion` — a side-channel to force getter re-evaluation. This is brittle and
+breaks if a developer forgets to bump the counter.
+
+### The New Pattern
+
+```mermaid
+flowchart LR
+    A["Action mutates<br/>DEMO_* array"] -->|"_syncDemo()"| B["Copy into<br/>reactive this.xxx"]
+    B --> C["Getter reads<br/>reactive this.xxx"]
+    C -->|"Vue detects change"| D["UI re-renders"]
+```
+
+| Step | What happens | Example |
+|---|---|---|
+| 1. **Seed on `init()`** | Copy demo data into Pinia reactive state | `this.courses = [...DEMO_COURSES]` |
+| 2. **Getters read reactive state** | Vue tracks `this.xxx` automatically | `return this.isDemoMode ? this.courses : this.sbCourses` |
+| 3. **`_syncDemo()` after mutations** | New array reference triggers Proxy traps | `this.courses = [...DEMO_COURSES]` |
+
+The spread operator (`[...]`) is essential — it creates a **new array reference**. Without it,
+`this.courses = DEMO_COURSES` would point to the same object and Vue would miss the update.
+
+### Per-Store Adoption
+
+| Store | Reactive state | Sync method | Notes |
+|---|---|---|---|
+| `courses.ts` | `this.courses` | `_syncDemo()` | Copies `[...DEMO_COURSES]` after every mutation |
+| `assignments.ts` | `this.assignments`, `this.submissions` | `_syncDemo()` | Copies both arrays after every mutation |
+| `quiz.ts` | `this.quizzes`, `this.questions`, `this.attempts` | `_syncState()` | Always creates new references from active data source |
+| `attendance.ts` | `this.records` | `_syncDemo()` | Copies `[...DEMO_ATTENDANCE]` after every mutation |
+| `announcements.ts` | `this.announcements` | _(inline)_ | Seeds `[...DEMO_ANNOUNCEMENTS]` in `init()` and after `addAnnouncement()` / `deleteAnnouncement()` |
+| `auth.ts` | `this.students`, `this.instructors` | _(none needed)_ | Actions mutate `this.students` / `this.instructors` directly — they are the **source of truth**, not proxies for `DEMO_*` arrays |
+| `calendar.ts` | `this.events` | _(none needed)_ | Actions mutate `this.events` directly — `init()` seeds once from `DEMO_EVENTS`; no separate module-level source |
+| `ui.ts` | `sidebarOpen`, `darkMode`, `toasts` | _(none needed)_ | Pure UI state — no demo data, no `isDemoMode`, no Supabase backend |
+
+### Checklist for Adding a New Demo-Data Store
+
+1. Module-level `const DEMO_*` for static fallback data
+2. Pinia state field for the reactive copy (e.g. `items: [] as Item[]`)
+3. `_syncDemo()` helper that does `this.items = [...DEMO_ITEMS]`
+4. `init()` calls `_syncDemo()` once (or seeds directly if `isDemoMode`)
+5. Every action that mutates `DEMO_*` calls `this._syncDemo()` before returning
+6. Getters read `this.items` — never `DEMO_ITEMS` directly
 ```

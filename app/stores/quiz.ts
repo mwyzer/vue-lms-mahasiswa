@@ -104,7 +104,6 @@ export const useQuizStore = defineStore('quiz', {
     initialized: false,
     loading: false,
     error: null as string | null,
-    demoVersion: 0,
 
     quizzes: [] as Quiz[],
     questions: [] as QuizQuestion[],
@@ -202,7 +201,8 @@ export const useQuizStore = defineStore('quiz', {
     async init() {
       if (this.initialized) return
       const config = useRuntimeConfig()
-      this.isDemoMode = config.public.demoMode !== 'false'
+      const ui = useUiStore()
+      this.isDemoMode = ui.isDemoMode
 
       if (!this.isDemoMode) {
         try {
@@ -210,30 +210,36 @@ export const useQuizStore = defineStore('quiz', {
           this.loading = true
 
           // Fetch quizzes
-          const { data: quizzes } = await supabase
+          const { data: quizzes, error: quizErr } = await supabase
             .from('quizzes')
             .select('*')
             .order('created_at')
+
+          if (quizErr) throw quizErr
 
           if (quizzes) {
             this.sbQuizzes = quizzes as Quiz[]
           }
 
           // Fetch questions
-          const { data: questions } = await supabase
+          const { data: questions, error: qErr } = await supabase
             .from('quiz_questions')
             .select('*')
             .order('urutan')
+
+          if (qErr) throw qErr
 
           if (questions) {
             this.sbQuestions = questions as QuizQuestion[]
           }
 
           // Fetch attempts
-          const { data: attempts } = await supabase
+          const { data: attempts, error: attErr } = await supabase
             .from('quiz_attempts')
             .select('*')
             .order('submitted_at', { ascending: false })
+
+          if (attErr) throw attErr
 
           if (attempts) {
             this.sbAttempts = attempts as QuizAttempt[]
@@ -260,17 +266,15 @@ export const useQuizStore = defineStore('quiz', {
     /** Force re-sync reactive state from the active data source */
     _syncState() {
       if (this.isDemoMode) {
-        // Demo arrays are mutated in-place; state arrays are references to them
-        // We force reactivity by re-assigning
-        this.quizzes = DEMO_QUIZZES
-        this.questions = DEMO_QUESTIONS
-        this.attempts = DEMO_ATTEMPTS
+        // Always create new array references so Vue reactivity detects the change
+        this.quizzes = [...DEMO_QUIZZES]
+        this.questions = [...DEMO_QUESTIONS]
+        this.attempts = [...DEMO_ATTEMPTS]
       } else {
         this.quizzes = [...this.sbQuizzes]
         this.questions = [...this.sbQuestions]
         this.attempts = [...this.sbAttempts]
       }
-      this.demoVersion++
     },
 
     /** Get course name for a course ID */
@@ -295,8 +299,6 @@ export const useQuizStore = defineStore('quiz', {
     /** Answer a question */
     answerQuestion(questionId: string, jawaban: 'a' | 'b' | 'c' | 'd') {
       this.currentAnswers[questionId] = jawaban
-      // Bump version for reactivity
-      this.demoVersion++
     },
 
     /** Submit the quiz and auto-grade */
@@ -325,7 +327,6 @@ export const useQuizStore = defineStore('quiz', {
       }
 
       this.attempts.push(attempt)
-      this.demoVersion++
 
       // Reset current session
       this.currentQuizId = null
@@ -426,7 +427,7 @@ export const useQuizStore = defineStore('quiz', {
           supabase.from('quizzes').update({ is_active: q.is_active, updated_at: q.updated_at }).eq('id', quizId)
             .catch(err => console.error('Failed to toggle quiz in Supabase:', err))
         }
-        this.demoVersion++
+        this._syncState()
       }
     },
 

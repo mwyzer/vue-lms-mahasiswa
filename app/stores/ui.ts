@@ -1,6 +1,7 @@
 /**
  * UI Store — Manages global UI state such as loading indicators,
- * notifications/toasts, sidebar state, and theme preferences.
+ * notifications/toasts, sidebar state, theme preferences,
+ * and demo-mode runtime override.
  */
 import { defineStore } from 'pinia'
 
@@ -16,6 +17,8 @@ interface UiState {
   toasts: Toast[]
   sidebarCollapsed: boolean
   theme: 'light' | 'dark'
+  /** Runtime override for demo mode. null = use env config (NUXT_PUBLIC_DEMO_MODE). */
+  demoModeOverride: boolean | null
 }
 
 export const useUiStore = defineStore('ui', {
@@ -24,11 +27,21 @@ export const useUiStore = defineStore('ui', {
     toasts: [],
     sidebarCollapsed: false,
     theme: 'light',
+    demoModeOverride: null,
   }),
 
   getters: {
     activeToasts: (state) => state.toasts.slice(0, 5),
     hasToasts: (state) => state.toasts.length > 0,
+
+    /** Effective demo mode — override takes priority over env config. */
+    isDemoMode(): boolean {
+      if (this.demoModeOverride !== null) return this.demoModeOverride
+      const config = useRuntimeConfig()
+      const mode = config.public.demoMode
+      // Handle both boolean and string values (Nuxt may parse env vars)
+      return mode === true || mode === 'true'
+    },
   },
 
   actions: {
@@ -119,6 +132,74 @@ export const useUiStore = defineStore('ui', {
           this.setTheme(e.matches ? 'dark' : 'light')
         }
       })
+    },
+
+    /**
+     * Initialize demo mode override from localStorage.
+     */
+    initDemoMode() {
+      if (!import.meta.client) return
+      const stored = localStorage.getItem('lms-demo-override')
+      if (stored === 'on') this.demoModeOverride = true
+      else if (stored === 'off') this.demoModeOverride = false
+    },
+
+    /**
+     * Toggle demo mode at runtime (admin only).
+     * Re-initializes all data stores to switch between demo and Supabase data.
+     */
+    async toggleDemoMode() {
+      const current = this.isDemoMode
+      const next = !current
+      this.demoModeOverride = next
+
+      if (import.meta.client) {
+        localStorage.setItem('lms-demo-override', next ? 'on' : 'off')
+      }
+
+      // Re-initialize all data stores with the new mode
+      try {
+        const { useAuthStore } = await import('./auth')
+        const { useCoursesStore } = await import('./courses')
+        const { useAssignmentsStore } = await import('./assignments')
+        const { useQuizStore } = await import('./quiz')
+        const { useAttendanceStore } = await import('./attendance')
+        const { useAnnouncementsStore } = await import('./announcements')
+        const { useCalendarStore } = await import('./calendar')
+
+        const auth = useAuthStore()
+        const courses = useCoursesStore()
+        const assignments = useAssignmentsStore()
+        const quiz = useQuizStore()
+        const attendance = useAttendanceStore()
+        const announcements = useAnnouncementsStore()
+        const calendar = useCalendarStore()
+
+        // Reset initialized flags so init() runs fresh
+        auth.initialized = false
+        courses.initialized = false
+        assignments.initialized = false
+        quiz.initialized = false
+        attendance.initialized = false
+        announcements.initialized = false
+        calendar.initialized = false
+
+        // Re-init all stores in parallel
+        await Promise.all([
+          auth.init(),
+          courses.init(),
+          assignments.init(),
+          quiz.init(),
+          attendance.init(),
+          announcements.init(),
+          calendar.init(),
+        ])
+
+        this.showToast('info', next ? 'Demo mode aktif — menggunakan data lokal' : 'Demo mode nonaktif — menggunakan data Supabase')
+      } catch (err) {
+        console.error('Failed to toggle demo mode:', err)
+        this.showToast('error', 'Gagal mengganti mode demo')
+      }
     },
   },
 })

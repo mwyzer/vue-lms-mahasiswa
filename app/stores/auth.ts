@@ -82,7 +82,6 @@ interface AuthState {
   instructors: InstructorEntry[]
   admins: AdminEntry[]
   initialized: boolean
-  demoVersion: number
 }
 
 export const useAuthStore = defineStore('auth', {
@@ -96,7 +95,6 @@ export const useAuthStore = defineStore('auth', {
     instructors: [],
     admins: [],
     initialized: false,
-    demoVersion: 0,
   }),
 
   getters: {
@@ -113,21 +111,15 @@ export const useAuthStore = defineStore('auth', {
     },
 
     studentRoster(): StudentRosterEntry[] {
-      const store = useAuthStore()
-      void store.demoVersion
-      return store.students
+      return this.students
     },
 
     instructorList(): InstructorEntry[] {
-      const store = useAuthStore()
-      void store.demoVersion
-      return store.instructors
+      return this.instructors
     },
 
     classList(): { level: number; session_time: string; label: string }[] {
-      const store = useAuthStore()
-      void store.demoVersion
-      const roster = store.students
+      const roster = this.students
       const unique = new Map<string, { level: number; session_time: string; label: string }>()
       for (const s of roster) {
         const key = `${s.level}-${s.session_time}`
@@ -156,7 +148,8 @@ export const useAuthStore = defineStore('auth', {
     async init() {
       if (this.initialized) return
       const config = useRuntimeConfig()
-      this.isDemoMode = config.public.demoMode !== 'false'
+      const ui = useUiStore()
+      this.isDemoMode = ui.isDemoMode
 
       if (!this.isDemoMode) {
         try {
@@ -611,7 +604,6 @@ export const useAuthStore = defineStore('auth', {
             if (data.email !== undefined) this.instructors[idx].email = data.email
           }
         }
-        this.demoVersion++
       }
 
       // Update current user object
@@ -774,7 +766,6 @@ export const useAuthStore = defineStore('auth', {
 
           // Add to local state for immediate UI update
           this.students.push(newProfile as StudentRosterEntry)
-          this.demoVersion++
           return true
         } catch (err: any) {
           this.error = 'Terjadi kesalahan: ' + (err.message || 'Unknown error')
@@ -802,7 +793,6 @@ export const useAuthStore = defineStore('auth', {
       if (data.password) {
         DEMO_STUDENT_PASSWORDS[id] = data.password
       }
-      this.demoVersion++
       return true
     },
 
@@ -845,7 +835,6 @@ export const useAuthStore = defineStore('auth', {
           if (idx >= 0) {
             this.students[idx] = { ...this.students[idx], ...data }
           }
-          this.demoVersion++
           return true
         } catch (err: any) {
           this.error = 'Terjadi kesalahan: ' + (err.message || 'Unknown error')
@@ -860,7 +849,6 @@ export const useAuthStore = defineStore('auth', {
         if (data.password) {
           DEMO_STUDENT_PASSWORDS[id] = data.password
         }
-        this.demoVersion++
       }
       return true
     },
@@ -896,7 +884,6 @@ export const useAuthStore = defineStore('auth', {
           if (idx >= 0) {
             this.students.splice(idx, 1)
           }
-          this.demoVersion++
           return true
         } catch (err: any) {
           this.error = 'Terjadi kesalahan: ' + (err.message || 'Unknown error')
@@ -908,7 +895,6 @@ export const useAuthStore = defineStore('auth', {
       const idx = this.students.findIndex((s) => s.id === id)
       if (idx >= 0) {
         this.students.splice(idx, 1)
-        this.demoVersion++
       }
       return true
     },
@@ -951,7 +937,6 @@ export const useAuthStore = defineStore('auth', {
 
           // Add to local state for immediate UI update
           this.instructors.push(newProfile as unknown as InstructorEntry)
-          this.demoVersion++
           return true
         } catch (err: any) {
           this.error = 'Terjadi kesalahan: ' + (err.message || 'Unknown error')
@@ -974,7 +959,6 @@ export const useAuthStore = defineStore('auth', {
         avatar_url: data.avatar_url || null,
       })
       DEMO_INSTRUCTOR_PASSWORDS[id] = data.password || 'instruktur123'
-      this.demoVersion++
       return true
     },
 
@@ -1016,7 +1000,6 @@ export const useAuthStore = defineStore('auth', {
             if (data.email !== undefined) this.instructors[idx].email = data.email
             if (data.avatar_url !== undefined) this.instructors[idx].avatar_url = data.avatar_url
           }
-          this.demoVersion++
           return true
         } catch (err: any) {
           this.error = 'Terjadi kesalahan: ' + (err.message || 'Unknown error')
@@ -1031,7 +1014,6 @@ export const useAuthStore = defineStore('auth', {
         if (data.email !== undefined) this.instructors[idx].email = data.email
         if (data.avatar_url !== undefined) this.instructors[idx].avatar_url = data.avatar_url
         if (data.password !== undefined) DEMO_INSTRUCTOR_PASSWORDS[id] = data.password
-        this.demoVersion++
       }
       return true
     },
@@ -1067,7 +1049,6 @@ export const useAuthStore = defineStore('auth', {
           if (idx >= 0) {
             this.instructors.splice(idx, 1)
           }
-          this.demoVersion++
           return true
         } catch (err: any) {
           this.error = 'Terjadi kesalahan: ' + (err.message || 'Unknown error')
@@ -1080,7 +1061,6 @@ export const useAuthStore = defineStore('auth', {
       if (idx >= 0) {
         this.instructors.splice(idx, 1)
         delete DEMO_INSTRUCTOR_PASSWORDS[id]
-        this.demoVersion++
       }
       return true
     },

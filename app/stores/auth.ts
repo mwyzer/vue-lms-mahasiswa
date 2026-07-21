@@ -249,7 +249,7 @@ export const useAuthStore = defineStore('auth', {
         return false
       }
 
-      // Verify password in demo mode
+      // Verify password — demo uses hardcoded passwords; production uses Supabase Auth
       if (this.isDemoMode) {
         const expected = DEMO_STUDENT_PASSWORDS[match.id]
         if (expected && password !== expected) {
@@ -257,11 +257,18 @@ export const useAuthStore = defineStore('auth', {
           this.loading = false
           return false
         }
-      }
-
-      // In production, passwords are verified server-side via Supabase Auth
-      if (!this.isDemoMode && password) {
-        // Production verification via Supabase
+      } else if (password) {
+        // Production: verify password via Supabase Auth
+        const supabase = useNuxtApp().$supabase
+        const { error: authError } = await supabase.auth.signInWithPassword({
+          email: `${match.npm}@lms.ac.id`,
+          password,
+        })
+        if (authError) {
+          this.error = 'Password salah.'
+          this.loading = false
+          return false
+        }
       }
 
       this.user = {
@@ -315,7 +322,7 @@ export const useAuthStore = defineStore('auth', {
         return false
       }
 
-      // Verify password in demo mode
+      // Verify password — demo uses hardcoded passwords; production uses Supabase Auth
       if (this.isDemoMode) {
         const expected = DEMO_INSTRUCTOR_PASSWORDS[match.id]
         if (expected && password !== expected) {
@@ -323,9 +330,19 @@ export const useAuthStore = defineStore('auth', {
           this.loading = false
           return false
         }
+      } else {
+        // Production: verify password via Supabase Auth
+        const supabase = useNuxtApp().$supabase
+        const { error: authError } = await supabase.auth.signInWithPassword({
+          email: match.email!,
+          password,
+        })
+        if (authError) {
+          this.error = 'Password salah.'
+          this.loading = false
+          return false
+        }
       }
-
-      // In production, passwords are verified server-side via Supabase Auth
 
       this.user = {
         id: match.id,
@@ -376,7 +393,7 @@ export const useAuthStore = defineStore('auth', {
         return false
       }
 
-      // Verify password in demo mode
+      // Verify password — demo uses hardcoded passwords; production uses Supabase Auth
       if (this.isDemoMode) {
         const expected = DEMO_ADMIN_PASSWORDS[match.id]
         if (expected && password !== expected) {
@@ -384,9 +401,19 @@ export const useAuthStore = defineStore('auth', {
           this.loading = false
           return false
         }
+      } else {
+        // Production: verify password via Supabase Auth
+        const supabase = useNuxtApp().$supabase
+        const { error: authError } = await supabase.auth.signInWithPassword({
+          email: match.email!,
+          password,
+        })
+        if (authError) {
+          this.error = 'Password salah.'
+          this.loading = false
+          return false
+        }
       }
-
-      // In production, passwords are verified server-side via Supabase Auth
 
       this.user = {
         id: match.id,

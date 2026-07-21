@@ -9,11 +9,11 @@ import { useAuthStore } from '~/stores/auth'
 export function useAuth() {
   const auth = useAuthStore()
 
-  const loginAsStudent = (nama: string, npm: string): boolean => {
-    return auth.loginAsStudent(nama, npm)
+  const loginAsStudent = (nama: string, npm: string, password?: string): Promise<boolean> => {
+    return auth.loginAsStudent(nama, npm, password)
   }
 
-  const loginAsInstructor = (nama: string, password: string): boolean => {
+  const loginAsInstructor = (nama: string, password: string): Promise<boolean> => {
     return auth.loginAsInstructor(nama, password)
   }
 

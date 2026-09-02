@@ -124,7 +124,7 @@ export default defineNuxtConfig({
     public: {
       supabaseUrl: 'https://fmibyazumfxrgcehojys.supabase.co',
       supabaseKey: 'sb_publishable_YcNaRX89fTgNKA91A7Cw5w_q5HUozdQ',
-      demoMode: 'false',
+      demoMode: 'true',
       appName: 'LMS Mahasiswa',
       appUrl: 'http://localhost:3000',
       aiModel: 'gpt-4o-mini'

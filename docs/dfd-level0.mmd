@@ -1,0 +1,42 @@
+---
+title: Data Flow Diagram (Level 0 — Context) — LMS Mahasiswa
+---
+flowchart TB
+    subgraph SYS["LMS Mahasiswa"]
+        APP["Nuxt 4 Application
+            Pages / Components / Pinia / Middleware"]
+        SRV["Nuxt Server (Nitro)
+            /api/auth /api/ai + CostTracker / RateLimiter"]
+        SB["Supabase
+            PostgreSQL + RLS + Data API"]
+    end
+
+    MAHA["Mahasiswa"] -->|"Login Nama+NPM"| APP
+    APP -->|"1. Request session"| SRV
+    SRV -->|"2. Set signed cookie (lms_session)"| APP
+    APP -->|"Query data (courses, lessons,
+        progress, assignments, submissions,
+        quizzes, attendance, calendar)"| SB
+    SB -->|"Data pribadi sesuai RLS"| APP
+
+    INSTRUK["Instruktur"] -->|"Login Nama"| APP
+    APP -->|"CRUD materi, tugas, nilai,
+        presensi, quiz, pengumuman"| SB
+    SB -->|"Data MK yang diampu"| APP
+
+    ADMIN["Admin"] -->|"Login (admin123)"| APP
+    APP -->|"CRUD mahasiswa, instruktur,
+        mata kuliah, lihat tugas"| SB
+    SB -->|"Data master"| APP
+
+    MAHA -->|"Ask materi/tugas"| APP
+    APP -->|"POST /api/ai/chat"| SRV
+    SRV -->|"OpenAI API
+        (NUXT_AI_API_KEY)"| OPENAI[("OpenAI API")]
+    OPENAI -->|"SSE reply / JSON"| SRV
+    SRV -->|"reply + sources"| APP
+    APP -->|"AI reply"| MAHA
+
+    APP -->|"Playground (Pyodide)"| PYODIDE[("Pyodide
+        Client-side Python")]
+    PYODIDE -->|"hasil eksekusi"| APP

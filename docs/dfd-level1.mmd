@@ -1,0 +1,127 @@
+---
+title: Data Flow Diagram (Level 1) — LMS Mahasiswa
+---
+flowchart TB
+    MAHA["MAHA: Mahasiswa"]
+    INSTRUK["INSTRUK: Instruktur"]
+    ADMIN["ADMIN: Administrator"]
+
+    subgraph APP["PROSES 1.0 — Autentikasi (Nuxt Server)"]
+        P11["1.1 Validasi identity
+            (level+session+daftar mahasiswa /
+            daftar instruktur)"]
+        P12["1.2 Buat signed cookie
+            HMAC lms_session (24 jam)"]
+        P13["1.3 Guard routing
+            per role (middleware)"]
+    end
+
+    MAHA -->|"identitas (Nama+NPM)"| P11
+    INSTRUK -->|"identitas (Nama)"| P11
+    ADMIN -->|"password admin"| P11
+    P11 --> P12
+    P12 -->|"cookie lms_session"| APP
+    APP -->|"role + session"| P13
+
+    subgraph PROFILE_STORE["PROSES 2.0 — Kelola Profil & Data Master (Supabase)"]
+        P21["2.1 CRUD profil
+            (admin: student/instructor)"]
+        P22["2.2 CRUD mata kuliah
+            (admin; instruktur: MK diampu)"]
+        P23["2.3 Kelola enrollment
+            (student -> course)"]
+    end
+
+    ADMIN -->|"CRUD profil"| P21
+    P21 -->|"profiles"| D_PROF[("D1: profiles")]
+    D_PROF -->|"roster level+session"| P11
+
+    ADMIN -->|"CRUD MK"| P22
+    INSTRUK -->|"buat/ubah MK"| P22
+    P22 -->|"courses"| D_COURSE[("D2: courses")]
+    D_COURSE -->|"daftar MK"| P23
+    P23 -->|"enrollments"| D_ENR[("D3: enrollments")]
+
+    subgraph BELAJAR["PROSES 3.0 — Proses Belajar (Mahasiswa)"]
+        P31["3.1 Lihat MK + materi"]
+        P32["3.2 Toggle progress materi"]
+        P33["3.3 Lihat assignment & submit"]
+        P34["3.4 Ambil quiz + submit jawaban"]
+        P35["3.5 Lihat nilai, feedback, rekap presensi"]
+    end
+
+    D_COURSE -->|"MK diikuti"| P31
+    D_ENR -->|"enrollment"| P31
+    P31 -->|"materi"| D_LESSON[("D4: lessons")]
+    P32 -->|"progress"| D_PROG[("D5: lesson_progress")]
+    P33 -->|"submission"| D_SUB[("D7: submissions")]
+    P35 -->|"nilai + feedback"| D_SUB
+    P34 -->|"attempt + answers"| D_ATT[("D10: quiz_attempts + quiz_answers")]
+    P35 -->|"rekap presensi"| D_ATTEND[("D11: attendance")]
+
+    subgraph INSTRUCTOR_FLOW["PROSES 4.0 — Pengelolaan Instruktur (Instruktur)"]
+        P41["4.1 CRUD materi"]
+        P42["4.2 CRUD tugas"]
+        P43["4.3 Nilai & feedback submission
+            (termasuk direct grading)"]
+        P44["4.4 Catat presensi per pertemuan"]
+        P45["4.5 CRUD quiz (soal & jawaban)"]
+        P46["4.6 Buat pengumuman"]
+    end
+
+    INSTRUK -->|"kelola"| P41
+    P41 -->|"lessons"| D_LESSON
+    INSTRUK -->|"kelola"| P42
+    P42 -->|"assignments"| D_ASSIGN[("D6: assignments")]
+    P43 -->|"nilai + feedback"| D_SUB
+    P44 -->|"attendance"| D_ATTEND
+    P45 -->|"quiz + soal"| D_QUIZ[("D9: quizzes + quiz_questions")]
+    P46 -->|"announcements"| D_ANN[("D8: announcements")]
+
+    subgraph KALENDER["PROSES 5.0 — Kalender Akademik (read-only)"]
+        P51["5.1 Lihat event UTS/UAS/tugas/libur"]
+    end
+    D_EVENT[("D12: academic_events")] -->|"events"| P51
+    P51 -->|"daftar + timeline"| MAHA
+    P51 -->|"daftar + timeline"| INSTRUK
+
+    D_ANN -->|"pengumuman"| P31
+    D_ASSIGN -->|"tugas + deadline"| P33
+    D_QUIZ -->|"quiz aktif"| P34
+
+    subgraph AICHAT["PROSES 6.0 — AI Chat Assistant"]
+        P61["6.1 Middleware guard
+            auth + rate limit (20/mnt user, 100/mnt global)"]
+        P62["6.2 Compose system prompt +
+            konteks MK mahasiswa"]
+        P63["6.3 OpenAI-compatible API
+            atau demo knowledge-base"]
+        P64["6.4 Cost tracking (token harian)"]
+    end
+
+    MAHA -->|"pertanyaan"| P61
+    P61 -->|"session valid"| P62
+    P62 -->|"context (courses)"| P63
+    P63 -->|"OpenAI API (TT: NUXT_AI_API_KEY)"| OPENAI3[("OpenAI")]
+    P63 -->|"reply / SSE stream"| MAHA
+    P63 -->|"usage"| P64
+
+    subgraph PLAYGROUND["PROSES 7.0 — Code Playground"]
+        P71["7.1 Eksekusi Python client-side
+            (Pyodide / WebAssembly)"]
+    end
+    MAHA -->|"kode"| P71
+    P71 -->|"output"| MAHA
+
+    style D_PROF fill:#e8f0fe,stroke:#4285f4
+    style D_COURSE fill:#e8f0fe,stroke:#4285f4
+    style D_ENR fill:#e8f0fe,stroke:#4285f4
+    style D_LESSON fill:#e8f0fe,stroke:#4285f4
+    style D_PROG fill:#e8f0fe,stroke:#4285f4
+    style D_ASSIGN fill:#e8f0fe,stroke:#4285f4
+    style D_SUB fill:#e8f0fe,stroke:#4285f4
+    style D_ANN fill:#e8f0fe,stroke:#4285f4
+    style D_QUIZ fill:#e8f0fe,stroke:#4285f4
+    style D_ATT fill:#e8f0fe,stroke:#4285f4
+    style D_ATTEND fill:#e8f0fe,stroke:#4285f4
+    style D_EVENT fill:#e8f0fe,stroke:#4285f4

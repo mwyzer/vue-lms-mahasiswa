@@ -1,0 +1,192 @@
+---
+title: Entity Relationship Diagram — LMS Mahasiswa
+---
+erDiagram
+    profiles ||--o{ courses : "instructor_id ->"
+    profiles ||--o{ enrollments : "student_id ->"
+    courses ||--o{ enrollments : "course_id ->"
+    courses ||--o{ lessons : "course_id ->"
+    lessons ||--o{ lesson_progress : "lesson_id ->"
+    profiles ||--o{ lesson_progress : "student_id ->"
+    courses ||--o{ assignments : "course_id ->"
+    profiles ||--o{ assignments : "instructor_id ->"
+    assignments ||--o{ submissions : "assignment_id ->"
+    profiles ||--o{ submissions : "student_id ->"
+    courses ||--o{ announcements : "course_id ->"
+    profiles ||--o{ announcements : "instructor_id ->"
+    courses ||--o{ quizzes : "course_id ->"
+    profiles ||--o{ quizzes : "instructor_id ->"
+    quizzes ||--o{ quiz_questions : "quiz_id ->"
+    quizzes ||--o{ quiz_attempts : "quiz_id ->"
+    profiles ||--o{ quiz_attempts : "student_id ->"
+    quizzes ||--o{ quiz_answers : "quiz_id ->"
+    profiles ||--o{ quiz_answers : "student_id ->"
+    quiz_questions ||--o{ quiz_answers : "question_id ->"
+    courses ||--o{ academic_events : "course_id ->"
+    courses ||--o{ attendance : "course_id ->"
+    profiles ||--o{ attendance : "student_id ->"
+    profiles ||--o{ attendance : "instructor_id ->"
+
+    profiles {
+        uuid id PK
+        varchar role "student | instructor | admin"
+        varchar nama
+        varchar npm "mahasiswa saja"
+        varchar kelas "mahasiswa saja"
+        integer level "1-5, mahasiswa saja"
+        varchar session_time "morning | evening, mahasiswa saja"
+        varchar email "instruktur saja"
+        text avatar_url
+        boolean is_demo
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    courses {
+        uuid id PK
+        uuid instructor_id FK
+        varchar kode "unik"
+        varchar nama
+        text deskripsi
+        integer level "1-5"
+        varchar session_time "morning | evening"
+        varchar color
+        varchar icon
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    enrollments {
+        uuid id PK
+        uuid student_id FK "unik per course"
+        uuid course_id FK
+        timestamptz enrolled_at
+    }
+
+    lessons {
+        uuid id PK
+        uuid course_id FK
+        varchar judul
+        text konten
+        text video_url
+        text materi_url
+        integer urutan "unik per course"
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    lesson_progress {
+        uuid id PK
+        uuid student_id FK "unik per lesson"
+        uuid lesson_id FK
+        boolean completed
+        timestamptz completed_at
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    assignments {
+        uuid id PK
+        uuid course_id FK
+        uuid instructor_id FK
+        varchar judul
+        text deskripsi
+        timestamptz tenggat_waktu
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    submissions {
+        uuid id PK
+        uuid assignment_id FK "unik per student"
+        uuid student_id FK
+        text jawaban
+        text file_url
+        integer nilai "0-100"
+        text feedback
+        timestamptz submitted_at
+        timestamptz graded_at
+    }
+
+    announcements {
+        uuid id PK
+        uuid course_id FK
+        uuid instructor_id FK
+        varchar judul
+        text konten
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    quizzes {
+        uuid id PK
+        uuid course_id FK
+        uuid instructor_id FK
+        varchar judul
+        text deskripsi
+        integer time_limit_minutes "default 30"
+        integer passing_score "default 60"
+        boolean is_active "default true"
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    quiz_questions {
+        uuid id PK
+        uuid quiz_id FK
+        text pertanyaan
+        varchar pilihan_a
+        varchar pilihan_b
+        varchar pilihan_c
+        varchar pilihan_d
+        char jawaban_benar "a|b|c|d"
+        integer urutan
+        timestamptz created_at
+    }
+
+    quiz_attempts {
+        uuid id PK
+        uuid quiz_id FK
+        uuid student_id FK
+        integer score
+        integer total_questions
+        integer percentage
+        timestamptz started_at
+        timestamptz submitted_at
+    }
+
+    quiz_answers {
+        uuid id PK
+        uuid quiz_id FK
+        uuid student_id FK
+        uuid question_id FK
+        char jawaban "a|b|c|d"
+        boolean is_correct
+        timestamptz submitted_at
+    }
+
+    academic_events {
+        uuid id PK
+        uuid course_id FK "nullable"
+        varchar judul
+        text deskripsi
+        timestamptz tanggal_mulai
+        timestamptz tanggal_selesai
+        varchar tipe "uts|uas|tugas|libur|acara"
+        varchar color
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    attendance {
+        uuid id PK
+        uuid course_id FK "unik: course+student+pertemuan"
+        uuid student_id FK
+        uuid instructor_id FK
+        date tanggal
+        varchar status "hadir|izin|sakit|alpha"
+        integer pertemuan
+        text keterangan
+        timestamptz created_at
+        timestamptz updated_at
+    }

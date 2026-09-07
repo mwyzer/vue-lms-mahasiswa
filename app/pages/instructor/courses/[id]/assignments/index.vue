@@ -14,6 +14,7 @@ const assignmentsStore = useAssignmentsStore()
 const auth = useAuthStore()
 const notification = useNotification()
 const { exportCourseGrades } = useExportGrades()
+const { fileToBase64, validateAttachmentFile, downloadFile } = useFileAttachment()
 
 const courseId = computed(() => route.params.id as string)
 const showAddForm = ref(false)
@@ -29,6 +30,10 @@ const formJudul = ref('')
 const formDeskripsi = ref('')
 const formTenggat = ref('')
 const saving = ref(false)
+
+// Assignment attachment state
+const formFile = ref<{ name: string; url: string } | null>(null)
+const formFileError = ref('')
 
 // Grading form
 const gradeNilai = ref<number>(0)
@@ -62,11 +67,37 @@ function getStudentNpm(studentId: string): string {
   return s?.npm || ''
 }
 
+function clearFormFile() {
+  formFile.value = null
+  formFileError.value = ''
+}
+
+function handleFormFileSelect(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+
+  const err = validateAttachmentFile(file)
+  if (err) {
+    formFileError.value = err
+    return
+  }
+
+  formFileError.value = ''
+  fileToBase64(file).then((url) => {
+    formFile.value = { name: file.name, url }
+  }).catch(() => {
+    formFileError.value = 'Gagal membaca file.'
+  })
+}
+
 function openAddForm() {
   showEditForm.value = null
   formJudul.value = ''
   formDeskripsi.value = ''
   formTenggat.value = ''
+  clearFormFile()
   showAddForm.value = true
 }
 
@@ -76,11 +107,14 @@ function openEditForm(a: any) {
   formJudul.value = a.judul
   formDeskripsi.value = a.deskripsi || ''
   formTenggat.value = a.tenggat_waktu ? new Date(a.tenggat_waktu).toISOString().slice(0, 16) : ''
+  formFile.value = a.file_url ? { name: a.file_name || 'Lampiran', url: a.file_url } : null
+  formFileError.value = ''
 }
 
 function cancelForm() {
   showAddForm.value = false
   showEditForm.value = null
+  clearFormFile()
 }
 
 async function saveAssignment() {
@@ -100,14 +134,16 @@ async function saveAssignment() {
       judul: formJudul.value.trim(),
       deskripsi: formDeskripsi.value.trim(),
       tenggat_waktu: deadlineISO,
+      file: formFile.value,
     })
     notification.success('Tugas berhasil diperbarui!')
     showEditForm.value = null
   } else {
-    await assignmentsStore.addAssignment(courseId.value, formJudul.value.trim(), formDeskripsi.value.trim(), deadlineISO)
+    await assignmentsStore.addAssignment(courseId.value, formJudul.value.trim(), formDeskripsi.value.trim(), deadlineISO, undefined, formFile.value)
     notification.success('Tugas berhasil ditambahkan!')
     showAddForm.value = false
   }
+  clearFormFile()
   saving.value = false
 }
 
@@ -258,6 +294,21 @@ function formatDate(dateStr: string): string {
             class="form-input"
           />
         </div>
+        <div class="form-group">
+          <label class="form-label">Lampiran (opsional)</label>
+          <div class="file-upload-row">
+            <label class="btn btn-outline btn-sm file-btn">
+              📎 {{ formFile ? 'Ganti file' : 'Lampirkan file' }}
+              <input type="file" class="hidden-input" @change="handleFormFileSelect" />
+            </label>
+            <div v-if="formFile" class="new-file-chip">
+              <span>{{ formFile.name }}</span>
+              <button class="chip-remove" type="button" @click="formFile = null; formFileError = ''">✕</button>
+            </div>
+          </div>
+          <p v-if="formFileError" class="text-sm error-text">{{ formFileError }}</p>
+          <span class="text-xs text-muted">Maksimal 2MB. Mahasiswa bisa mengunduhnya.</span>
+        </div>
         <div class="form-actions">
           <button class="btn btn-ghost btn-sm" @click="cancelForm">Batal</button>
           <button
@@ -302,6 +353,21 @@ function formatDate(dateStr: string): string {
           </div>
           <p v-if="a.deskripsi" class="assignment-desc">{{ a.deskripsi }}</p>
 
+          <!-- Instructor attachment (downloadable, reference for students) -->
+          <div v-if="a.file_url" class="instructor-attachment">
+            <span class="attachment-icon">📎</span>
+            <div class="attachment-info">
+              <span class="attachment-name">{{ a.file_name || 'Lampiran' }}</span>
+            </div>
+            <a
+              :href="a.file_url"
+              :download="a.file_name || 'lampiran'"
+              target="_blank"
+              rel="noopener"
+              class="btn btn-outline btn-sm"
+            >⬇️ Unduh</a>
+          </div>
+
           <!-- Submissions -->
           <div class="submissions-section">
             <p class="submissions-title">Pengumpulan:</p>
@@ -319,6 +385,7 @@ function formatDate(dateStr: string): string {
                 <span class="submission-student">{{ sub.student_name }}</span>
                 <span class="text-sm text-muted">{{ sub.student_npm }}</span>
                 <span class="text-sm text-muted">{{ formatDate(sub.submitted_at) }}</span>
+                <span v-if="sub.file_url" class="file-tag" title="Ada file lampiran">📎</span>
                 <span v-if="sub.nilai != null" class="badge badge-success">
                   {{ sub.nilai }}
                 </span>
@@ -329,7 +396,21 @@ function formatDate(dateStr: string): string {
                 <div class="grade-fields">
                   <div class="form-group">
                     <label class="form-label">Jawaban:</label>
-                    <pre class="jawaban-text">{{ sub.jawaban }}</pre>
+                    <div v-if="sub.file_url" class="submission-file">
+                      <span class="attachment-icon">📎</span>
+                      <div class="attachment-info">
+                        <span class="attachment-name">{{ sub.file_name || 'File Mahasiswa' }}</span>
+                      </div>
+                      <a
+                        :href="sub.file_url"
+                        :download="sub.file_name || 'file-mahasiswa'"
+                        target="_blank"
+                        rel="noopener"
+                        class="btn btn-outline btn-sm"
+                      >⬇️ Unduh</a>
+                    </div>
+                    <pre v-if="sub.jawaban" class="jawaban-text">{{ sub.jawaban }}</pre>
+                    <p v-if="!sub.file_url && !sub.jawaban" class="text-sm text-muted">(Tidak ada jawaban / file)</p>
                   </div>
                   <div class="form-group">
                     <label class="form-label">Nilai (0-100)</label>
@@ -624,6 +705,103 @@ function formatDate(dateStr: string): string {
   border: 1px solid var(--color-neutral-200);
   white-space: pre-wrap;
   line-height: 1.5;
+}
+
+.instructor-attachment,
+.submission-file {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid var(--color-neutral-200);
+  border-radius: 8px;
+  background-color: var(--color-neutral-50);
+}
+
+.attachment-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.attachment-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.attachment-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-neutral-800);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn-outline {
+  background: white;
+  color: var(--color-neutral-800);
+  border: 1px solid var(--color-neutral-300);
+}
+
+.btn-outline:hover {
+  background: var(--color-neutral-100);
+}
+
+.file-upload-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.file-btn {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.hidden-input {
+  display: none;
+}
+
+.new-file-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  background-color: var(--color-accent-soft);
+  color: var(--color-accent-deep);
+  border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  max-width: 220px;
+}
+
+.new-file-chip span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chip-remove {
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.75rem;
+  line-height: 1;
+}
+
+.error-text {
+  color: var(--color-error);
+  margin-top: 0.375rem;
+}
+
+.file-tag {
+  font-size: 0.875rem;
 }
 
 .empty-state {

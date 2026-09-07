@@ -71,6 +71,32 @@ const formCourseId = ref('')
 const formJudul = ref('')
 const formDeskripsi = ref('')
 const formTenggat = ref('')
+const { fileToBase64, validateAttachmentFile } = useFileAttachment()
+const formFile = ref<{ name: string; url: string } | null>(null)
+const formFileError = ref('')
+
+function clearFormFile() {
+  formFile.value = null
+  formFileError.value = ''
+}
+
+function handleFormFileSelect(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+  const err = validateAttachmentFile(file)
+  if (err) {
+    formFileError.value = err
+    return
+  }
+  formFileError.value = ''
+  fileToBase64(file).then((url) => {
+    formFile.value = { name: file.name, url }
+  }).catch(() => {
+    formFileError.value = 'Gagal membaca file.'
+  })
+}
 
 function openAddForm() {
   editingId.value = null
@@ -78,6 +104,7 @@ function openAddForm() {
   formJudul.value = ''
   formDeskripsi.value = ''
   formTenggat.value = ''
+  clearFormFile()
   showForm.value = true
 }
 
@@ -89,12 +116,15 @@ function openEditForm(a: any) {
   formTenggat.value = a.tenggat_waktu
     ? new Date(a.tenggat_waktu).toISOString().slice(0, 16)
     : ''
+  formFile.value = a.file_url ? { name: a.file_name || 'Lampiran', url: a.file_url } : null
+  formFileError.value = ''
   showForm.value = true
 }
 
 function cancelForm() {
   showForm.value = false
   editingId.value = null
+  clearFormFile()
 }
 
 async function saveAssignment() {
@@ -118,6 +148,7 @@ async function saveAssignment() {
         judul: formJudul.value.trim(),
         deskripsi: formDeskripsi.value.trim() || undefined,
         tenggat_waktu: tenggatIso || undefined,
+        file: formFile.value,
       })
       notification.success('Tugas berhasil diperbarui!')
     } else {
@@ -129,12 +160,14 @@ async function saveAssignment() {
         formDeskripsi.value.trim() || '',
         tenggatIso,
         course?.instructor_id,
+        formFile.value,
       )
       notification.success('Tugas berhasil ditambahkan!')
     }
 
     showForm.value = false
     editingId.value = null
+    clearFormFile()
   } catch (err: any) {
     notification.error(err.message || 'Gagal menyimpan tugas.')
   } finally {
@@ -233,6 +266,21 @@ function formatDate(iso?: string | null): string {
             class="form-input"
           />
         </div>
+        <div class="form-group full-width">
+          <label class="form-label">Lampiran (opsional)</label>
+          <div class="file-upload-row">
+            <label class="btn btn-outline btn-sm file-btn">
+              📎 {{ formFile ? 'Ganti file' : 'Lampirkan file' }}
+              <input type="file" class="hidden-input" @change="handleFormFileSelect" />
+            </label>
+            <div v-if="formFile" class="new-file-chip">
+              <span>{{ formFile.name }}</span>
+              <button class="chip-remove" type="button" @click="formFile = null; formFileError = ''">✕</button>
+            </div>
+          </div>
+          <p v-if="formFileError" class="text-sm error-text">{{ formFileError }}</p>
+          <span class="text-xs text-muted">Maksimal 2MB.</span>
+        </div>
       </div>
       <div class="form-actions">
         <button class="btn btn-ghost btn-sm" @click="cancelForm">Batal</button>
@@ -288,6 +336,9 @@ function formatDate(iso?: string | null): string {
                 <div class="assignment-meta">
                   <span v-if="a.tenggat_waktu" class="assignment-deadline">
                     ⏰ {{ formatDate(a.tenggat_waktu) }}
+                  </span>
+                  <span v-if="a.file_name" class="attachment-tag" title="Ada lampiran file">
+                    📎 {{ a.file_name }}
                   </span>
                   <span class="assignment-deskripsi" v-if="a.deskripsi">
                     {{ a.deskripsi.length > 80 ? a.deskripsi.slice(0, 80) + '...' : a.deskripsi }}
@@ -439,6 +490,72 @@ function formatDate(iso?: string | null): string {
   gap: 0.375rem;
   flex-shrink: 0;
   margin-left: 0.75rem;
+}
+
+/* ── Attachment UI ── */
+.attachment-tag {
+  color: var(--color-neutral-500);
+  font-weight: 500;
+}
+
+.file-upload-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.file-btn {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.hidden-input {
+  display: none;
+}
+
+.btn-outline {
+  background: white;
+  color: var(--color-neutral-800);
+  border: 1px solid var(--color-neutral-300);
+}
+
+.btn-outline:hover {
+  background: var(--color-neutral-100);
+}
+
+.new-file-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  background-color: var(--color-accent-soft);
+  color: var(--color-accent-deep);
+  border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  max-width: 220px;
+}
+
+.new-file-chip span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chip-remove {
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.75rem;
+  line-height: 1;
+}
+
+.error-text {
+  color: var(--color-error);
+  margin-top: 0.375rem;
 }
 
 /* ── Empty ── */

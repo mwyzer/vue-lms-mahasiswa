@@ -12,11 +12,41 @@ const router = useRouter()
 const assignmentsStore = useAssignmentsStore()
 const { formatDate, isOverdue, useCountdown } = useAssignments()
 const notification = useNotification()
+const { fileToBase64, validateAttachmentFile, formatFileSize, downloadFile } = useFileAttachment()
 
 const assignmentId = computed(() => route.params.id as string)
 const submitText = ref('')
 const submitting = ref(false)
 const examAutoSubmitted = ref(false)
+
+// ── File attachment ──
+const newFile = ref<{ name: string; url: string } | null>(null)
+const attachmentError = ref('')
+
+function handleFileSelect(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+
+  const err = validateAttachmentFile(file)
+  if (err) {
+    attachmentError.value = err
+    newFile.value = null
+    return
+  }
+
+  attachmentError.value = ''
+  fileToBase64(file).then((url) => {
+    newFile.value = { name: file.name, url }
+  }).catch(() => {
+    attachmentError.value = 'Gagal membaca file.'
+  })
+}
+
+function clearNewFile() {
+  newFile.value = null
+}
 
 // Find the enriched assignment from myAssignments
 const myAssignments = computed(() => assignmentsStore.myAssignments as any[])
@@ -41,8 +71,8 @@ const timeRemaining = countdown.timeRemaining
 // ── Exam Guard (tab switch detection) ──────────
 function examSubmitCallback() {
   // Auto-submit whatever text was entered
-  if (submitText.value.trim()) {
-    assignmentsStore.submitAssignment(assignmentId.value, submitText.value)
+  if (submitText.value.trim() || newFile.value) {
+    assignmentsStore.submitAssignment(assignmentId.value, submitText.value, newFile.value)
   }
   examAutoSubmitted.value = true
 }
@@ -67,15 +97,17 @@ watch(
 const answerCharCount = computed(() => submitText.value.length)
 
 function handleSubmit() {
-  if (!submitText.value.trim()) {
-    notification.warning('Silakan isi jawaban terlebih dahulu.')
+  const hasText = submitText.value.trim().length > 0
+  const hasFile = !!newFile.value
+  if (!hasText && !hasFile) {
+    notification.warning('Silakan isi jawaban atau lampirkan file terlebih dahulu.')
     return
   }
 
   submitting.value = true
   // Simulate small delay
   setTimeout(() => {
-    assignmentsStore.submitAssignment(assignmentId.value, submitText.value)
+    assignmentsStore.submitAssignment(assignmentId.value, submitText.value.trim(), newFile.value)
     notification.success('Tugas berhasil dikumpulkan!')
     examGuard.stop()
     submitting.value = false
@@ -164,6 +196,17 @@ function handleSubmit() {
       <div class="card assignment-body">
         <h3>Deskripsi Tugas</h3>
         <p class="desc-text">{{ assignment.deskripsi }}</p>
+
+        <!-- Assignment attachment -->
+        <div v-if="assignment.file_url" class="assignment-attachment">
+          <span class="attachment-icon">📎</span>
+          <div class="attachment-info">
+            <span class="attachment-name">{{ assignment.file_name || 'Lampiran' }}</span>
+          </div>
+          <button class="btn btn-outline btn-sm" @click="downloadFile(assignment.file_url, assignment.file_name || 'lampiran')">
+            ⬇️ Unduh
+          </button>
+        </div>
       </div>
 
       <!-- Submission form -->
@@ -179,7 +222,16 @@ function handleSubmit() {
             <p class="text-sm text-muted">
               Dikumpulkan pada: {{ formatDate(assignment.submission.submitted_at) }}
             </p>
-            <div class="submission-answer">
+            <div v-if="assignment.submission.file_url" class="submission-file">
+              <span class="attachment-icon">📎</span>
+              <div class="attachment-info">
+                <span class="attachment-name">{{ assignment.submission.file_name || 'File Lampiran' }}</span>
+              </div>
+              <button class="btn btn-outline btn-sm" @click="downloadFile(assignment.submission.file_url, assignment.submission.file_name || 'file-submission')">
+                ⬇️ Unduh
+              </button>
+            </div>
+            <div v-if="assignment.submission.jawaban" class="submission-answer">
               <strong>Jawaban:</strong>
               <pre class="answer-text">{{ assignment.submission.jawaban }}</pre>
             </div>
@@ -204,9 +256,20 @@ function handleSubmit() {
               placeholder="Tulis jawaban Anda di sini..."
               rows="4"
             />
+            <div class="file-upload-row">
+              <label class="btn btn-outline btn-sm file-btn">
+                📎 {{ newFile ? 'Ganti file' : 'Lampirkan file' }}
+                <input type="file" class="hidden-input" @change="handleFileSelect" />
+              </label>
+              <div v-if="newFile" class="new-file-chip">
+                <span>{{ newFile.name }}</span>
+                <button class="chip-remove" type="button" @click="clearNewFile">✕</button>
+              </div>
+            </div>
+            <p v-if="attachmentError" class="text-sm error-text">{{ attachmentError }}</p>
             <button
               class="btn btn-primary btn-sm"
-              :disabled="submitting || !submitText.trim()"
+              :disabled="submitting || (!submitText.trim() && !newFile)"
               @click="handleSubmit"
             >
               {{ submitting ? 'Menyimpan...' : 'Perbarui Jawaban' }}
@@ -223,12 +286,23 @@ function handleSubmit() {
             rows="6"
           />          <div class="textarea-footer">
             <span class="text-xs text-muted">{{ answerCharCount }} karakter</span>
-          </div>          <div class="submit-actions">
+          </div>          <div class="file-upload-row">
+            <label class="btn btn-outline btn-sm file-btn">
+              📎 {{ newFile ? 'Ganti file' : 'Lampirkan file (opsional)' }}
+              <input type="file" class="hidden-input" @change="handleFileSelect" />
+            </label>
+            <div v-if="newFile" class="new-file-chip">
+              <span>{{ newFile.name }}</span>
+              <button class="chip-remove" type="button" @click="clearNewFile">✕</button>
+            </div>
+          </div>
+          <p v-if="attachmentError" class="text-sm error-text">{{ attachmentError }}</p>
+          <div class="submit-actions">
             <div class="submit-row">
               <span class="text-xs text-muted">{{ answerCharCount }} karakter</span>
               <button
                 class="btn btn-primary"
-                :disabled="submitting || !submitText.trim()"
+                :disabled="submitting || (!submitText.trim() && !newFile)"
                 @click="handleSubmit"
               >
                 {{ submitting ? 'Menyimpan...' : 'Kumpulkan Tugas' }}
@@ -439,6 +513,97 @@ function handleSubmit() {
   text-align: center;
   padding: 2rem;
   color: var(--color-neutral-500);
+}
+
+.assignment-attachment,
+.submission-file {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--color-neutral-200);
+  border-radius: 8px;
+  background-color: var(--color-neutral-50);
+}
+
+.attachment-icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.attachment-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.attachment-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-neutral-800);
+  word-break: break-all;
+}
+
+.btn-outline {
+  background: white;
+  color: var(--color-neutral-800);
+  border: 1px solid var(--color-neutral-300);
+}
+
+.btn-outline:hover {
+  background: var(--color-neutral-100);
+}
+
+.file-upload-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.file-btn {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.hidden-input {
+  display: none;
+}
+
+.new-file-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  background-color: var(--color-accent-soft);
+  color: var(--color-accent-deep);
+  border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  max-width: 220px;
+}
+
+.new-file-chip span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chip-remove {
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.75rem;
+  line-height: 1;
+}
+
+.error-text {
+  color: var(--color-error);
+  margin-top: 0.375rem;
 }
 
 .mt-1 {

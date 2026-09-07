@@ -15,7 +15,7 @@ import { useCoursesStore } from './courses'
 
 // ── Demo data (fallback when demoMode=true) ──────────
 export const DEMO_ASSIGNMENTS: Assignment[] = [
-  { id: 'a1', course_id: 'c1', instructor_id: 'i1', judul: 'Tugas 1: Hello World', deskripsi: 'Buat program Hello World dalam Python.', tenggat_waktu: '2025-08-15T23:59:59Z' },
+  { id: 'a1', course_id: 'c1', instructor_id: 'i1', judul: 'Tugas 1: Hello World', deskripsi: 'Buat program Hello World dalam Python.', tenggat_waktu: '2025-08-15T23:59:59Z', file_url: 'data:text/plain;base64,SGVscCBmaWxlOiBwb2xhbWFuLmRmIC0gUGV0dW5q\ndWsgTGFtb3JhbiBwcmluc2lwIEhlbGxvIFdvcmxkIGRhbGFt\nIHBhc3RvbmRhbCBCYXNoLyBXYWtlIGRlbmdhbiBqYXdhYmFu\nIFB5dGhvbi4=', file_name: 'panduan-tugas1.txt' },
   { id: 'a2', course_id: 'c1', instructor_id: 'i1', judul: 'Tugas 2: Kalkulator Sederhana', deskripsi: 'Buat kalkulator sederhana dengan Python.', tenggat_waktu: '2025-08-22T23:59:59Z' },
   { id: 'a3', course_id: 'c2', instructor_id: 'i2', judul: 'Tugas 1: Diagram Venn', deskripsi: 'Buat diagram Venn dari 3 himpunan.', tenggat_waktu: '2025-08-18T23:59:59Z' },
   { id: 'a4', course_id: 'c5', instructor_id: 'i1', judul: 'Tugas 1: Implementasi Array', deskripsi: 'Implementasikan operasi dasar array.', tenggat_waktu: '2025-09-01T23:59:59Z' },
@@ -24,7 +24,7 @@ export const DEMO_ASSIGNMENTS: Assignment[] = [
 
 const DEMO_SUBMISSIONS: Submission[] = [
   { id: 'sub1', assignment_id: 'a1', student_id: 's1', jawaban: 'print("Hello, World!")', submitted_at: '2025-08-14T10:30:00Z', nilai: 90, feedback: 'Bagus! Codingan rapi.', graded_at: '2025-08-15T08:00:00Z' },
-  { id: 'sub2', assignment_id: 'a1', student_id: 's2', jawaban: 'print("Hello World")', submitted_at: '2025-08-14T11:00:00Z' },
+  { id: 'sub2', assignment_id: 'a1', student_id: 's2', jawaban: 'print("Hello World")', submitted_at: '2025-08-14T11:00:00Z', file_url: 'data:text/x-python;base64,cHJpbnQoIkhlbGxvIFdvcmxkIik=', file_name: 'hello.py' },
   { id: 'sub3', assignment_id: 'a2', student_id: 's1', jawaban: '# Kalkulator sederhana\n...', submitted_at: '2025-08-20T14:00:00Z' },
 ]
 
@@ -220,8 +220,9 @@ export const useAssignmentsStore = defineStore('assignments', {
 
     /**
      * Submit an assignment (student).
+     * @param attachment - Optional { url, name } file attachment (base64 data URL in demo, storage URL in production).
      */
-    async submitAssignment(assignmentId: string, jawaban: string) {
+    async submitAssignment(assignmentId: string, jawaban: string, attachment?: { url?: string | null; name?: string | null } | null) {
       const auth = useAuthStore()
       if (!auth.user?.id) return
 
@@ -236,10 +237,16 @@ export const useAssignmentsStore = defineStore('assignments', {
           student_id: auth.user.id,
           jawaban,
           submitted_at: new Date().toISOString(),
+          ...(attachment?.url ? { file_url: attachment.url, file_name: attachment.name || null } : {}),
         }
 
         if (existing >= 0) {
           DEMO_SUBMISSIONS[existing] = { ...DEMO_SUBMISSIONS[existing], ...submission }
+          // Only override previous attachment if a new one was provided.
+          if (attachment?.url) {
+            DEMO_SUBMISSIONS[existing].file_url = attachment.url
+            DEMO_SUBMISSIONS[existing].file_name = attachment.name || null
+          }
         } else {
           DEMO_SUBMISSIONS.push(submission)
         }
@@ -262,10 +269,16 @@ export const useAssignmentsStore = defineStore('assignments', {
           .eq('student_id', auth.user.id)
           .maybeSingle()
 
+        const payload: Record<string, any> = { jawaban, submitted_at: new Date().toISOString() }
+        if (attachment?.url) {
+          payload.file_url = attachment.url
+          payload.file_name = attachment.name || null
+        }
+
         if (existing) {
           await supabase
             .from('submissions')
-            .update({ jawaban, submitted_at: new Date().toISOString() })
+            .update(payload)
             .eq('id', existing.id)
         } else {
           await supabase
@@ -273,8 +286,7 @@ export const useAssignmentsStore = defineStore('assignments', {
             .insert({
               assignment_id: assignmentId,
               student_id: auth.user.id,
-              jawaban,
-              submitted_at: new Date().toISOString(),
+              ...payload,
             })
         }
 
@@ -301,8 +313,9 @@ export const useAssignmentsStore = defineStore('assignments', {
      * @param deskripsi - Assignment description
      * @param tenggatWaktu - ISO deadline string
      * @param instructorId - Optional instructor override (admin use). Defaults to current user.
+     * @param file - Optional file attachment { url, name }.
      */
-    async addAssignment(courseId: string, judul: string, deskripsi: string, tenggatWaktu: string, instructorId?: string) {
+    async addAssignment(courseId: string, judul: string, deskripsi: string, tenggatWaktu: string, instructorId?: string, file?: { url?: string | null; name?: string | null } | null) {
       const auth = useAuthStore()
       const instId = instructorId || auth.user?.id || ''
 
@@ -314,6 +327,7 @@ export const useAssignmentsStore = defineStore('assignments', {
           judul,
           deskripsi,
           tenggat_waktu: tenggatWaktu,
+          ...(file?.url ? { file_url: file.url, file_name: file.name || null } : {}),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
@@ -324,15 +338,21 @@ export const useAssignmentsStore = defineStore('assignments', {
       // Production: insert into Supabase
       try {
         const supabase = useNuxtApp().$supabase
+        const payload: Record<string, any> = {
+          course_id: courseId,
+          instructor_id: instId,
+          judul,
+          deskripsi,
+          tenggat_waktu: tenggatWaktu,
+        }
+        if (file?.url) {
+          payload.file_url = file.url
+          payload.file_name = file.name || null
+        }
+
         const { data } = await supabase
           .from('assignments')
-          .insert({
-            course_id: courseId,
-            instructor_id: instId,
-            judul,
-            deskripsi,
-            tenggat_waktu: tenggatWaktu,
-          })
+          .insert(payload)
           .select()
           .single()
 
@@ -346,14 +366,25 @@ export const useAssignmentsStore = defineStore('assignments', {
 
     /**
      * Update an existing assignment (instructor).
+     * @param data - Fields to update; include `file` to set/replace an attachment,
+     *               or `file: null` / `file: undefined` to leave it unchanged.
      */
-    async updateAssignment(assignmentId: string, data: { judul?: string; deskripsi?: string; tenggat_waktu?: string }) {
+    async updateAssignment(assignmentId: string, data: { judul?: string; deskripsi?: string; tenggat_waktu?: string; file?: { url?: string | null; name?: string | null } | null }) {
       if (this.isDemoMode) {
         const idx = DEMO_ASSIGNMENTS.findIndex((a) => a.id === assignmentId)
         if (idx >= 0) {
           if (data.judul !== undefined) DEMO_ASSIGNMENTS[idx].judul = data.judul
           if (data.deskripsi !== undefined) DEMO_ASSIGNMENTS[idx].deskripsi = data.deskripsi
           if (data.tenggat_waktu !== undefined) DEMO_ASSIGNMENTS[idx].tenggat_waktu = data.tenggat_waktu
+          if (data.file !== undefined) {
+            if (data.file?.url) {
+              DEMO_ASSIGNMENTS[idx].file_url = data.file.url
+              DEMO_ASSIGNMENTS[idx].file_name = data.file.name || null
+            } else {
+              DEMO_ASSIGNMENTS[idx].file_url = null
+              DEMO_ASSIGNMENTS[idx].file_name = null
+            }
+          }
           DEMO_ASSIGNMENTS[idx].updated_at = new Date().toISOString()
         }
         this._syncDemo()
@@ -366,6 +397,10 @@ export const useAssignmentsStore = defineStore('assignments', {
         if (data.judul !== undefined) payload.judul = data.judul
         if (data.deskripsi !== undefined) payload.deskripsi = data.deskripsi
         if (data.tenggat_waktu !== undefined) payload.tenggat_waktu = data.tenggat_waktu
+        if (data.file !== undefined) {
+          payload.file_url = data.file?.url ?? null
+          payload.file_name = data.file?.url ? data.file.name || null : null
+        }
 
         await supabase.from('assignments').update(payload).eq('id', assignmentId)
 
@@ -374,6 +409,10 @@ export const useAssignmentsStore = defineStore('assignments', {
           if (data.judul !== undefined) this.sbAssignments[idx].judul = data.judul
           if (data.deskripsi !== undefined) this.sbAssignments[idx].deskripsi = data.deskripsi
           if (data.tenggat_waktu !== undefined) this.sbAssignments[idx].tenggat_waktu = data.tenggat_waktu
+          if (data.file !== undefined) {
+            this.sbAssignments[idx].file_url = data.file?.url ?? null
+            this.sbAssignments[idx].file_name = data.file?.url ? data.file.name || null : null
+          }
         }
       } catch (err) {
         console.error('Failed to update assignment:', err)

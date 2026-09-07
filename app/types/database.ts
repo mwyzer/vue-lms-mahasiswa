@@ -67,6 +67,9 @@ export interface Assignment {
   judul: string
   deskripsi?: string | null
   tenggat_waktu?: string | null
+  /** Optional reference file attached to the assignment brief. */
+  file_url?: string | null
+  file_name?: string | null
   created_at: string
   updated_at: string
 }
@@ -77,6 +80,7 @@ export interface Submission {
   student_id: string
   jawaban?: string | null
   file_url?: string | null
+  file_name?: string | null
   nilai?: number | null
   feedback?: string | null
   submitted_at: string

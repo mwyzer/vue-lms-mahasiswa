@@ -95,6 +95,8 @@ CREATE TABLE assignments (
   judul VARCHAR(255) NOT NULL,
   deskripsi TEXT,
   tenggat_waktu TIMESTAMPTZ,
+  file_url TEXT,
+  file_name TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -106,6 +108,7 @@ CREATE TABLE submissions (
   student_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   jawaban TEXT,
   file_url TEXT,
+  file_name TEXT,
   nilai INTEGER CHECK (nilai BETWEEN 0 AND 100),
   feedback TEXT,
   submitted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

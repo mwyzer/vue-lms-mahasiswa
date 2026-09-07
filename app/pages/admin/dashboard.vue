@@ -12,12 +12,24 @@ import { useDashboard } from '~/composables/useDashboard'
 import { useAiUsage } from '~/composables/useAiUsage'
 
 const auth = useAuthStore()
+const ui = useUiStore()
 const coursesStore = useCoursesStore()
 const assignmentsStore = useAssignmentsStore()
 const { data: aiUsage, loading: aiUsageLoading, error: aiUsageError, fetch: fetchAiUsage } = useAiUsage()
 const { greeting: getGreeting } = useDashboard()
 
 const greeting = computed(() => getGreeting())
+const isDemo = computed(() => ui.isDemoMode)
+const switchingData = ref(false)
+
+async function toggleDataSource() {
+  switchingData.value = true
+  try {
+    await ui.toggleDemoMode()
+  } finally {
+    switchingData.value = false
+  }
+}
 
 onMounted(() => {
   coursesStore.init()
@@ -53,7 +65,21 @@ const studentsByLevel = computed(() => {
         <h1>{{ greeting }}, {{ userName }} 🛡️</h1>
         <p class="text-muted">Panel administrasi sistem — kelola seluruh data LMS.</p>
       </div>
-      <div class="header-badge">
+      <div class="header-actions">
+        <button
+          class="data-toggle-btn"
+          :class="isDemo ? 'data-toggle-demo' : 'data-toggle-live'"
+          :disabled="switchingData"
+          :title="isDemo ? 'Menggunakan data demo lokal. Klik untuk beralih ke Supabase.' : 'Menggunakan data Supabase. Klik untuk beralih ke data demo.'"
+          @click="toggleDataSource"
+        >
+          <span v-if="switchingData" class="toggle-spinner" />
+          <span v-else class="toggle-icon">{{ isDemo ? '🗄️' : '☁️' }}</span>
+          <span class="toggle-label">
+            <span class="toggle-state">{{ isDemo ? 'Demo Mode' : 'Live Mode' }}</span>
+            <span class="toggle-source">{{ isDemo ? 'Data lokal' : 'Supabase' }}</span>
+          </span>
+        </button>
         <span class="badge badge-danger">Administrator</span>
       </div>
     </div>
@@ -436,6 +462,84 @@ const studentsByLevel = computed(() => {
   border-radius: 999px;
   font-size: 0.75rem;
   font-weight: 600;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.data-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.875rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  background: var(--bg-card, #ffffff);
+  cursor: pointer;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.data-toggle-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,.05));
+}
+
+.data-toggle-btn:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.data-toggle-demo {
+  background-color: #fef3c7;
+  border-color: #fde68a;
+  color: #92400e;
+}
+
+.data-toggle-live {
+  background-color: #e0f2fe;
+  border-color: #bae6fd;
+  color: #0369a1;
+}
+
+.toggle-icon {
+  font-size: 1rem;
+}
+
+.toggle-label {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.1;
+}
+
+.toggle-state {
+  font-weight: 700;
+}
+
+.toggle-source {
+  font-size: 0.625rem;
+  font-weight: 500;
+  opacity: 0.75;
+}
+
+.toggle-spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin-ts 0.6s linear infinite;
+}
+
+@keyframes spin-ts {
+  to { transform: rotate(360deg); }
 }
 
 @media (max-width: 768px) {

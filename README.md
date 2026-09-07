@@ -131,7 +131,7 @@ Video conference, live chat, forum diskusi, plagiarism checker, integrasi pembay
 
 ### Roadmap Setelah MVP
 
-- **v1.1:** Forum diskusi, notifikasi email, leaderboard quiz
+- **v1.1:** ✅ Leaderboard quiz — forum diskusi, notifikasi email
 - **v1.2:** Export nilai, push notification
 - **v2.0:** Multi-campus, AI learning assistant (enhanced), analitik pembelajaran, plagiarism checker
 
@@ -450,6 +450,52 @@ Supabase JavaScript Client
 
 **Supabase bertanggung jawab untuk:** Akun pengguna, session, penyimpanan data, otorisasi data, penyimpanan file, relasi database
 
+### Data Flow Diagram (Level 0 — Konteks)
+
+```mermaid
+flowchart TB
+    subgraph SYS["LMS Mahasiswa"]
+        APP["Nuxt 4 Application
+            Pages / Components / Pinia / Middleware"]
+        SRV["Nuxt Server (Nitro)
+            /api/auth /api/ai + CostTracker / RateLimiter"]
+        SB["Supabase
+            PostgreSQL + RLS + Data API"]
+    end
+
+    MAHA["Mahasiswa"] -->|"Login Nama+NPM"| APP
+    APP -->|"1. Request session"| SRV
+    SRV -->|"2. Set signed cookie (lms_session)"| APP
+    APP -->|"Query data (courses, lessons,
+        progress, assignments, submissions,
+        quizzes, attendance, calendar)"| SB
+    SB -->|"Data pribadi sesuai RLS"| APP
+
+    INSTRUK["Instruktur"] -->|"Login Nama"| APP
+    APP -->|"CRUD materi, tugas, nilai,
+        presensi, quiz, pengumuman"| SB
+    SB -->|"Data MK yang diampu"| APP
+
+    ADMIN["Admin"] -->|"Login (admin123)"| APP
+    APP -->|"CRUD mahasiswa, instruktur,
+        mata kuliah, lihat tugas"| SB
+    SB -->|"Data master"| APP
+
+    MAHA -->|"Ask materi/tugas"| APP
+    APP -->|"POST /api/ai/chat"| SRV
+    SRV -->|"OpenAI API
+        (NUXT_AI_API_KEY)"| OPENAI[("OpenAI API")]
+    OPENAI -->|"SSE reply / JSON"| SRV
+    SRV -->|"reply + sources"| APP
+    APP -->|"AI reply"| MAHA
+
+    APP -->|"Playground (Pyodide)"| PYODIDE[("Pyodide
+        Client-side Python")]
+    PYODIDE -->|"hasil eksekusi"| APP
+```
+
+> Diagram ini tersedia juga di `docs/dfd-level0.mmd`.
+
 ### Struktur Folder
 
 ```
@@ -550,6 +596,333 @@ Ketentuan:
 ---
 
 ## 4. Database & Keamanan
+
+### Entity Relationship Diagram
+
+```mermaid
+erDiagram
+    profiles ||--o{ courses : "instructor_id ->"
+    profiles ||--o{ enrollments : "student_id ->"
+    courses ||--o{ enrollments : "course_id ->"
+    courses ||--o{ lessons : "course_id ->"
+    lessons ||--o{ lesson_progress : "lesson_id ->"
+    profiles ||--o{ lesson_progress : "student_id ->"
+    courses ||--o{ assignments : "course_id ->"
+    profiles ||--o{ assignments : "instructor_id ->"
+    assignments ||--o{ submissions : "assignment_id ->"
+    profiles ||--o{ submissions : "student_id ->"
+    courses ||--o{ announcements : "course_id ->"
+    profiles ||--o{ announcements : "instructor_id ->"
+    courses ||--o{ quizzes : "course_id ->"
+    profiles ||--o{ quizzes : "instructor_id ->"
+    quizzes ||--o{ quiz_questions : "quiz_id ->"
+    quizzes ||--o{ quiz_attempts : "quiz_id ->"
+    profiles ||--o{ quiz_attempts : "student_id ->"
+    quizzes ||--o{ quiz_answers : "quiz_id ->"
+    profiles ||--o{ quiz_answers : "student_id ->"
+    quiz_questions ||--o{ quiz_answers : "question_id ->"
+    courses ||--o{ academic_events : "course_id ->"
+    courses ||--o{ attendance : "course_id ->"
+    profiles ||--o{ attendance : "student_id ->"
+    profiles ||--o{ attendance : "instructor_id ->"
+
+    profiles {
+        uuid id PK
+        varchar role "student | instructor | admin"
+        varchar nama
+        varchar npm "mahasiswa saja"
+        varchar kelas "mahasiswa saja"
+        integer level "1-5, mahasiswa saja"
+        varchar session_time "morning | evening, mahasiswa saja"
+        varchar email "instruktur saja"
+        text avatar_url
+        boolean is_demo
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    courses {
+        uuid id PK
+        uuid instructor_id FK
+        varchar kode "unik"
+        varchar nama
+        text deskripsi
+        integer level "1-5"
+        varchar session_time "morning | evening"
+        varchar color
+        varchar icon
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    enrollments {
+        uuid id PK
+        uuid student_id FK "unik per course"
+        uuid course_id FK
+        timestamptz enrolled_at
+    }
+
+    lessons {
+        uuid id PK
+        uuid course_id FK
+        varchar judul
+        text konten
+        text video_url
+        text materi_url
+        integer urutan "unik per course"
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    lesson_progress {
+        uuid id PK
+        uuid student_id FK "unik per lesson"
+        uuid lesson_id FK
+        boolean completed
+        timestamptz completed_at
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    assignments {
+        uuid id PK
+        uuid course_id FK
+        uuid instructor_id FK
+        varchar judul
+        text deskripsi
+        timestamptz tenggat_waktu
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    submissions {
+        uuid id PK
+        uuid assignment_id FK "unik per student"
+        uuid student_id FK
+        text jawaban
+        text file_url
+        integer nilai "0-100"
+        text feedback
+        timestamptz submitted_at
+        timestamptz graded_at
+    }
+
+    announcements {
+        uuid id PK
+        uuid course_id FK
+        uuid instructor_id FK
+        varchar judul
+        text konten
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    quizzes {
+        uuid id PK
+        uuid course_id FK
+        uuid instructor_id FK
+        varchar judul
+        text deskripsi
+        integer time_limit_minutes "default 30"
+        integer passing_score "default 60"
+        boolean is_active "default true"
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    quiz_questions {
+        uuid id PK
+        uuid quiz_id FK
+        text pertanyaan
+        varchar pilihan_a
+        varchar pilihan_b
+        varchar pilihan_c
+        varchar pilihan_d
+        char jawaban_benar "a|b|c|d"
+        integer urutan
+        timestamptz created_at
+    }
+
+    quiz_attempts {
+        uuid id PK
+        uuid quiz_id FK
+        uuid student_id FK
+        integer score
+        integer total_questions
+        integer percentage
+        timestamptz started_at
+        timestamptz submitted_at
+    }
+
+    quiz_answers {
+        uuid id PK
+        uuid quiz_id FK
+        uuid student_id FK
+        uuid question_id FK
+        char jawaban "a|b|c|d"
+        boolean is_correct
+        timestamptz submitted_at
+    }
+
+    academic_events {
+        uuid id PK
+        uuid course_id FK "nullable"
+        varchar judul
+        text deskripsi
+        timestamptz tanggal_mulai
+        timestamptz tanggal_selesai
+        varchar tipe "uts|uas|tugas|libur|acara"
+        varchar color
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    attendance {
+        uuid id PK
+        uuid course_id FK "unik: course+student+pertemuan"
+        uuid student_id FK
+        uuid instructor_id FK
+        date tanggal
+        varchar status "hadir|izin|sakit|alpha"
+        integer pertemuan
+        text keterangan
+        timestamptz created_at
+        timestamptz updated_at
+    }
+```
+
+> Diagram ini tersedia juga di `docs/erd.mmd`.
+
+### Data Flow Diagram (Level 1)
+
+```mermaid
+flowchart TB
+    MAHA["MAHA: Mahasiswa"]
+    INSTRUK["INSTRUK: Instruktur"]
+    ADMIN["ADMIN: Administrator"]
+
+    subgraph APP["PROSES 1.0 — Autentikasi (Nuxt Server)"]
+        P11["1.1 Validasi identity
+            (level+session+daftar mahasiswa /
+            daftar instruktur)"]
+        P12["1.2 Buat signed cookie
+            HMAC lms_session (24 jam)"]
+        P13["1.3 Guard routing
+            per role (middleware)"]
+    end
+
+    MAHA -->|"identitas (Nama+NPM)"| P11
+    INSTRUK -->|"identitas (Nama)"| P11
+    ADMIN -->|"password admin"| P11
+    P11 --> P12
+    P12 -->|"cookie lms_session"| APP
+    APP -->|"role + session"| P13
+
+    subgraph PROFILE_STORE["PROSES 2.0 — Kelola Profil & Data Master (Supabase)"]
+        P21["2.1 CRUD profil
+            (admin: student/instructor)"]
+        P22["2.2 CRUD mata kuliah
+            (admin; instruktur: MK diampu)"]
+        P23["2.3 Kelola enrollment
+            (student -> course)"]
+    end
+
+    ADMIN -->|"CRUD profil"| P21
+    P21 -->|"profiles"| D_PROF[("D1: profiles")]
+    D_PROF -->|"roster level+session"| P11
+
+    ADMIN -->|"CRUD MK"| P22
+    INSTRUK -->|"buat/ubah MK"| P22
+    P22 -->|"courses"| D_COURSE[("D2: courses")]
+    D_COURSE -->|"daftar MK"| P23
+    P23 -->|"enrollments"| D_ENR[("D3: enrollments")]
+
+    subgraph BELAJAR["PROSES 3.0 — Proses Belajar (Mahasiswa)"]
+        P31["3.1 Lihat MK + materi"]
+        P32["3.2 Toggle progress materi"]
+        P33["3.3 Lihat assignment & submit"]
+        P34["3.4 Ambil quiz + submit jawaban"]
+        P35["3.5 Lihat nilai, feedback, rekap presensi"]
+    end
+
+    D_COURSE -->|"MK diikuti"| P31
+    D_ENR -->|"enrollment"| P31
+    P31 -->|"materi"| D_LESSON[("D4: lessons")]
+    P32 -->|"progress"| D_PROG[("D5: lesson_progress")]
+    P33 -->|"submission"| D_SUB[("D7: submissions")]
+    P35 -->|"nilai + feedback"| D_SUB
+    P34 -->|"attempt + answers"| D_ATT[("D10: quiz_attempts + quiz_answers")]
+    P35 -->|"rekap presensi"| D_ATTEND[("D11: attendance")]
+
+    subgraph INSTRUCTOR_FLOW["PROSES 4.0 — Pengelolaan Instruktur (Instruktur)"]
+        P41["4.1 CRUD materi"]
+        P42["4.2 CRUD tugas"]
+        P43["4.3 Nilai & feedback submission
+            (termasuk direct grading)"]
+        P44["4.4 Catat presensi per pertemuan"]
+        P45["4.5 CRUD quiz (soal & jawaban)"]
+        P46["4.6 Buat pengumuman"]
+    end
+
+    INSTRUK -->|"kelola"| P41
+    P41 -->|"lessons"| D_LESSON
+    INSTRUK -->|"kelola"| P42
+    P42 -->|"assignments"| D_ASSIGN[("D6: assignments")]
+    P43 -->|"nilai + feedback"| D_SUB
+    P44 -->|"attendance"| D_ATTEND
+    P45 -->|"quiz + soal"| D_QUIZ[("D9: quizzes + quiz_questions")]
+    P46 -->|"announcements"| D_ANN[("D8: announcements")]
+
+    subgraph KALENDER["PROSES 5.0 — Kalender Akademik (read-only)"]
+        P51["5.1 Lihat event UTS/UAS/tugas/libur"]
+    end
+    D_EVENT[("D12: academic_events")] -->|"events"| P51
+    P51 -->|"daftar + timeline"| MAHA
+    P51 -->|"daftar + timeline"| INSTRUK
+
+    D_ANN -->|"pengumuman"| P31
+    D_ASSIGN -->|"tugas + deadline"| P33
+    D_QUIZ -->|"quiz aktif"| P34
+
+    subgraph AICHAT["PROSES 6.0 — AI Chat Assistant"]
+        P61["6.1 Middleware guard
+            auth + rate limit (20/mnt user, 100/mnt global)"]
+        P62["6.2 Compose system prompt +
+            konteks MK mahasiswa"]
+        P63["6.3 OpenAI-compatible API
+            atau demo knowledge-base"]
+        P64["6.4 Cost tracking (token harian)"]
+    end
+
+    MAHA -->|"pertanyaan"| P61
+    P61 -->|"session valid"| P62
+    P62 -->|"context (courses)"| P63
+    P63 -->|"OpenAI API (TT: NUXT_AI_API_KEY)"| OPENAI3[("OpenAI")]
+    P63 -->|"reply / SSE stream"| MAHA
+    P63 -->|"usage"| P64
+
+    subgraph PLAYGROUND["PROSES 7.0 — Code Playground"]
+        P71["7.1 Eksekusi Python client-side
+            (Pyodide / WebAssembly)"]
+    end
+    MAHA -->|"kode"| P71
+    P71 -->|"output"| MAHA
+
+    style D_PROF fill:#e8f0fe,stroke:#4285f4
+    style D_COURSE fill:#e8f0fe,stroke:#4285f4
+    style D_ENR fill:#e8f0fe,stroke:#4285f4
+    style D_LESSON fill:#e8f0fe,stroke:#4285f4
+    style D_PROG fill:#e8f0fe,stroke:#4285f4
+    style D_ASSIGN fill:#e8f0fe,stroke:#4285f4
+    style D_SUB fill:#e8f0fe,stroke:#4285f4
+    style D_ANN fill:#e8f0fe,stroke:#4285f4
+    style D_QUIZ fill:#e8f0fe,stroke:#4285f4
+    style D_ATT fill:#e8f0fe,stroke:#4285f4
+    style D_ATTEND fill:#e8f0fe,stroke:#4285f4
+    style D_EVENT fill:#e8f0fe,stroke:#4285f4
+```
+
+> Diagram ini tersedia juga di `docs/dfd-level1.mmd`.
 
 ### Database Schema
 

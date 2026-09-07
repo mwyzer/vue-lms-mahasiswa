@@ -147,6 +147,11 @@ function getTimerClass(): string {
         </div>
       </div>
 
+      <div class="result-leaderboard">
+        <h3 class="lb-title">🏆 Peringkat Kuis</h3>
+        <QuizLeaderboard :quiz-id="quizId" />
+      </div>
+
       <button class="btn btn-primary" @click="goBack">
         Kembali ke Daftar Kuis
       </button>
@@ -488,6 +493,18 @@ function getTimerClass(): string {
   width: 1px;
   height: 40px;
   background: var(--color-border);
+}
+
+.result-leaderboard {
+  margin: 1.5rem 0;
+  text-align: left;
+  border-top: 1px solid var(--color-border);
+  padding-top: 1rem;
+}
+
+.lb-title {
+  font-size: 0.95rem;
+  margin: 0 0 0.75rem;
 }
 
 .empty-state {

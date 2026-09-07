@@ -9,7 +9,7 @@ definePageMeta({
 })
 
 import type { Quiz, QuizQuestion } from '~/types/database'
-import { useQuizStore } from '~/stores/quiz'
+import { useQuizStore, parseQuestionsCsv } from '~/stores/quiz'
 import { useCoursesStore } from '~/stores/courses'
 import { useAuthStore } from '~/stores/auth'
 import { useNotification } from '~/composables/useNotification'
@@ -257,6 +257,57 @@ async function deleteQuestion(questionId: string) {
   await quizStore.deleteQuestion(questionId)
   notification.success('Soal berhasil dihapus.')
 }
+
+// ── CSV Import ──
+const importFileInput = ref<HTMLInputElement | null>(null)
+const importing = ref(false)
+
+function openCsvImport() {
+  importFileInput.value?.click()
+}
+
+async function onCsvFileChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+
+  const reader = new FileReader()
+  reader.onload = async () => {
+    if (importing.value) return
+    importing.value = true
+    try {
+      const rows = parseQuestionsCsv(String(reader.result ?? ''))
+      if (rows.length === 0) {
+        notification.warning('Tidak ada soal valid di file CSV. Periksa format: pertanyaan,pilihan_a,pilihan_b,pilihan_c,pilihan_d,jawaban_benar')
+        return
+      }
+      const quizId = expandedQuizId.value
+      if (!quizId) return
+      const added = await quizStore.addQuestionsBulk(quizId, rows)
+      if (added > 0) {
+        notification.success(`${added} soal berhasil diimpor dari CSV.`)
+      } else {
+        notification.error('Gagal mengimpor soal. Coba lagi.')
+      }
+    } finally {
+      importing.value = false
+    }
+  }
+  reader.readAsText(file)
+}
+
+function downloadCsvTemplate() {
+  const header = 'pertanyaan,pilihan_a,pilihan_b,pilihan_c,pilihan_d,jawaban_benar\n'
+  const example = '"Apa kepanjangan dari IDE?",Integrated Development Environment,Internal Development Engine,Internet Data Exchange,Integrated Design Editor,a\n'
+  const blob = new Blob([header + example], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'template-soal-kuis.csv'
+  a.click()
+  URL.revokeObjectURL(url)
+}
 </script>
 
 <template>
@@ -389,11 +440,29 @@ async function deleteQuestion(questionId: string) {
             <div v-if="expandedQuizId === quiz.id" class="questions-section">
               <div class="questions-header">
                 <h4>Daftar Soal</h4>
-                <button class="btn btn-primary btn-sm" @click="openAddQuestionForm">+ Soal</button>
+                <div class="questions-actions">
+                  <button class="btn btn-ghost btn-sm" @click="downloadCsvTemplate">📄 Template CSV</button>
+                  <button class="btn btn-ghost btn-sm" :disabled="importing" @click="openCsvImport">
+                    {{ importing ? 'Mengimpor...' : '⬆ Import CSV' }}
+                  </button>
+                  <button class="btn btn-primary btn-sm" @click="openAddQuestionForm">+ Soal</button>
+                  <input
+                    ref="importFileInput"
+                    type="file"
+                    accept=".csv,text/csv"
+                    class="csv-file-input"
+                    @change="onCsvFileChange"
+                  />
+                </div>
+              </div>
+
+              <div class="text-sm text-muted csv-hint">
+                Format CSV: <code>pertanyaan, pilihan_a, pilihan_b, pilihan_c, pilihan_d, jawaban_benar</code>
+                (jawaban_benar: a/b/c/d).
               </div>
 
               <div v-if="expandedQuizQuestions.length === 0" class="text-sm text-muted">
-                Belum ada soal. Tambahkan soal sekarang.
+                Belum ada soal. Tambahkan soal sekarang atau impor dari CSV.
               </div>
 
               <div v-for="(q, idx) in expandedQuizQuestions" :key="q.id" class="question-row">
@@ -673,6 +742,28 @@ async function deleteQuestion(questionId: string) {
 
 .questions-header h4 {
   margin: 0;
+}
+
+.questions-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.csv-file-input {
+  display: none;
+}
+
+.csv-hint {
+  margin: -0.25rem 0 0.75rem;
+}
+
+.csv-hint code {
+  background: var(--color-bg-secondary, #f8fafc);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
 }
 
 .question-row {

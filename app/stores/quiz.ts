@@ -24,6 +24,107 @@ export type QuestionUpdateData = {
   urutan?: number
 }
 
+export type CsvQuestionRow = {
+  pertanyaan: string
+  pilihan_a: string
+  pilihan_b: string
+  pilihan_c: string
+  pilihan_d: string
+  jawaban_benar: 'a' | 'b' | 'c' | 'd'
+}
+
+/**
+ * Parse quiz-question CSV text into structured rows.
+ * Expected columns: pertanyaan, pilihan_a, pilihan_b, pilihan_c, pilihan_d, jawaban_benar.
+ * A header row (first row containing "pertanyaan") is optional.
+ * Invalid / incomplete rows are skipped.
+ */
+export function parseQuestionsCsv(csv: string): CsvQuestionRow[] {
+  const text = csv.replace(/^\uFEFF/, '')
+  const rows = parseCsvRows(text)
+  const result: CsvQuestionRow[] = []
+
+  let startIdx = 0
+  if (rows.length > 0 && isCsvHeaderRow(rows[0])) {
+    startIdx = 1
+  }
+
+  for (let i = startIdx; i < rows.length; i++) {
+    const row = rows[i]
+    if (!row || row.every((cell) => !cell.trim())) continue
+    if (row.length < 6) continue
+
+    const jawaban = (row[5] || '').trim().toLowerCase()
+    if (!['a', 'b', 'c', 'd'].includes(jawaban)) continue
+
+    const question = {
+      pertanyaan: (row[0] || '').trim(),
+      pilihan_a: (row[1] || '').trim(),
+      pilihan_b: (row[2] || '').trim(),
+      pilihan_c: (row[3] || '').trim(),
+      pilihan_d: (row[4] || '').trim(),
+      jawaban_benar: jawaban as 'a' | 'b' | 'c' | 'd',
+    }
+    if (!question.pertanyaan || !question.pilihan_a || !question.pilihan_b ||
+        !question.pilihan_c || !question.pilihan_d) continue
+
+    result.push(question)
+  }
+
+  return result
+}
+
+/** Detect a CSV header row: first cell is "pertanyaan" and other known column labels present. */
+function isCsvHeaderRow(row: string[]): boolean {
+  const norm = (s: string) => s.trim().toLowerCase().replace(/[^a-z0-9_]/g, '')
+  const cells = row.map(norm)
+  return norm(row[0] || '') === 'pertanyaan'
+    && cells.includes('pilihan_a')
+    && cells.includes('jawaban_benar')
+}
+
+/** Minimal quoted-CSV parser → array of string arrays. */
+function parseCsvRows(text: string): string[][] {
+  const rows: string[][] = []
+  let row: string[] = []
+  let field = ''
+  let inQuotes = false
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]
+    if (inQuotes) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') {
+          field += '"'
+          i++
+        } else {
+          inQuotes = false
+        }
+      } else {
+        field += ch
+      }
+    } else if (ch === '"') {
+      inQuotes = true
+    } else if (ch === ',') {
+      row.push(field)
+      field = ''
+    } else if (ch === '\n') {
+      row.push(field)
+      rows.push(row)
+      row = []
+      field = ''
+    } else if (ch !== '\r') {
+      field += ch
+    }
+  }
+  row.push(field)
+  rows.push(row)
+  return rows
+}
+
+/** Demo question id sequencer — avoids collisions on rapid bulk inserts. */
+let demoQuestionSeq = 0
+
 // ── Demo Quizzes ──────────────────────────────────────────────
 const DEMO_QUIZZES: Quiz[] = [
   {
@@ -157,6 +258,19 @@ export const useQuizStore = defineStore('quiz', {
     attemptsForQuiz(): (quizId: string) => QuizAttempt[] {
       return (quizId: string) =>
         this.attempts.filter(a => a.quiz_id === quizId)
+    },
+
+    /** Leaderboard for a quiz: attempts ranked by best percentage, then shortest duration. */
+    leaderboardForQuiz(): (quizId: string) => (QuizAttempt & { rank: number })[] {
+      return (quizId: string) =>
+        this.attempts
+          .filter(a => a.quiz_id === quizId)
+          .sort((a, b) => {
+            const durA = new Date(a.submitted_at).getTime() - new Date(a.started_at).getTime()
+            const durB = new Date(b.submitted_at).getTime() - new Date(b.started_at).getTime()
+            return b.percentage - a.percentage || durA - durB
+          })
+          .map((a, idx) => ({ ...a, rank: idx + 1 }))
     },
 
     /** All attempts by a student */
@@ -499,7 +613,58 @@ export const useQuizStore = defineStore('quiz', {
       return newQ
     },
 
-    /** Update an existing question */
+    /**
+     * Bulk-add questions to a quiz (used by CSV import).
+     * Returns the number of questions successfully added.
+     */
+    async addQuestionsBulk(quizId: string, questions: CsvQuestionRow[]): Promise<number> {
+      if (questions.length === 0) return 0
+
+      const baseUrutan = this.questions.filter(q => q.quiz_id === quizId).length
+      const now = new Date().toISOString()
+
+      if (this.isDemoMode) {
+        questions.forEach((q, i) => {
+          demoQuestionSeq++
+          DEMO_QUESTIONS.push({
+            id: `qq${Date.now()}_${demoQuestionSeq}`,
+            quiz_id: quizId,
+            ...q,
+            urutan: baseUrutan + i + 1,
+            created_at: now,
+          })
+        })
+      } else {
+        try {
+          const supabase = useNuxtApp().$supabase
+          const rows = questions.map((q, i) => ({
+            quiz_id: quizId,
+            pertanyaan: q.pertanyaan,
+            pilihan_a: q.pilihan_a,
+            pilihan_b: q.pilihan_b,
+            pilihan_c: q.pilihan_c,
+            pilihan_d: q.pilihan_d,
+            jawaban_benar: q.jawaban_benar,
+            urutan: baseUrutan + i + 1,
+          }))
+
+          const { error } = await supabase.from('quiz_questions').insert(rows)
+          if (error) throw error
+
+          // Refresh questions for this quiz from Supabase
+          const { data } = await supabase.from('quiz_questions').select('*').eq('quiz_id', quizId).order('urutan')
+          if (data) {
+            this.sbQuestions = this.sbQuestions.filter(q => q.quiz_id !== quizId).concat(data as QuizQuestion[])
+          }
+        } catch (err) {
+          console.error('Failed to bulk-add questions to Supabase:', err)
+          return 0
+        }
+      }
+
+      this._syncState()
+      return questions.length
+    },
     async updateQuestion(questionId: string, data: QuestionUpdateData) {
       if (this.isDemoMode) {
         const idx = DEMO_QUESTIONS.findIndex(q => q.id === questionId)

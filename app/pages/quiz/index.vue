@@ -40,6 +40,12 @@ function startQuiz(quizId: string) {
   router.push(`/quiz/${quizId}`)
 }
 
+const expandedLeaderboard = ref<string | null>(null)
+
+function toggleLeaderboard(quizId: string) {
+  expandedLeaderboard.value = expandedLeaderboard.value === quizId ? null : quizId
+}
+
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('id-ID', {
     day: 'numeric', month: 'long', year: 'numeric',
@@ -93,13 +99,22 @@ function getCourseName(quiz: any): string {
               Nilai: {{ getAttemptScore(quiz.id) }}%
             </span>
           </div>
-          <button
-            class="btn btn-primary btn-sm"
-            :disabled="attemptedQuizzes.has(quiz.id)"
-            @click="startQuiz(quiz.id)"
-          >
-            {{ attemptedQuizzes.has(quiz.id) ? 'Selesai' : 'Mulai Kuis' }}
-          </button>
+          <div class="quiz-actions">
+            <button class="btn btn-ghost btn-sm" @click="toggleLeaderboard(quiz.id)">
+              {{ expandedLeaderboard === quiz.id ? 'Sembunyikan Peringkat' : '🏆 Peringkat' }}
+            </button>
+            <button
+              class="btn btn-primary btn-sm"
+              :disabled="attemptedQuizzes.has(quiz.id)"
+              @click="startQuiz(quiz.id)"
+            >
+              {{ attemptedQuizzes.has(quiz.id) ? 'Selesai' : 'Mulai Kuis' }}
+            </button>
+          </div>
+        </div>
+
+        <div v-if="expandedLeaderboard === quiz.id" class="leaderboard-section">
+          <QuizLeaderboard :quiz-id="quiz.id" />
         </div>
       </div>
     </div>
@@ -191,6 +206,18 @@ function getCourseName(quiz: any): string {
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.quiz-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.leaderboard-section {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border);
 }
 
 .quiz-info {

@@ -4,7 +4,7 @@
  */
 import { useRoute } from 'vue-router'
 import type { Quiz, QuizQuestion } from '~/types/database'
-import { useQuizStore } from '~/stores/quiz'
+import { useQuizStore, parseQuestionsCsv } from '~/stores/quiz'
 import { useCoursesStore } from '~/stores/courses'
 import { useAuthStore } from '~/stores/auth'
 import { useNotification } from '~/composables/useNotification'
@@ -123,6 +123,57 @@ function deleteQuestion(id: string) {
   notification.success('Soal berhasil dihapus.')
 }
 
+// ── CSV Import ──
+const importFileInput = ref<HTMLInputElement | null>(null)
+const importing = ref(false)
+
+function openCsvImport() {
+  importFileInput.value?.click()
+}
+
+async function onCsvFileChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+
+  const reader = new FileReader()
+  reader.onload = async () => {
+    if (importing.value) return
+    importing.value = true
+    try {
+      const rows = parseQuestionsCsv(String(reader.result ?? ''))
+      if (rows.length === 0) {
+        notification.warning('Tidak ada soal valid di file CSV. Periksa format: pertanyaan,pilihan_a,pilihan_b,pilihan_c,pilihan_d,jawaban_benar')
+        return
+      }
+      const quizId = showQuestions.value
+      if (!quizId) return
+      const added = await quizStore.addQuestionsBulk(quizId, rows)
+      if (added > 0) {
+        notification.success(`${added} soal berhasil diimpor dari CSV.`)
+      } else {
+        notification.error('Gagal mengimpor soal. Coba lagi.')
+      }
+    } finally {
+      importing.value = false
+    }
+  }
+  reader.readAsText(file)
+}
+
+function downloadCsvTemplate() {
+  const header = 'pertanyaan,pilihan_a,pilihan_b,pilihan_c,pilihan_d,jawaban_benar\n'
+  const example = '"Apa kepanjangan dari IDE?",Integrated Development Environment,Internal Development Engine,Internet Data Exchange,Integrated Design Editor,a\n'
+  const blob = new Blob([header + example], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'template-soal-kuis.csv'
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 function toggleActive(quizId: string) {
   quizStore.toggleQuizActive(quizId)
   const q = quizStore.quizzes.find(q => q.id === quizId)
@@ -214,30 +265,8 @@ function deleteQuiz(quizId: string) {
   notification.success('Kuis berhasil dihapus.')
 }
 
-function getStudentAttempts(quizId: string) {
-  return quizStore.attemptsForQuiz(quizId)
-}
-
-function getStudentName(studentId: string): string {
-  const names: Record<string, string> = {
-    s1: 'Ahmad Fauzi', s2: 'Budi Santoso', s3: 'Citra Dewi',
-    s4: 'Dian Permata', s5: 'Eko Prasetyo', s6: 'Fitri Handayani',
-    s7: 'Gilang Ramadhan', s8: 'Hesti Purnamasari', s9: 'Irfan Hakim',
-    s10: 'Joko Susilo', s11: 'Kartika Sari', s12: 'Lukman Hakim',
-    s13: 'Maya Anggraini', s14: 'Nanda Pratama', s15: 'Olivia Putri',
-  }
-  return names[studentId] || studentId
-}
-
-function getStudentNpm(studentId: string): string {
-  const npms: Record<string, string> = {
-    s1: '20241001', s2: '20241002', s3: '20241003',
-    s4: '20241004', s5: '20241005', s6: '20241006',
-    s7: '20241007', s8: '20241008', s9: '20241009',
-    s10: '20241010', s11: '20241011', s12: '20241012',
-    s13: '20241013', s14: '20241014', s15: '20241015',
-  }
-  return npms[studentId] || '-'
+function attemptedCount(quizId: string): number {
+  return quizStore.leaderboardForQuiz(quizId).length
 }
 </script>
 
@@ -363,24 +392,9 @@ function getStudentNpm(studentId: string): string {
 
           <div class="student-attempts">
             <span class="text-sm text-muted">
-              {{ getStudentAttempts(quiz.id).length }} mahasiswa telah mengerjakan
+              🏆 Peringkat mahasiswa ({{ attemptedCount(quiz.id) }} telah mengerjakan)
             </span>
-            <div v-if="getStudentAttempts(quiz.id).length > 0" class="attempts-list">
-              <div
-                v-for="att in getStudentAttempts(quiz.id)"
-                :key="att.id"
-                class="attempt-row"
-              >
-                <span>{{ getStudentName(att.student_id) }}</span>
-                <span class="text-sm">{{ getStudentNpm(att.student_id) }}</span>
-                <span
-                  class="badge"
-                  :class="att.percentage >= (quiz.passing_score || 60) ? 'badge-success' : 'badge-danger'"
-                >
-                  {{ att.percentage }}%
-                </span>
-              </div>
-            </div>
+            <QuizLeaderboard :quiz-id="quiz.id" :limit="0" />
           </div>
         </div>
 
@@ -388,11 +402,29 @@ function getStudentNpm(studentId: string): string {
         <div v-if="showQuestions === quiz.id" class="questions-section">
           <div class="questions-header">
             <h4>Daftar Soal</h4>
-            <button class="btn btn-primary btn-sm" @click="openAddQuestion">+ Soal</button>
+            <div class="questions-actions">
+              <button class="btn btn-ghost btn-sm" @click="downloadCsvTemplate">📄 Template CSV</button>
+              <button class="btn btn-ghost btn-sm" :disabled="importing" @click="openCsvImport">
+                {{ importing ? 'Mengimpor...' : '⬆ Import CSV' }}
+              </button>
+              <button class="btn btn-primary btn-sm" @click="openAddQuestion">+ Soal</button>
+              <input
+                ref="importFileInput"
+                type="file"
+                accept=".csv,text/csv"
+                class="csv-file-input"
+                @change="onCsvFileChange"
+              />
+            </div>
+          </div>
+
+          <div v-if="showQuestions" class="text-sm text-muted csv-hint">
+            Format CSV: <code>pertanyaan, pilihan_a, pilihan_b, pilihan_c, pilihan_d, jawaban_benar</code>
+            (jawaban_benar: a/b/c/d).
           </div>
 
           <div v-if="selectedQuizQuestions.length === 0" class="text-sm text-muted">
-            Belum ada soal. Tambahkan soal sekarang.
+            Belum ada soal. Tambahkan soal sekarang atau impor dari CSV.
           </div>
 
           <div v-for="(q, idx) in selectedQuizQuestions" :key="q.id" class="question-row">
@@ -583,25 +615,6 @@ function getStudentNpm(studentId: string): string {
   font-size: 0.85rem;
 }
 
-.attempts-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  margin-top: 0.35rem;
-}
-
-.attempt-row {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.25rem 0;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.attempt-row:last-child {
-  border-bottom: none;
-}
-
 /* Questions section */
 .questions-section {
   margin-top: 1rem;
@@ -618,6 +631,28 @@ function getStudentNpm(studentId: string): string {
 
 .questions-header h4 {
   margin: 0;
+}
+
+.questions-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.csv-file-input {
+  display: none;
+}
+
+.csv-hint {
+  margin: -0.25rem 0 0.75rem;
+}
+
+.csv-hint code {
+  background: var(--color-bg-secondary, #f8fafc);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
 }
 
 .question-row {

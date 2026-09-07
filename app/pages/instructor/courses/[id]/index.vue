@@ -168,6 +168,18 @@ function formatDate(dateStr?: string | null): string {
           </div>
           <span class="action-arrow">→</span>
         </NuxtLink>
+
+        <NuxtLink
+          :to="`/instructor/courses/${course.id}/analytics`"
+          class="card action-card"
+        >
+          <div class="action-icon">📊</div>
+          <div class="action-text">
+            <strong>Analisis Mahasiswa</strong>
+            <span>Nilai, presensi, dan mahasiswa berisiko</span>
+          </div>
+          <span class="action-arrow">→</span>
+        </NuxtLink>
       </div>
 
       <!-- Enrolled Students -->

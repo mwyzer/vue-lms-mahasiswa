@@ -171,6 +171,31 @@ export const useCoursesStore = defineStore('courses', {
       return this.isDemoMode ? this.courses : this.sbCourses
     },
 
+    /**
+     * Lesson completion stats for a specific course + student.
+     * Works in both demo and Supabase mode. Used by the analytics store.
+     */
+    courseLessonStats(): (courseId: string, studentId: string) => { total: number; completed: number } {
+      return (courseId: string, studentId: string) => {
+        let courseLessons: Lesson[]
+        let progress: LessonProgress[]
+
+        if (this.isDemoMode) {
+          courseLessons = DEMO_LESSONS[courseId] || []
+          progress = DEMO_LESSON_PROGRESS[studentId] || []
+        } else {
+          courseLessons = this.sbCourseMap[courseId] || []
+          progress = this.sbProgressMap[studentId] || []
+        }
+
+        const completed = progress.filter(
+          (p) => courseLessons.some((l) => l.id === p.lesson_id) && p.completed
+        ).length
+
+        return { total: courseLessons.length, completed }
+      }
+    },
+
     /** Get lessons for current course. */
     currentLessons(): LessonWithProgress[] {
       const auth = useAuthStore()

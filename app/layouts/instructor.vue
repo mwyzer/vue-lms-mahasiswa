@@ -15,6 +15,7 @@ const navigation = computed(() => [
   { label: 'Kuis', icon: '❓', to: '/instructor/quiz' },
   { label: 'Mahasiswa', icon: '👥', to: '/instructor/students' },
   { label: 'Presensi', icon: '✅', to: '/instructor/attendance' },
+  { label: 'Analisis', icon: '📊', to: '/instructor/courses' },
   { label: 'Kalender', icon: '📅', to: '/calendar' },
   { label: 'AI Tutor', icon: '🤖', to: '/ai/chat' },
   { label: 'Python', icon: '🐍', to: '/playground' },

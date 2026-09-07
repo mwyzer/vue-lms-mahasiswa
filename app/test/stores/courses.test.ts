@@ -80,9 +80,13 @@ describe('Courses Store', () => {
 
   // ── allCourses ──
   describe('allCourses getter', () => {
-    it('returns all 13 demo courses', () => {
+    beforeEach(async () => {
+      await store.init()
+    })
+
+    it('returns all demo courses', () => {
       const courses = store.allCourses
-      expect(courses.length).toBe(13)
+      expect(courses.length).toBe(15)
     })
 
     it('includes courses at all 4 levels', () => {
@@ -103,7 +107,8 @@ describe('Courses Store', () => {
 
   // ── myCourses (Student) ──
   describe('myCourses for students', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
+      await store.init()
       seedStudents()
     })
 
@@ -158,22 +163,24 @@ describe('Courses Store', () => {
 
   // ── myCourses (Instructor) ──
   describe('myCourses for instructors', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
+      await store.init()
       seedInstructors()
     })
 
-    it('returns i1 courses (5 courses taught by Dr. Andi)', async () => {
+    it('returns i1 courses (6 courses taught by Dr. Andi)', async () => {
       const auth = useAuthStore()
       await auth.loginAsInstructor('Dr. Andi Wijaya, M.Kom.', 'instruktur123')
 
       const courses = store.myCourses
-      expect(courses.length).toBe(5)
+      expect(courses.length).toBe(6)
       const courseIds = courses.map((c) => c.id)
       expect(courseIds).toContain('c1') // Pemrograman Dasar
       expect(courseIds).toContain('c4') // Pengantar TI
       expect(courseIds).toContain('c5') // Struktur Data
       expect(courseIds).toContain('c8') // OOP
       expect(courseIds).toContain('c11') // RPL
+      expect(courseIds).toContain('c14') // Farmakologi
     })
 
     it('returns i2 courses (4 courses taught by Dr. Dewi)', async () => {
@@ -214,13 +221,17 @@ describe('Courses Store', () => {
     })
 
     it('returns empty for non-existent level', async () => {
-      const courses = await store.fetchCoursesByLevel(5, 'morning')
+      const courses = await store.fetchCoursesByLevel(6, 'morning')
       expect(courses.length).toBe(0)
     })
   })
 
   // ── setCurrentCourse ──
   describe('setCurrentCourse', () => {
+    beforeEach(async () => {
+      await store.init()
+    })
+
     it('sets the current course and loads its lessons', () => {
       store.setCurrentCourse('c1')
       expect(store.currentCourse).not.toBeNull()
@@ -242,7 +253,8 @@ describe('Courses Store', () => {
 
   // ── currentLessons ──
   describe('currentLessons', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
+      await store.init()
       seedStudents()
     })
 
@@ -270,7 +282,8 @@ describe('Courses Store', () => {
 
   // ── markLessonCompleted (Demo Mode) ──
   describe('markLessonCompleted', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
+      await store.init()
       seedStudents()
     })
 
@@ -299,6 +312,10 @@ describe('Courses Store', () => {
 
   // ── addLesson (Instructor, Demo Mode) ──
   describe('addLesson', () => {
+    beforeEach(async () => {
+      await store.init()
+    })
+
     it('adds a new lesson to a course', async () => {
       store.setCurrentCourse('c1')
       const initialCount = store.lessons.length
@@ -320,6 +337,10 @@ describe('Courses Store', () => {
 
   // ── deleteLesson (Instructor, Demo Mode) ──
   describe('deleteLesson', () => {
+    beforeEach(async () => {
+      await store.init()
+    })
+
     it('removes a lesson by id', async () => {
       store.setCurrentCourse('c1')
       const initialCount = store.lessons.length

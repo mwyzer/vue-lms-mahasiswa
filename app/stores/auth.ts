@@ -190,11 +190,13 @@ export const useAuthStore = defineStore('auth', {
         }
       }
 
-      // Demo mode — populate local state with demo data for reactivity
-      if (this.isDemoMode && this.students.length === 0) {
-        this.students = [...DEMO_STUDENTS]
-        this.admins = [...DEMO_ADMINS]
-        this.instructors = [...DEMO_INSTRUCTORS]
+      // Demo mode — populate local state with demo data for reactivity.
+      // Seed each roster independently so tests/admin flows that pre-populate
+      // one roster are not clobbered by the demo seed.
+      if (this.isDemoMode) {
+        if (this.students.length === 0) this.students = [...DEMO_STUDENTS]
+        if (this.instructors.length === 0) this.instructors = [...DEMO_INSTRUCTORS]
+        if (this.admins.length === 0) this.admins = [...DEMO_ADMINS]
       }
 
       this.initialized = true

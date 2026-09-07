@@ -31,9 +31,9 @@ describe('StatCard', () => {
         iconColor: '#15803d',
       },
     })
-    const icon = wrapper.find('.stat-icon')
-    expect(icon.attributes('style')).toContain('background-color: #dcfce7')
-    expect(icon.attributes('style')).toContain('color: #15803d')
+    const card = wrapper.find('.stat-card')
+    expect(card.attributes('style')).toContain('--stat-bg: #dcfce7')
+    expect(card.attributes('style')).toContain('--stat-fg: #15803d')
   })
 
   it('uses default colors when not specified', () => {
@@ -44,9 +44,9 @@ describe('StatCard', () => {
         label: 'Progress',
       },
     })
-    const icon = wrapper.find('.stat-icon')
-    expect(icon.attributes('style')).toContain('background-color: #dbeafe')
-    expect(icon.attributes('style')).toContain('color: #1d4ed8')
+    const card = wrapper.find('.stat-card')
+    expect(card.attributes('style')).toContain('--stat-bg: var(--color-accent-soft)')
+    expect(card.attributes('style')).toContain('--stat-fg: var(--color-accent-deep)')
   })
 
   it('renders numeric value correctly', () => {

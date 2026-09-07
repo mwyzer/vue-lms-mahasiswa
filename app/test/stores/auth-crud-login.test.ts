@@ -92,7 +92,7 @@ describe.sequential('Auth Store — CRUD + Login', () => {
       expect(store.user?.npm).toBe('20999999')
     })
 
-    it('allows login with any password in demo mode', async () => {
+    it('rejects wrong password in demo mode', async () => {
       await store.addStudent({
         nama: 'Another Student',
         npm: '20888888',
@@ -104,7 +104,8 @@ describe.sequential('Auth Store — CRUD + Login', () => {
 
       await store.logout()
       const result = await store.loginAsStudent('Another Student', '20888888', 'wrongpass')
-      expect(result).toBe(true)
+      expect(result).toBe(false)
+      expect(store.error).toBe('Password salah.')
     })
 
     it('can login as a newly added student without password (no password check)', async () => {
@@ -148,7 +149,7 @@ describe.sequential('Auth Store — CRUD + Login', () => {
       expect(store.user?.nama).toBe('Ahmad Fauzi')
     })
 
-    it('allows old password in demo mode (no password verification)', async () => {
+    it('rejects old password after password update', async () => {
       await store.updateStudent('s2', {
         nama: 'Budi Santoso',
         npm: '20241002',
@@ -160,9 +161,10 @@ describe.sequential('Auth Store — CRUD + Login', () => {
 
       await store.logout()
 
-      // In demo mode, any password works
+      // After update, the old password must no longer work
       const result = await store.loginAsStudent('Budi Santoso', '20241002', 'mahasiswa123')
-      expect(result).toBe(true)
+      expect(result).toBe(false)
+      expect(store.error).toBe('Password salah.')
     })
 
     it('keeps old password when update does not include password field', async () => {
@@ -228,7 +230,7 @@ describe.sequential('Auth Store — CRUD + Login', () => {
       expect(result).toBe(true)
     })
 
-    it('allows old password in demo mode (no password verification)', async () => {
+    it('rejects old password after password update', async () => {
       await store.updateInstructor('i2', {
         nama: 'Dr. Dewi Lestari, M.Pd.',
         password: 'dewiNEWpass',
@@ -236,9 +238,10 @@ describe.sequential('Auth Store — CRUD + Login', () => {
 
       await store.logout()
 
-      // In demo mode, any password works
+      // After update, the old password must no longer work
       const result = await store.loginAsInstructor('Dr. Dewi Lestari, M.Pd.', 'instruktur123')
-      expect(result).toBe(true)
+      expect(result).toBe(false)
+      expect(store.error).toBe('Password salah.')
     })
   })
 })

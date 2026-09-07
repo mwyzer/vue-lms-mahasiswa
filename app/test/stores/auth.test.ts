@@ -220,9 +220,10 @@ describe('Auth Store', () => {
       expect(result).toBe(true)
     })
 
-    it('allows login without password in demo mode', async () => {
+    it('rejects wrong password in demo mode', async () => {
       const result = await store.loginAsInstructor('Dr. Andi Wijaya, M.Kom.', 'wrongpass')
-      expect(result).toBe(true)
+      expect(result).toBe(false)
+      expect(store.error).toBe('Password salah.')
     })
 
     it('returns false for non-existent instructor', async () => {
@@ -263,9 +264,10 @@ describe('Auth Store', () => {
       expect(result).toBe(true)
     })
 
-    it('allows login without password in demo mode', async () => {
+    it('rejects wrong password in demo mode', async () => {
       const result = await store.loginAsAdmin('Admin LMS', 'wrongpass')
-      expect(result).toBe(true)
+      expect(result).toBe(false)
+      expect(store.error).toBe('Password salah.')
     })
 
     it('returns false for non-existent admin', async () => {

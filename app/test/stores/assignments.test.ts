@@ -42,6 +42,20 @@ function seedInstructors(): void {
   ]
 }
 
+/** Initialize the assignments store (seeds demo data in reactive state). */
+async function initAssignmentsStore(): Promise<void> {
+  const assignments = useAssignmentsStore()
+  await assignments.init()
+}
+
+/** Initialize assignments + courses stores (myAssignments needs course enrollments). */
+async function initAllStores(): Promise<void> {
+  const assignments = useAssignmentsStore()
+  const courses = useCoursesStore()
+  await assignments.init()
+  await courses.init()
+}
+
 describe('Assignments Store', () => {
   let store: ReturnType<typeof useAssignmentsStore>
 
@@ -63,7 +77,8 @@ describe('Assignments Store', () => {
 
   // ── myAssignments (Student) ──
   describe('myAssignments for students', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
+      await initAllStores()
       seedStudents()
     })
 
@@ -114,7 +129,8 @@ describe('Assignments Store', () => {
 
   // ── myAssignments (Instructor) ──
   describe('myAssignments for instructors', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
+      await initAssignmentsStore()
       seedInstructors()
     })
 
@@ -152,7 +168,8 @@ describe('Assignments Store', () => {
 
   // ── submissionsForAssignment ──
   describe('submissionsForAssignment', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
+      await initAssignmentsStore()
       seedStudents()
     })
 
@@ -180,6 +197,10 @@ describe('Assignments Store', () => {
 
   // ── setCurrentAssignment ──
   describe('setCurrentAssignment', () => {
+    beforeEach(async () => {
+      await initAssignmentsStore()
+    })
+
     it('sets the current assignment', () => {
       store.setCurrentAssignment('a1')
       expect(store.currentAssignment).not.toBeNull()
@@ -195,7 +216,8 @@ describe('Assignments Store', () => {
 
   // ── submitAssignment (Demo Mode) ──
   describe('submitAssignment', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
+      await initAllStores()
       seedStudents()
     })
 
@@ -228,7 +250,8 @@ describe('Assignments Store', () => {
 
   // ── addAssignment (Instructor, Demo Mode) ──
   describe('addAssignment', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
+      await initAssignmentsStore()
       seedInstructors()
     })
 
@@ -255,7 +278,8 @@ describe('Assignments Store', () => {
 
   // ── gradeSubmission (Instructor, Demo Mode) ──
   describe('gradeSubmission', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
+      await initAssignmentsStore()
       seedStudents()
     })
 

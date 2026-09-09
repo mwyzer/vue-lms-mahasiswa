@@ -15,6 +15,7 @@ const auth = useAuthStore()
 const notification = useNotification()
 const { exportCourseGrades } = useExportGrades()
 const { fileToBase64, validateAttachmentFile, downloadFile } = useFileAttachment()
+const { checking: checkingPlagiarism, error: plagiarismError, check: checkPlagiarism } = usePlagiarism()
 
 const courseId = computed(() => route.params.id as string)
 const showAddForm = ref(false)
@@ -24,6 +25,9 @@ const showGrading = ref<string | null>(null)
 const directGradeAssignmentId = ref<string | null>(null)
 const directGradeStudents = ref<{ studentId: string; nilai: number; feedback: string }[]>([])
 const directGradingSave = ref(false)
+// Plagiarism state
+const plagiarismAssignmentId = ref<string | null>(null)
+const plagiarismReport = ref<{ checked: any[]; flagged: any[]; threshold: number; total: number } | null>(null)
 
 // New/Edit assignment form
 const formJudul = ref('')
@@ -227,6 +231,32 @@ function submitGrade(submissionId: string) {
   }, 200)
 }
 
+// Plagiarism check for an assignment
+async function runPlagiarismCheck(assignmentId: string) {
+  plagiarismReport.value = null
+  const subs = getSubmissions(assignmentId)
+  const prepared = subs.map((s: any) => ({
+    id: s.id,
+    student_id: s.student_id,
+    student_name: s.student_name,
+    jawaban: s.jawaban,
+  }))
+  const report = await checkPlagiarism(prepared)
+  plagiarismReport.value = report
+  plagiarismAssignmentId.value = assignmentId
+}
+
+function closePlagiarism() {
+  plagiarismAssignmentId.value = null
+  plagiarismReport.value = null
+}
+
+function severityBadgeClass(label: string): string {
+  if (label === 'tinggi') return 'plag-high'
+  if (label === 'sedang') return 'plag-mid'
+  return 'plag-low'
+}
+
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('id-ID', {
     day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
@@ -347,6 +377,9 @@ function formatDate(dateStr: string): string {
               </button>
               <button class="btn btn-secondary btn-sm" @click="openDirectGrade(a.id)">
                 🏆 Nilai Semua
+              </button>
+              <button class="btn btn-outline btn-sm" @click="runPlagiarismCheck(a.id)">
+                🔍 Cek Kemiripan
               </button>
               <button class="btn btn-danger btn-sm" @click="confirmDeleteAssignment(a.id)">🗑️ Hapus</button>
             </div>
@@ -499,6 +532,66 @@ function formatDate(dateStr: string): string {
                 {{ directGradingSave ? 'Menyimpan...' : '💾 Simpan Semua Nilai' }}
               </button>
             </div>
+          </div>
+        <!-- Plagiarism Check Panel -->
+          <div v-if="plagiarismAssignmentId === a.id" class="plagiarism-section">
+            <div class="plagiarism-header">
+              <h4>🔍 Pemeriksaan Kemiripan</h4>
+              <button class="btn btn-ghost btn-sm" @click="closePlagiarism">Tutup</button>
+            </div>
+
+            <div v-if="checkingPlagiarism" class="plagiarism-loading">
+              <span class="spinner" /> Memeriksa kemiripan jawaban...
+            </div>
+
+            <p v-else-if="plagiarismError" class="text-sm error-text">{{ plagiarismError }}</p>
+
+            <template v-else-if="plagiarismReport">
+              <p v-if="plagiarismReport.total < 2" class="text-sm text-muted">
+                Perlu minimal 2 jawaban teks untuk pemeriksaan.
+              </p>
+              <template v-else>
+                <p class="text-sm text-muted">
+                  Membandingkan <strong>{{ plagiarismReport.total }}</strong> jawaban teks. Ambang batas
+                  kemiripan tinggi: <strong>&ge; {{ plagiarismReport.threshold }}%</strong>.
+                </p>
+
+                <div v-if="plagiarismReport.flagged.length === 0" class="plagiarism-clean">
+                  ✅ Tidak ada pasangan jawaban yang terdeteksi kemiripan tinggi.
+                </div>
+
+                <div
+                  v-for="(result, ri) in plagiarismReport.flagged"
+                  :key="result.submissionId"
+                  class="plagiarism-result"
+                >
+                  <div class="plagiarism-result-header">
+                    <span class="plagiarism-author">{{ ri + 1 }}. {{ result.authorName }}</span>
+                    <span
+                      v-if="result.highestScore >= plagiarismReport.threshold"
+                      class="badge badge-danger"
+                    >
+                      {{ result.highestScore }}%
+                    </span>
+                  </div>
+                  <div class="plagiarism-matches">
+                    <div
+                      v-for="m in result.matches"
+                      :key="m.withId"
+                      class="plagiarism-match"
+                    >
+                      <div class="plagiarism-match-head">
+                        <span class="text-sm">Mirip dengan <strong>{{ m.withName }}</strong></span>
+                        <span class="badge" :class="severityBadgeClass(m.label)">
+                          {{ m.score }}% <small>{{ m.label }}</small>
+                        </span>
+                      </div>
+                      <p v-if="m.excerpt" class="plagiarism-excerpt">“{{ m.excerpt }}”</p>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </template>
           </div>
         </div>
       </div>
@@ -874,5 +967,123 @@ function formatDate(dateStr: string): string {
 
 .btn-secondary:hover {
   background: var(--color-neutral-200);
+}
+
+/* Plagiarism check panel */
+.plagiarism-section {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 2px solid var(--color-warning);
+}
+
+.plagiarism-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.plagiarism-header h4 {
+  font-size: 0.9375rem;
+  color: var(--color-warning);
+}
+
+.plagiarism-loading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-neutral-500);
+  font-size: 0.875rem;
+}
+
+.plagiarism-loading .spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--color-neutral-200);
+  border-top-color: var(--color-primary-600);
+  border-radius: 50%;
+  animation: plag-spin 0.7s linear infinite;
+}
+
+@keyframes plag-spin {
+  to { transform: rotate(360deg); }
+}
+
+.plagiarism-clean {
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--color-success);
+  background-color: #dcfce7;
+  color: #15803d;
+  border-radius: 8px;
+  font-size: 0.875rem;
+}
+
+.plagiarism-result {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid #fca5a5;
+  background-color: #fef2f2;
+  border-radius: 8px;
+}
+
+.plagiarism-result-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.plagiarism-author {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.plagiarism-matches {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.plagiarism-match {
+  padding: 0.5rem 0.625rem;
+  border: 1px solid var(--color-neutral-200);
+  border-radius: 6px;
+  background-color: white;
+}
+
+.plagiarism-match-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.plagiarism-excerpt {
+  margin-top: 0.375rem;
+  font-size: 0.75rem;
+  color: var(--color-neutral-500);
+  font-style: italic;
+  white-space: pre-wrap;
+}
+
+.badge.plag-high {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+}
+
+.badge.plag-mid {
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+.badge.plag-low {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
 }
 </style>

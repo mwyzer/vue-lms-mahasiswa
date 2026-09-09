@@ -85,6 +85,7 @@ Ada 3 instruktur yang mengelola mata kuliah. Setiap instruktur memiliki:
 - Mengelola presensi mahasiswa tiap pertemuan
 - Melihat rekap presensi lintas mata kuliah
 - Membuat pengumuman
+- Memeriksa kemiripan jawaban (plagiarism check) antar mahasiswa
 - Mengelola profil pribadi
 
 #### Administrator (dalam MVP)
@@ -122,6 +123,7 @@ Ada 3 instruktur yang mengelola mata kuliah. Setiap instruktur memiliki:
 - Countdown timer dan karakter counter pada tugas
 - AI Chat assistant
 - Quiz interaktif (pilihan ganda, timer, skor otomatis)
+- Pemeriksaan kemiripan jawaban (plagiarism check) untuk instruktur
 - Demo mode tanpa Supabase
 - Deployment ke Vercel
 
@@ -133,7 +135,7 @@ Video conference, live chat, forum diskusi, plagiarism checker, integrasi pembay
 
 - **v1.1:** ✅ Leaderboard quiz — forum diskusi, notifikasi email
 - **v1.2:** Export nilai, push notification
-- **v2.0:** Multi-campus, AI learning assistant (enhanced), analitik pembelajaran, plagiarism checker
+- **v2.0:** Multi-campus, AI learning assistant (enhanced), analitik pembelajaran, plagiarism checker ✅
 
 ### Success Metrics
 
@@ -2466,10 +2468,11 @@ npm run typecheck    # TypeScript type check
 |------|-----------|--------|--------|
 | **Unit Test (Stores)** | Vitest | 74 tests | ✅ Pass |
 | **Unit Test (Components)** | Vitest + Vue Test Utils | 25 tests | ✅ Pass |
+| **Unit Test (Server Utils)** | Vitest | 19 tests | ✅ Pass |
 | **E2E (Student Flow)** | Playwright | 1 spec | ✅ Pass |
 | **E2E (Instructor Flow)** | Playwright | 1 spec | ✅ Pass |
 | **E2E (Accessibility)** | Playwright | 8 specs | ✅ Pass |
-| **Total** | | **99+ unit + 10 E2E** | ✅ |
+| **Total** | | **128+ unit + 10 E2E** | ✅ |
 
 ### 🔑 Demo Login
 

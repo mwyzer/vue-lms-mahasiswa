@@ -16,7 +16,7 @@
  *   total: number,                 // number of submissions compared
  * }
  */
-import { checkSubmissionAgainst, type SubmissionLike } from '~/server/utils/plagiarism'
+import { checkSubmissionAgainst, type SubmissionLike } from '../../utils/plagiarism'
 
 export default defineEventHandler(
   {

@@ -33,6 +33,7 @@ import { useQuizStore } from '../stores/quiz'
 import { useAttendanceStore } from '../stores/attendance'
 import { useAnnouncementsStore } from '../stores/announcements'
 import { useCalendarStore } from '../stores/calendar'
+import { useCampusStore } from '../stores/campus'
 
 globalThis.useUiStore = useUiStore
 globalThis.useAuthStore = useAuthStore
@@ -42,6 +43,7 @@ globalThis.useQuizStore = useQuizStore
 globalThis.useAttendanceStore = useAttendanceStore
 globalThis.useAnnouncementsStore = useAnnouncementsStore
 globalThis.useCalendarStore = useCalendarStore
+globalThis.useCampusStore = useCampusStore
 
 const mockSupabaseClient = {
   from: vi.fn().mockReturnThis(),

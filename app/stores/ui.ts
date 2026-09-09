@@ -166,6 +166,7 @@ export const useUiStore = defineStore('ui', {
         const { useAttendanceStore } = await import('./attendance')
         const { useAnnouncementsStore } = await import('./announcements')
         const { useCalendarStore } = await import('./calendar')
+        const { useCampusStore } = await import('./campus')
 
         const auth = useAuthStore()
         const courses = useCoursesStore()
@@ -174,6 +175,7 @@ export const useUiStore = defineStore('ui', {
         const attendance = useAttendanceStore()
         const announcements = useAnnouncementsStore()
         const calendar = useCalendarStore()
+        const campus = useCampusStore()
 
         // Reset initialized flags so init() runs fresh
         auth.initialized = false
@@ -183,6 +185,7 @@ export const useUiStore = defineStore('ui', {
         attendance.initialized = false
         announcements.initialized = false
         calendar.initialized = false
+        campus.initialized = false
 
         // Re-init all stores in parallel
         await Promise.all([
@@ -193,6 +196,7 @@ export const useUiStore = defineStore('ui', {
           attendance.init(),
           announcements.init(),
           calendar.init(),
+          campus.init(),
         ])
 
         this.showToast('info', next ? 'Demo mode aktif — menggunakan data lokal' : 'Demo mode nonaktif — menggunakan data Supabase')

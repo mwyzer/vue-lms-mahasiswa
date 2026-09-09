@@ -4,7 +4,7 @@
  * Creates a signed session cookie for the authenticated user.
  * Called by the auth store after a successful login.
  *
- * Body: { userId: string, role: 'student' | 'instructor' | 'admin', name: string }
+ * Body: { userId: string, role: 'student' | 'instructor' | 'admin', name: string, campusId?: string }
  */
 export default defineEventHandler(
   {
@@ -28,6 +28,7 @@ export default defineEventHandler(
                   example: 'student',
                 },
                 name: { type: 'string', description: 'Nama lengkap pengguna', example: 'Ahmad Fauzi' },
+                campusId: { type: 'string', nullable: true, description: 'ID kampus (multi-campus). Null untuk admin global.', example: 'camp-utama' },
               },
             },
           },
@@ -58,7 +59,7 @@ export default defineEventHandler(
     },
   },
   async (event) => {
-  const body = await readBody<{ userId: string; role: 'student' | 'instructor' | 'admin'; name: string }>(event)
+  const body = await readBody<{ userId: string; role: 'student' | 'instructor' | 'admin'; name: string; campusId?: string | null }>(event)
 
   if (!body?.userId || !body?.role || !body?.name) {
     throw createError({ statusCode: 400, statusMessage: 'Data session tidak lengkap.' })
@@ -68,6 +69,7 @@ export default defineEventHandler(
     userId: body.userId,
     role: body.role,
     name: body.name,
+    campusId: body.campusId ?? null,
   })
 
   const cfg = getSessionConfig()

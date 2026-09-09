@@ -4,7 +4,7 @@
  * Creates and validates session cookies using HMAC-SHA256.
  * Prevents tampering — cookie data is signed with a server-only secret.
  *
- * Session data: { userId, role, name }
+ * Session data: { userId, role, name, campusId? }
  */
 import { createHash, randomBytes } from 'node:crypto'
 
@@ -16,6 +16,7 @@ export interface SessionData {
   userId: string
   role: 'student' | 'instructor' | 'admin'
   name: string
+  campusId?: string | null
 }
 
 /**

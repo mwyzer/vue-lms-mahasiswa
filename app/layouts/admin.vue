@@ -10,6 +10,7 @@ const route = useRoute()
 
 const navigation = computed(() => [
   { label: 'Dashboard', icon: '📊', to: '/admin/dashboard' },
+  { label: 'Kampus', icon: '🏛️', to: '/admin/campuses' },
   { label: 'Mata Kuliah', icon: '📖', to: '/admin/courses' },
   { label: 'Tugas', icon: '📝', to: '/admin/assignments' },
   { label: 'Kuis', icon: '❓', to: '/admin/quiz' },

@@ -10,6 +10,7 @@
 import { defineStore } from 'pinia'
 import type { Profile } from '~/types/database'
 import type { StudentRosterEntry, InstructorEntry, AdminEntry } from '~/types/roster'
+import { campusIdForUser } from './campus'
 
 // ── Demo data (fallback when demoMode=true) ──────────
 const DEMO_STUDENTS: StudentRosterEntry[] = [
@@ -82,6 +83,8 @@ interface AuthState {
   instructors: InstructorEntry[]
   admins: AdminEntry[]
   initialized: boolean
+  /** Campus scope of the signed-in user (null = global/admin). */
+  campusId: string | null
 }
 
 export const useAuthStore = defineStore('auth', {
@@ -95,6 +98,7 @@ export const useAuthStore = defineStore('auth', {
     instructors: [],
     admins: [],
     initialized: false,
+    campusId: null,
   }),
 
   getters: {
@@ -157,22 +161,35 @@ export const useAuthStore = defineStore('auth', {
 
           const { data: studentData } = await supabase
             .from('profiles')
-            .select('id, nama, npm, kelas, level, session_time')
+            .select('id, nama, npm, kelas, level, session_time, campus_id')
             .eq('role', 'student')
             .order('nama')
 
           if (studentData) {
-            this.students = studentData as StudentRosterEntry[]
+            this.students = (studentData as any[]).map((r) => ({
+              id: r.id,
+              nama: r.nama,
+              npm: r.npm,
+              kelas: r.kelas,
+              level: r.level,
+              session_time: r.session_time,
+              campusId: r.campus_id ?? null,
+            })) as StudentRosterEntry[]
           }
 
           const { data: instructorData } = await supabase
             .from('profiles')
-            .select('id, nama, email')
+            .select('id, nama, email, campus_id')
             .eq('role', 'instructor')
             .order('nama')
 
           if (instructorData) {
-            this.instructors = instructorData as unknown as InstructorEntry[]
+            this.instructors = (instructorData as any[]).map((r) => ({
+              id: r.id,
+              nama: r.nama,
+              email: r.email,
+              campusId: r.campus_id ?? null,
+            })) as unknown as InstructorEntry[]
           }
 
           const { data: adminData } = await supabase
@@ -296,6 +313,11 @@ export const useAuthStore = defineStore('auth', {
       this.role = 'student'
       this.loading = false
 
+      // Resolve campus scope (demo maps vs Supabase roster field)
+      const studentCampus = this.isDemoMode ? campusIdForUser(match.id) : (match.campusId ?? null)
+      this.campusId = studentCampus
+      this.user.campus_id = studentCampus
+
       // Set server session cookie for middleware auth
       await this.syncSession()
 
@@ -366,6 +388,11 @@ export const useAuthStore = defineStore('auth', {
       this.role = 'instructor'
       this.loading = false
 
+      // Resolve campus scope (demo maps vs Supabase roster field)
+      const instructorCampus = this.isDemoMode ? campusIdForUser(match.id) : (match.campusId ?? null)
+      this.campusId = instructorCampus
+      this.user.campus_id = instructorCampus
+
       // Set server session cookie for middleware auth
       await this.syncSession()
 
@@ -435,6 +462,8 @@ export const useAuthStore = defineStore('auth', {
       }
       this.role = 'admin'
       this.loading = false
+      this.campusId = null
+      this.user.campus_id = null
 
       // Set server session cookie for middleware auth
       await this.syncSession()
@@ -455,6 +484,7 @@ export const useAuthStore = defineStore('auth', {
             userId: this.user.id,
             role: this.role,
             name: this.user.nama,
+            campusId: this.campusId,
           }),
         })
       } catch {
@@ -484,6 +514,9 @@ export const useAuthStore = defineStore('auth', {
 
         const { userId, role, name } = data
 
+        // Campus scope: prefer the signed cookie value, fall back to demo map.
+        const campusId = data.campusId ?? campusIdForUser(userId) ?? null
+
         // Rebuild user profile from demo data
         if (role === 'instructor') {
           const match = this.instructors.find((i) => i.id === userId)
@@ -498,6 +531,8 @@ export const useAuthStore = defineStore('auth', {
             updated_at: new Date().toISOString(),
           }
           this.role = 'instructor'
+          this.campusId = campusId
+          this.user.campus_id = campusId
           return true
         }
 
@@ -517,6 +552,8 @@ export const useAuthStore = defineStore('auth', {
             updated_at: new Date().toISOString(),
           }
           this.role = 'student'
+          this.campusId = campusId
+          this.user.campus_id = campusId
           return true
         }
 
@@ -534,6 +571,8 @@ export const useAuthStore = defineStore('auth', {
             updated_at: new Date().toISOString(),
           }
           this.role = 'admin'
+          this.campusId = null
+          this.user.campus_id = null
           return true
         }
 
@@ -554,6 +593,7 @@ export const useAuthStore = defineStore('auth', {
       }
       this.user = null
       this.role = null
+      this.campusId = null
       this.error = null
       try {
         navigateTo('/login')

@@ -3,6 +3,16 @@
  * These represent the raw row types from PostgreSQL tables.
  */
 
+/** Campus — institution/branch a user or course belongs to (multi-campus). */
+export interface Campus {
+  id: string
+  kode: string
+  nama: string
+  alamat?: string | null
+  created_at: string
+  updated_at: string
+}
+
 export interface Profile {
   id: string
   role: 'student' | 'instructor' | 'admin'
@@ -13,6 +23,7 @@ export interface Profile {
   session_time?: string | null
   email?: string | null
   avatar_url?: string | null
+  campus_id?: string | null
   created_at: string
   updated_at: string
 }
@@ -27,6 +38,7 @@ export interface Course {
   session_time: 'morning' | 'evening'
   color?: string | null
   icon?: string | null
+  campus_id?: string | null
   created_at: string
   updated_at: string
 }

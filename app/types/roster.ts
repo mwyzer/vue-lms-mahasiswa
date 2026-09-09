@@ -10,6 +10,7 @@ export interface StudentRosterEntry {
   level: number
   session_time: 'morning' | 'evening'
   avatar_url?: string | null
+  campusId?: string | null
 }
 
 export interface InstructorEntry {
@@ -17,6 +18,7 @@ export interface InstructorEntry {
   nama: string
   email?: string | null
   avatar_url?: string | null
+  campusId?: string | null
 }
 
 export interface AdminEntry {
@@ -24,6 +26,7 @@ export interface AdminEntry {
   nama: string
   email?: string | null
   avatar_url?: string | null
+  campusId?: string | null
 }
 
 export interface LoginCredentials {

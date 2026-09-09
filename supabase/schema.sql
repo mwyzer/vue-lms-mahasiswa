@@ -214,3 +214,21 @@ CREATE INDEX idx_quiz_answers_quiz ON quiz_answers(quiz_id);
 CREATE INDEX idx_quiz_answers_question ON quiz_answers(question_id);
 CREATE INDEX idx_academic_events_course ON academic_events(course_id);
 CREATE INDEX idx_academic_events_date ON academic_events(tanggal_mulai);
+
+-- 12. Campuses (multi-campus)
+-- A campus is an institution/branch. Users and courses may be tagged
+-- with a campus_id to support multi-campus scoping at the app level.
+CREATE TABLE campuses (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  kode VARCHAR(10) NOT NULL UNIQUE,
+  nama VARCHAR(255) NOT NULL,
+  alamat TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE profiles ADD COLUMN campus_id UUID REFERENCES campuses(id) ON DELETE SET NULL;
+ALTER TABLE courses ADD COLUMN campus_id UUID REFERENCES campuses(id) ON DELETE SET NULL;
+
+CREATE INDEX idx_profiles_campus ON profiles(campus_id);
+CREATE INDEX idx_courses_campus ON courses(campus_id);

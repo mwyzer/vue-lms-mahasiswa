@@ -124,18 +124,19 @@ Ada 3 instruktur yang mengelola mata kuliah. Setiap instruktur memiliki:
 - AI Chat assistant
 - Quiz interaktif (pilihan ganda, timer, skor otomatis)
 - Pemeriksaan kemiripan jawaban (plagiarism check) untuk instruktur
+- Multi-campus: kelola cabang kampus, filter dashboard admin per kampus
 - Demo mode tanpa Supabase
 - Deployment ke Vercel
 
 #### Fitur di luar MVP
 
-Video conference, live chat, forum diskusi, plagiarism checker, integrasi pembayaran, integrasi sistem akademik, push/email notification, mobile app native, multi-campus, sertifikat otomatis.
+Video conference, live chat, forum diskusi, plagiarism checker, integrasi pembayaran, integrasi sistem akademik, push/email notification, mobile app native, sertifikat otomatis.
 
 ### Roadmap Setelah MVP
 
 - **v1.1:** ✅ Leaderboard quiz — forum diskusi, notifikasi email
 - **v1.2:** Export nilai, push notification
-- **v2.0:** Multi-campus, AI learning assistant (enhanced), analitik pembelajaran, plagiarism checker ✅
+- **v2.0:** ✅ Multi-campus, AI learning assistant (enhanced), analitik pembelajaran, plagiarism checker ✅
 
 ### Success Metrics
 
@@ -2466,13 +2467,14 @@ npm run typecheck    # TypeScript type check
 
 | Tipe | Teknologi | Jumlah | Status |
 |------|-----------|--------|--------|
-| **Unit Test (Stores)** | Vitest | 74 tests | ✅ Pass |
-| **Unit Test (Components)** | Vitest + Vue Test Utils | 25 tests | ✅ Pass |
+| **Unit Test (Stores)** | Vitest | 142 tests | ✅ Pass |
+| **Unit Test (Components)** | Vitest + Vue Test Utils | 38 tests | ✅ Pass |
+| **Unit Test (Composables)** | Vitest | 11 tests | ✅ Pass |
 | **Unit Test (Server Utils)** | Vitest | 19 tests | ✅ Pass |
 | **E2E (Student Flow)** | Playwright | 1 spec | ✅ Pass |
 | **E2E (Instructor Flow)** | Playwright | 1 spec | ✅ Pass |
 | **E2E (Accessibility)** | Playwright | 8 specs | ✅ Pass |
-| **Total** | | **128+ unit + 10 E2E** | ✅ |
+| **Total** | | **210 unit + 10 E2E** | ✅ |
 
 ### 🔑 Demo Login
 

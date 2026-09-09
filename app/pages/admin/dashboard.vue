@@ -10,11 +10,13 @@ definePageMeta({
 
 import { useDashboard } from '~/composables/useDashboard'
 import { useAiUsage } from '~/composables/useAiUsage'
+import { useCampusStore, filterByCampus, demoUserCampusResolver, demoCourseCampusResolver, rosterCampusResolver, courseRowCampusResolver, campusNameOf } from '~/stores/campus'
 
 const auth = useAuthStore()
 const ui = useUiStore()
 const coursesStore = useCoursesStore()
 const assignmentsStore = useAssignmentsStore()
+const campusStore = useCampusStore()
 const { data: aiUsage, loading: aiUsageLoading, error: aiUsageError, fetch: fetchAiUsage } = useAiUsage()
 const { greeting: getGreeting } = useDashboard()
 
@@ -32,29 +34,57 @@ async function toggleDataSource() {
 }
 
 onMounted(() => {
+  auth.init()
   coursesStore.init()
   assignmentsStore.init()
+  campusStore.init()
   fetchAiUsage()
 })
 
 const userName = computed(() => auth.user?.nama || 'Admin')
 
+// ── Campus scoping ──
+const campusFilter = ref('')
+const selectedCampusName = computed(() =>
+  campusFilter.value ? campusNameOf(campusStore.allCampuses, campusFilter.value) : 'Semua Kampus'
+)
+
+const userResolver = computed(() =>
+  ui.isDemoMode ? demoUserCampusResolver : rosterCampusResolver
+)
+const courseResolver = computed(() =>
+  ui.isDemoMode ? demoCourseCampusResolver : courseRowCampusResolver
+)
+
+const scopedStudents = computed(() =>
+  filterByCampus(auth.studentRoster, campusFilter.value || null, userResolver.value)
+)
+const scopedInstructors = computed(() =>
+  filterByCampus(auth.instructorList, campusFilter.value || null, userResolver.value)
+)
+const scopedCourses = computed(() =>
+  filterByCampus(coursesStore.allCourses, campusFilter.value || null, courseResolver.value)
+)
+
 // Stats
-const totalStudents = computed(() => auth.studentRoster.length)
-const totalInstructors = computed(() => auth.instructorList.length)
-const totalCourses = computed(() => coursesStore.allCourses.length)
+const totalStudents = computed(() => scopedStudents.value.length)
+const totalInstructors = computed(() => scopedInstructors.value.length)
+const totalCourses = computed(() => scopedCourses.value.length)
 const totalAssignments = computed(() => assignmentsStore.assignments.length || 5)
 
 // Students by level
 const studentsByLevel = computed(() => {
   const levels: Record<number, number> = {}
-  for (const s of auth.studentRoster) {
+  for (const s of scopedStudents.value) {
     levels[s.level] = (levels[s.level] || 0) + 1
   }
   return Object.entries(levels)
     .map(([level, count]) => ({ level: Number(level), count }))
     .sort((a, b) => a.level - b.level)
 })
+
+// Per-campus overview
+const campusCounts = computed(() => campusStore.campusCounts)
 </script>
 
 <template>
@@ -66,6 +96,20 @@ const studentsByLevel = computed(() => {
         <p class="text-muted">Panel administrasi sistem — kelola seluruh data LMS.</p>
       </div>
       <div class="header-actions">
+        <div class="campus-filter-wrap">
+          <label class="campus-filter-label" for="campus-filter">🏛️</label>
+          <select
+            id="campus-filter"
+            v-model="campusFilter"
+            class="campus-filter"
+            :title="'Filter kampus: ' + selectedCampusName"
+          >
+            <option value="">Semua Kampus</option>
+            <option v-for="c in campusStore.allCampuses" :key="c.id" :value="c.id">
+              {{ c.nama }}
+            </option>
+          </select>
+        </div>
         <button
           class="data-toggle-btn"
           :class="isDemo ? 'data-toggle-demo' : 'data-toggle-live'"
@@ -191,6 +235,44 @@ const studentsByLevel = computed(() => {
 
       <div v-else class="card empty-card">
         <p>Belum ada penggunaan AI hari ini.</p>
+      </div>
+    </section>
+
+    <!-- Campus Overview -->
+    <section class="section">
+      <div class="section-header">
+        <h2>🏛️ Sebaran Kampus</h2>
+        <div class="section-actions">
+          <span class="text-muted">Filter aktif: {{ selectedCampusName }}</span>
+          <button v-if="campusFilter" class="btn btn-ghost btn-sm" @click="campusFilter = ''">
+            Reset
+          </button>
+          <NuxtLink to="/admin/campuses" class="btn btn-ghost btn-sm">Kelola Kampus</NuxtLink>
+        </div>
+      </div>
+
+      <div v-if="campusCounts.length === 0" class="card empty-card">
+        <p>Belum ada kampus. Tambahkan kampus di halaman Kelola Kampus.</p>
+      </div>
+
+      <div v-else class="campus-overview">
+        <div
+          v-for="row in campusCounts"
+          :key="row.campusId"
+          class="card campus-ov-card"
+          :class="{ 'campus-ov-active': campusFilter === row.campusId }"
+          @click="campusFilter = campusFilter === row.campusId ? '' : row.campusId"
+        >
+          <div class="campus-ov-header">
+            <span class="campus-ov-name">{{ campusNameOf(campusStore.allCampuses, row.campusId) }}</span>
+            <span class="campus-ov-kode">{{ campusStore.allCampuses.find((c) => c.id === row.campusId)?.kode }}</span>
+          </div>
+          <div class="campus-ov-stats">
+            <span>👥 {{ row.students }} mhs</span>
+            <span>👨‍🏫 {{ row.instructors }} dosen</span>
+            <span>📖 {{ row.courses }} mk</span>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -470,6 +552,88 @@ const studentsByLevel = computed(() => {
   gap: 0.5rem;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+.campus-filter-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.625rem;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 999px;
+  background: var(--bg-card, #ffffff);
+}
+
+.campus-filter-label {
+  font-size: 0.875rem;
+}
+
+.campus-filter {
+  border: none;
+  background: transparent;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-primary, #1e293b);
+  outline: none;
+  cursor: pointer;
+  max-width: 140px;
+}
+
+.section-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Campus overview */
+.campus-overview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.campus-ov-card {
+  padding: 1.25rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-width: 2px;
+}
+
+.campus-ov-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.campus-ov-active {
+  border-color: var(--color-primary, #2563eb);
+}
+
+.campus-ov-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.campus-ov-name {
+  font-weight: 600;
+  font-size: 0.9375rem;
+}
+
+.campus-ov-kode {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  background: #eef2ff;
+  color: #4338ca;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+}
+
+.campus-ov-stats {
+  display: flex;
+  gap: 0.75rem;
+  font-size: 0.75rem;
+  color: var(--text-muted, #94a3b8);
 }
 
 .data-toggle-btn {

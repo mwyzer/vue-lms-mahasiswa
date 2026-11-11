@@ -115,6 +115,7 @@ function closeSidebar() {
         </button>
 
         <div class="topbar-right">
+          <NotificationBell />
           <span class="badge badge-danger">Administrator</span>
           <span class="text-sm text-muted">{{ auth.user?.nama }}</span>
         </div>
@@ -342,6 +343,8 @@ function closeSidebar() {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  /* Keep the group on the right even when the hamburger is hidden (desktop). */
+  margin-left: auto;
 }
 
 .hamburger {

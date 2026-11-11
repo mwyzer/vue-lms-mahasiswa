@@ -14,7 +14,7 @@ const assignmentsStore = useAssignmentsStore()
 const auth = useAuthStore()
 const notification = useNotification()
 const { exportCourseGrades } = useExportGrades()
-const { fileToBase64, validateAttachmentFile, downloadFile } = useFileAttachment()
+const { uploading, maxAttachmentMB, uploadAttachment, validateAttachmentFile, downloadFile } = useFileAttachment()
 const { checking: checkingPlagiarism, error: plagiarismError, check: checkPlagiarism } = usePlagiarism()
 
 const courseId = computed(() => route.params.id as string)
@@ -89,11 +89,17 @@ function handleFormFileSelect(event: Event) {
   }
 
   formFileError.value = ''
-  fileToBase64(file).then((url) => {
+  uploadAttachment(file, { folder: 'assignments', scopeId: courseId.value }).then((url) => {
     formFile.value = { name: file.name, url }
-  }).catch(() => {
-    formFileError.value = 'Gagal membaca file.'
+  }).catch((e: any) => {
+    formFileError.value = e?.message || 'Gagal mengunggah file.'
   })
+}
+
+/** Download an attachment (signed URL for Storage files, direct for data URLs). */
+async function handleDownload(url: string, name: string) {
+  const ok = await downloadFile(url, name)
+  if (!ok) notification.error('Gagal mengunduh file.')
 }
 
 function openAddForm() {
@@ -328,8 +334,8 @@ function formatDate(dateStr: string): string {
           <label class="form-label">Lampiran (opsional)</label>
           <div class="file-upload-row">
             <label class="btn btn-outline btn-sm file-btn">
-              📎 {{ formFile ? 'Ganti file' : 'Lampirkan file' }}
-              <input type="file" class="hidden-input" @change="handleFormFileSelect" />
+              📎 {{ uploading ? 'Mengunggah...' : formFile ? 'Ganti file' : 'Lampirkan file' }}
+              <input type="file" class="hidden-input" :disabled="uploading" @change="handleFormFileSelect" />
             </label>
             <div v-if="formFile" class="new-file-chip">
               <span>{{ formFile.name }}</span>
@@ -337,13 +343,13 @@ function formatDate(dateStr: string): string {
             </div>
           </div>
           <p v-if="formFileError" class="text-sm error-text">{{ formFileError }}</p>
-          <span class="text-xs text-muted">Maksimal 2MB. Mahasiswa bisa mengunduhnya.</span>
+          <span class="text-xs text-muted">Maksimal {{ maxAttachmentMB }}MB. Mahasiswa bisa mengunduhnya.</span>
         </div>
         <div class="form-actions">
           <button class="btn btn-ghost btn-sm" @click="cancelForm">Batal</button>
           <button
             class="btn btn-primary btn-sm"
-            :disabled="saving || !formJudul.trim() || !formTenggat"
+            :disabled="saving || uploading || !formJudul.trim() || !formTenggat"
             @click="saveAssignment"
           >
             {{ saving ? 'Menyimpan...' : (showEditForm ? 'Perbarui' : 'Simpan') }}
@@ -392,13 +398,11 @@ function formatDate(dateStr: string): string {
             <div class="attachment-info">
               <span class="attachment-name">{{ a.file_name || 'Lampiran' }}</span>
             </div>
-            <a
-              :href="a.file_url"
-              :download="a.file_name || 'lampiran'"
-              target="_blank"
-              rel="noopener"
+            <button
+              type="button"
               class="btn btn-outline btn-sm"
-            >⬇️ Unduh</a>
+              @click="handleDownload(a.file_url, a.file_name || 'lampiran')"
+            >⬇️ Unduh</button>
           </div>
 
           <!-- Submissions -->
@@ -434,13 +438,11 @@ function formatDate(dateStr: string): string {
                       <div class="attachment-info">
                         <span class="attachment-name">{{ sub.file_name || 'File Mahasiswa' }}</span>
                       </div>
-                      <a
-                        :href="sub.file_url"
-                        :download="sub.file_name || 'file-mahasiswa'"
-                        target="_blank"
-                        rel="noopener"
+                      <button
+                        type="button"
                         class="btn btn-outline btn-sm"
-                      >⬇️ Unduh</a>
+                        @click="handleDownload(sub.file_url, sub.file_name || 'file-mahasiswa')"
+                      >⬇️ Unduh</button>
                     </div>
                     <pre v-if="sub.jawaban" class="jawaban-text">{{ sub.jawaban }}</pre>
                     <p v-if="!sub.file_url && !sub.jawaban" class="text-sm text-muted">(Tidak ada jawaban / file)</p>

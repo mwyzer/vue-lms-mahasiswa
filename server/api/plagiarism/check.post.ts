@@ -18,32 +18,30 @@
  */
 import { checkSubmissionAgainst, type SubmissionLike } from '../../utils/plagiarism'
 
-export default defineEventHandler(
-  {
-    openAPI: {
-      summary: 'Plagiarism Check',
-      description:
-        'Membandingkan sekumpulan jawaban tugas dan mengembalikan hasil kesamaan teks antar mahasiswa. Hanya boleh diakses instruktur.',
-      tags: ['Instructor'],
-      requestBody: {
-        required: true,
-        content: {
-          'application/json': {
-            schema: {
-              type: 'object',
-              required: ['submissions'],
-              properties: {
-                submissions: {
-                  type: 'array',
-                  items: {
-                    type: 'object',
-                    required: ['id', 'student_id'],
-                    properties: {
-                      id: { type: 'string' },
-                      student_id: { type: 'string' },
-                      student_name: { type: 'string' },
-                      jawaban: { type: 'string', nullable: true },
-                    },
+defineRouteMeta({
+  openAPI: {
+    summary: 'Plagiarism Check',
+    description:
+      'Membandingkan sekumpulan jawaban tugas dan mengembalikan hasil kesamaan teks antar mahasiswa. Hanya boleh diakses instruktur.',
+    tags: ['Instructor'],
+    requestBody: {
+      required: true,
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            required: ['submissions'],
+            properties: {
+              submissions: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  required: ['id', 'student_id'],
+                  properties: {
+                    id: { type: 'string' },
+                    student_id: { type: 'string' },
+                    student_name: { type: 'string' },
+                    jawaban: { type: 'string', nullable: true },
                   },
                 },
               },
@@ -51,29 +49,31 @@ export default defineEventHandler(
           },
         },
       },
-      responses: {
-        200: {
-          description: 'Hasil perbandingan kemiripan',
-          content: {
-            'application/json': {
-              schema: {
-                type: 'object',
-                properties: {
-                  checked: { type: 'array', items: { type: 'object' } },
-                  flagged: { type: 'array', items: { type: 'object' } },
-                  threshold: { type: 'number' },
-                  total: { type: 'number' },
-                },
+    },
+    responses: {
+      200: {
+        description: 'Hasil perbandingan kemiripan',
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              properties: {
+                checked: { type: 'array', items: { type: 'object' } },
+                flagged: { type: 'array', items: { type: 'object' } },
+                threshold: { type: 'number' },
+                total: { type: 'number' },
               },
             },
           },
         },
-        400: { description: 'Payload submissions tidak valid atau kosong' },
-        403: { description: 'Hanya instruktur yang dapat menjalankan pemeriksaan' },
       },
+      400: { description: 'Payload submissions tidak valid atau kosong' },
+      403: { description: 'Hanya instruktur yang dapat menjalankan pemeriksaan' },
     },
   },
-  async (event) => {
+})
+
+export default defineEventHandler(async (event) => {
     const session = parseSessionCookie(getCookie(event, 'lms_session'))
     if (!session) {
       throw createError({ statusCode: 401, statusMessage: 'Silakan login terlebih dahulu.' })

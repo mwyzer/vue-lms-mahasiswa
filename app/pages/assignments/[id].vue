@@ -12,7 +12,7 @@ const router = useRouter()
 const assignmentsStore = useAssignmentsStore()
 const { formatDate, isOverdue, useCountdown } = useAssignments()
 const notification = useNotification()
-const { fileToBase64, validateAttachmentFile, formatFileSize, downloadFile } = useFileAttachment()
+const { uploading, maxAttachmentMB, uploadAttachment, validateAttachmentFile, formatFileSize, downloadFile } = useFileAttachment()
 
 const assignmentId = computed(() => route.params.id as string)
 const submitText = ref('')
@@ -37,10 +37,10 @@ function handleFileSelect(event: Event) {
   }
 
   attachmentError.value = ''
-  fileToBase64(file).then((url) => {
+  uploadAttachment(file, { folder: 'submissions', scopeId: assignmentId.value }).then((url) => {
     newFile.value = { name: file.name, url }
-  }).catch(() => {
-    attachmentError.value = 'Gagal membaca file.'
+  }).catch((e: any) => {
+    attachmentError.value = e?.message || 'Gagal mengunggah file.'
   })
 }
 
@@ -258,8 +258,8 @@ function handleSubmit() {
             />
             <div class="file-upload-row">
               <label class="btn btn-outline btn-sm file-btn">
-                📎 {{ newFile ? 'Ganti file' : 'Lampirkan file' }}
-                <input type="file" class="hidden-input" @change="handleFileSelect" />
+                📎 {{ uploading ? 'Mengunggah...' : newFile ? 'Ganti file' : 'Lampirkan file' }}
+                <input type="file" class="hidden-input" :disabled="uploading" @change="handleFileSelect" />
               </label>
               <div v-if="newFile" class="new-file-chip">
                 <span>{{ newFile.name }}</span>
@@ -269,7 +269,7 @@ function handleSubmit() {
             <p v-if="attachmentError" class="text-sm error-text">{{ attachmentError }}</p>
             <button
               class="btn btn-primary btn-sm"
-              :disabled="submitting || (!submitText.trim() && !newFile)"
+              :disabled="submitting || uploading || (!submitText.trim() && !newFile)"
               @click="handleSubmit"
             >
               {{ submitting ? 'Menyimpan...' : 'Perbarui Jawaban' }}
@@ -288,8 +288,8 @@ function handleSubmit() {
             <span class="text-xs text-muted">{{ answerCharCount }} karakter</span>
           </div>          <div class="file-upload-row">
             <label class="btn btn-outline btn-sm file-btn">
-              📎 {{ newFile ? 'Ganti file' : 'Lampirkan file (opsional)' }}
-              <input type="file" class="hidden-input" @change="handleFileSelect" />
+              📎 {{ uploading ? 'Mengunggah...' : newFile ? 'Ganti file' : `Lampirkan file (opsional, maks ${maxAttachmentMB}MB)` }}
+              <input type="file" class="hidden-input" :disabled="uploading" @change="handleFileSelect" />
             </label>
             <div v-if="newFile" class="new-file-chip">
               <span>{{ newFile.name }}</span>
@@ -302,7 +302,7 @@ function handleSubmit() {
               <span class="text-xs text-muted">{{ answerCharCount }} karakter</span>
               <button
                 class="btn btn-primary"
-                :disabled="submitting || (!submitText.trim() && !newFile)"
+                :disabled="submitting || uploading || (!submitText.trim() && !newFile)"
                 @click="handleSubmit"
               >
                 {{ submitting ? 'Menyimpan...' : 'Kumpulkan Tugas' }}

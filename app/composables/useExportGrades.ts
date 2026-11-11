@@ -140,8 +140,52 @@ export function useExportGrades() {
     exportToExcel(allRows, `Nilai-${safeName}`, courseName)
   }
 
+  /**
+   * Export arbitrary rows (one object per row, keys = column headers) to Excel.
+   * Column widths are derived from the longest value in each column.
+   */
+  function exportSheet(
+    rows: Array<Record<string, string | number>>,
+    filename: string,
+    sheetName: string = 'Sheet1',
+  ) {
+    try {
+      if (rows.length === 0) {
+        notification.warning('Tidak ada data untuk diekspor.')
+        return
+      }
+
+      const ws = XLSX.utils.json_to_sheet(rows)
+      const headers = Object.keys(rows[0])
+      ws['!cols'] = headers.map((h) => ({
+        wch: Math.min(40, Math.max(h.length, ...rows.map((r) => String(r[h] ?? '').length)) + 2),
+      }))
+
+      const wb = XLSX.utils.book_new()
+      // Excel sheet names: max 31 chars, no : \ / ? * [ ]
+      XLSX.utils.book_append_sheet(wb, ws, sheetName.replace(/[:\\/?*[\]]/g, ' ').slice(0, 31) || 'Sheet1')
+
+      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
+      const blob = new Blob([wbout], { type: 'application/octet-stream' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `${filename}.xlsx`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+
+      notification.success(`Berhasil mengekspor ${rows.length} baris ke Excel.`)
+    } catch (err) {
+      console.error('Export error:', err)
+      notification.error('Gagal mengekspor data.')
+    }
+  }
+
   return {
     exportToExcel,
+    exportSheet,
     prepareGradeData,
     exportCourseGrades,
   }

@@ -596,6 +596,10 @@ export const useAuthStore = defineStore('auth', {
       this.campusId = null
       this.error = null
       try {
+        const { useNotificationsStore } = await import('./notifications')
+        useNotificationsStore().reset()
+      } catch { /* notifications store is optional */ }
+      try {
         navigateTo('/login')
       } catch {
         // navigateTo may not be available in all environments

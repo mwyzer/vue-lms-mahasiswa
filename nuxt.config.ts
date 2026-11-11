@@ -121,6 +121,9 @@ export default defineNuxtConfig({
     // Server-only (not exposed to client)
     aiApiKey: '',
     aiModel: 'gpt-4o-mini',
+    // Deadline-reminder cron (server/api/cron/deadline-reminders.get.ts)
+    cronSecret: '',
+    supabaseServiceRoleKey: '',
 
     public: {
       supabaseUrl: 'https://fmibyazumfxrgcehojys.supabase.co',

@@ -180,6 +180,30 @@ function formatDate(dateStr?: string | null): string {
           </div>
           <span class="action-arrow">→</span>
         </NuxtLink>
+
+        <NuxtLink
+          :to="`/instructor/courses/${course.id}/gradebook`"
+          class="card action-card"
+        >
+          <div class="action-icon">🏆</div>
+          <div class="action-text">
+            <strong>Buku Nilai</strong>
+            <span>Bobot komponen, UTS/UAS, dan nilai akhir</span>
+          </div>
+          <span class="action-arrow">→</span>
+        </NuxtLink>
+
+        <NuxtLink
+          :to="`/instructor/courses/${course.id}/forum`"
+          class="card action-card"
+        >
+          <div class="action-icon">💬</div>
+          <div class="action-text">
+            <strong>Forum Diskusi</strong>
+            <span>Jawab pertanyaan dan moderasi diskusi</span>
+          </div>
+          <span class="action-arrow">→</span>
+        </NuxtLink>
       </div>
 
       <!-- Enrolled Students -->

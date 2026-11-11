@@ -71,7 +71,7 @@ const formCourseId = ref('')
 const formJudul = ref('')
 const formDeskripsi = ref('')
 const formTenggat = ref('')
-const { fileToBase64, validateAttachmentFile } = useFileAttachment()
+const { uploading, maxAttachmentMB, uploadAttachment, validateAttachmentFile } = useFileAttachment()
 const formFile = ref<{ name: string; url: string } | null>(null)
 const formFileError = ref('')
 
@@ -91,10 +91,10 @@ function handleFormFileSelect(event: Event) {
     return
   }
   formFileError.value = ''
-  fileToBase64(file).then((url) => {
+  uploadAttachment(file, { folder: 'assignments', scopeId: formCourseId.value || 'umum' }).then((url) => {
     formFile.value = { name: file.name, url }
-  }).catch(() => {
-    formFileError.value = 'Gagal membaca file.'
+  }).catch((e: any) => {
+    formFileError.value = e?.message || 'Gagal mengunggah file.'
   })
 }
 
@@ -270,8 +270,8 @@ function formatDate(iso?: string | null): string {
           <label class="form-label">Lampiran (opsional)</label>
           <div class="file-upload-row">
             <label class="btn btn-outline btn-sm file-btn">
-              📎 {{ formFile ? 'Ganti file' : 'Lampirkan file' }}
-              <input type="file" class="hidden-input" @change="handleFormFileSelect" />
+              📎 {{ uploading ? 'Mengunggah...' : formFile ? 'Ganti file' : 'Lampirkan file' }}
+              <input type="file" class="hidden-input" :disabled="uploading" @change="handleFormFileSelect" />
             </label>
             <div v-if="formFile" class="new-file-chip">
               <span>{{ formFile.name }}</span>
@@ -279,14 +279,14 @@ function formatDate(iso?: string | null): string {
             </div>
           </div>
           <p v-if="formFileError" class="text-sm error-text">{{ formFileError }}</p>
-          <span class="text-xs text-muted">Maksimal 2MB.</span>
+          <span class="text-xs text-muted">Maksimal {{ maxAttachmentMB }}MB.</span>
         </div>
       </div>
       <div class="form-actions">
         <button class="btn btn-ghost btn-sm" @click="cancelForm">Batal</button>
         <button
           class="btn btn-primary btn-sm"
-          :disabled="saving || !formJudul.trim() || !formCourseId"
+          :disabled="saving || uploading || !formJudul.trim() || !formCourseId"
           @click="saveAssignment"
         >
           {{ saving ? 'Menyimpan...' : editingId ? 'Perbarui' : 'Simpan' }}

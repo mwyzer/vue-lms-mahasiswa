@@ -98,6 +98,7 @@ function closeSidebar() {
         </button>
 
         <div class="topbar-right">
+          <NotificationBell />
           <span class="text-sm text-muted">
             {{ auth.user?.nama }}
           </span>
@@ -283,6 +284,14 @@ function closeSidebar() {
   position: sticky;
   top: 0;
   z-index: 50;
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  /* Keep the group on the right even when the hamburger is hidden (desktop). */
+  margin-left: auto;
 }
 
 .hamburger {

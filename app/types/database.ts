@@ -186,3 +186,65 @@ export interface AcademicEvent {
   created_at: string
   updated_at: string
 }
+
+/** In-app notification (notification center). */
+export type NotificationType = 'tugas' | 'nilai' | 'pengumuman' | 'forum' | 'deadline' | 'sistem'
+
+export interface AppNotification {
+  id: string
+  user_id: string
+  tipe: NotificationType
+  judul: string
+  pesan?: string | null
+  /** In-app route to open when the notification is clicked. */
+  link?: string | null
+  /** Prevents duplicates (e.g. one deadline reminder per assignment). */
+  dedupe_key?: string | null
+  read_at?: string | null
+  created_at: string
+}
+
+/** Forum diskusi — thread per mata kuliah (opsional terkait satu materi). */
+export interface ForumThread {
+  id: string
+  course_id: string
+  lesson_id?: string | null
+  author_id: string
+  judul: string
+  konten: string
+  is_pinned: boolean
+  is_locked: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface ForumReply {
+  id: string
+  thread_id: string
+  author_id: string
+  konten: string
+  /** Marked by the instructor as the accepted answer. */
+  is_answer: boolean
+  created_at: string
+}
+
+/** Gradebook — bobot komponen nilai per mata kuliah (total 100). */
+export interface GradeWeights {
+  course_id: string
+  bobot_tugas: number
+  bobot_kuis: number
+  bobot_presensi: number
+  bobot_uts: number
+  bobot_uas: number
+  updated_at?: string
+}
+
+/** Nilai UTS/UAS yang diinput manual oleh instruktur. */
+export interface ExamScore {
+  id: string
+  course_id: string
+  student_id: string
+  tipe: 'uts' | 'uas'
+  nilai: number
+  updated_at?: string
+}

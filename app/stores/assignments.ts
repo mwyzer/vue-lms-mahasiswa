@@ -12,6 +12,7 @@ import type { Assignment, Submission } from '~/types/database'
 import type { AssignmentWithCourse, SubmissionWithStudent } from '~/types/assignment'
 import { useAuthStore } from './auth'
 import { useCoursesStore } from './courses'
+import { useNotificationsStore } from './notifications'
 
 // ── Demo data (fallback when demoMode=true) ──────────
 export const DEMO_ASSIGNMENTS: Assignment[] = [
@@ -207,6 +208,17 @@ export const useAssignmentsStore = defineStore('assignments', {
       }
     },
 
+    /** Demo: tell a student their grade is out (production uses a Postgres trigger). */
+    _notifyGraded(assignmentId: string, studentId: string, nilai: number) {
+      const judul = DEMO_ASSIGNMENTS.find((a) => a.id === assignmentId)?.judul || 'Tugas'
+      useNotificationsStore().notifyUsers([studentId], {
+        tipe: 'nilai',
+        judul: `Nilai keluar: ${judul}`,
+        pesan: `Nilai Anda: ${nilai}`,
+        link: `/assignments/${assignmentId}`,
+      })
+    },
+
     /**
      * Set the currently viewed assignment.
      */
@@ -332,6 +344,16 @@ export const useAssignmentsStore = defineStore('assignments', {
           updated_at: new Date().toISOString(),
         })
         this._syncDemo()
+        // Demo: notify enrolled students (production uses a Postgres trigger).
+        const created = DEMO_ASSIGNMENTS[DEMO_ASSIGNMENTS.length - 1]
+        useNotificationsStore().notifyCourseStudents(courseId, {
+          tipe: 'tugas',
+          judul: `Tugas baru: ${judul}`,
+          pesan: tenggatWaktu
+            ? `Tenggat ${new Date(tenggatWaktu).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}`
+            : null,
+          link: `/assignments/${created.id}`,
+        })
         return
       }
 
@@ -462,6 +484,7 @@ export const useAssignmentsStore = defineStore('assignments', {
             feedback,
             graded_at: new Date().toISOString(),
           }
+          this._notifyGraded(DEMO_SUBMISSIONS[idx].assignment_id, DEMO_SUBMISSIONS[idx].student_id, nilai)
         }
         this._syncDemo()
         return
@@ -527,6 +550,7 @@ export const useAssignmentsStore = defineStore('assignments', {
           const idx = DEMO_SUBMISSIONS.indexOf(sub)
           DEMO_SUBMISSIONS[idx] = { ...sub, nilai, feedback, graded_at: new Date().toISOString() }
         }
+        this._notifyGraded(assignmentId, studentId, nilai)
         this._syncDemo()
         return true
       }

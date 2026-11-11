@@ -4,8 +4,16 @@
  * Tests attachment validation, size formatting, filename derivation,
  * and demo-mode storage via the assignments store.
  */
-import { describe, it, expect, beforeEach } from 'vitest'
-import { useFileAttachment, ATTACHMENT_MAX_MB } from '~/composables/useFileAttachment'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import {
+  useFileAttachment,
+  ATTACHMENT_MAX_MB,
+  STORAGE_MAX_MB,
+  sanitizeFileName,
+  buildStoragePath,
+  parseStorageUrl,
+} from '~/composables/useFileAttachment'
+import { useUiStore } from '~/stores/ui'
 import { useAssignmentsStore } from '~/stores/assignments'
 import { useAuthStore } from '~/stores/auth'
 import { useCoursesStore } from '~/stores/courses'
@@ -48,6 +56,105 @@ describe('useFileAttachment', () => {
   it('derives a filename from a URL path', () => {
     expect(fileNameFromUrl('https://cdn.supabase.co/storage/v1/object/public/bucket/panduan.pdf')).toBe('panduan.pdf')
     expect(fileNameFromUrl('data:text/plain;base64,SGk=', 'lampiran')).toBe('lampiran')
+  })
+})
+
+// ── Supabase Storage helpers ──
+
+describe('storage path helpers', () => {
+  it('sanitizes filenames for use as object keys', () => {
+    expect(sanitizeFileName('Laporan Akhir (final).pdf')).toBe('Laporan-Akhir-final.pdf')
+    expect(sanitizeFileName('../../etc/passwd')).toBe('....etcpasswd')
+    expect(sanitizeFileName('')).toBe('file')
+  })
+
+  it('builds {folder}/{scope}/{user}/{ts}-{name} paths', () => {
+    const path = buildStoragePath({ folder: 'submissions', scopeId: 'a1' }, 'u-9', 'jawaban saya.py', 1700000000000)
+    expect(path).toBe('submissions/a1/u-9/1700000000000-jawaban-saya.py')
+    // The uploader ID must be the 3rd folder — the storage RLS policy depends on it.
+    expect(path.split('/')[2]).toBe('u-9')
+  })
+
+  it('parses storage:// references and ignores other URLs', () => {
+    expect(parseStorageUrl('storage://attachments/submissions/a1/u-9/1-x.py')).toEqual({
+      bucket: 'attachments',
+      path: 'submissions/a1/u-9/1-x.py',
+    })
+    expect(parseStorageUrl('https://example.com/x.pdf')).toBeNull()
+    expect(parseStorageUrl('data:text/plain;base64,SGk=')).toBeNull()
+    expect(parseStorageUrl('storage://attachments/')).toBeNull()
+    expect(parseStorageUrl(null)).toBeNull()
+  })
+
+  it('derives the original filename from a storage reference', () => {
+    const { fileNameFromUrl } = useFileAttachment()
+    expect(fileNameFromUrl('storage://attachments/assignments/c1/i1/1700000000000-panduan.pdf')).toBe('panduan.pdf')
+  })
+})
+
+describe('uploadAttachment / resolveFileUrl', () => {
+  function makeStorageMock(result: { uploadError?: { message: string } | null; signedUrl?: string | null }) {
+    const upload = vi.fn().mockResolvedValue({ data: {}, error: result.uploadError ?? null })
+    const createSignedUrl = vi.fn().mockResolvedValue({
+      data: result.signedUrl ? { signedUrl: result.signedUrl } : null,
+      error: result.signedUrl ? null : { message: 'not found' },
+    })
+    const from = vi.fn(() => ({ upload, createSignedUrl, remove: vi.fn() }))
+    ;(globalThis as any).useNuxtApp = vi.fn(() => ({ $supabase: { storage: { from } } }))
+    return { upload, createSignedUrl, from }
+  }
+
+  it('returns a base64 data URL in demo mode without touching Storage', async () => {
+    const mock = makeStorageMock({})
+    const { uploadAttachment, maxAttachmentMB } = useFileAttachment()
+    const url = await uploadAttachment(makeFile('a.txt', 4), { folder: 'submissions', scopeId: 'a1' })
+    expect(url.startsWith('data:')).toBe(true)
+    expect(mock.upload).not.toHaveBeenCalled()
+    expect(maxAttachmentMB.value).toBe(ATTACHMENT_MAX_MB)
+  })
+
+  it('uploads to the attachments bucket in production mode', async () => {
+    useUiStore().demoModeOverride = false
+    useAuthStore().user = { id: 'u-9', role: 'student', nama: 'Tes', created_at: '', updated_at: '' }
+    const mock = makeStorageMock({})
+
+    const { uploadAttachment, maxAttachmentMB, uploading } = useFileAttachment()
+    expect(maxAttachmentMB.value).toBe(STORAGE_MAX_MB)
+
+    const url = await uploadAttachment(makeFile('jawaban.py', 10, 'text/x-python'), { folder: 'submissions', scopeId: 'a1' })
+    expect(mock.from).toHaveBeenCalledWith('attachments')
+    expect(url).toMatch(/^storage:\/\/attachments\/submissions\/a1\/u-9\/\d+-jawaban\.py$/)
+    expect(mock.upload.mock.calls[0][0]).toBe(url.replace('storage://attachments/', ''))
+    expect(uploading.value).toBe(false)
+  })
+
+  it('throws a readable error when the upload fails', async () => {
+    useUiStore().demoModeOverride = false
+    useAuthStore().user = { id: 'u-9', role: 'student', nama: 'Tes', created_at: '', updated_at: '' }
+    makeStorageMock({ uploadError: { message: 'Payload too large' } })
+
+    const { uploadAttachment, uploading } = useFileAttachment()
+    await expect(uploadAttachment(makeFile('x.zip', 10), { folder: 'submissions', scopeId: 'a1' }))
+      .rejects.toThrow('Payload too large')
+    expect(uploading.value).toBe(false)
+  })
+
+  it('resolves storage references to signed URLs and passes other URLs through', async () => {
+    const mock = makeStorageMock({ signedUrl: 'https://signed.example/x?token=1' })
+    const { resolveFileUrl } = useFileAttachment()
+
+    expect(await resolveFileUrl('data:text/plain;base64,SGk=')).toBe('data:text/plain;base64,SGk=')
+    expect(mock.createSignedUrl).not.toHaveBeenCalled()
+
+    expect(await resolveFileUrl('storage://attachments/assignments/c1/i1/1-a.pdf', 'a.pdf'))
+      .toBe('https://signed.example/x?token=1')
+    expect(mock.createSignedUrl.mock.calls[0][0]).toBe('assignments/c1/i1/1-a.pdf')
+  })
+
+  it('returns null when a signed URL cannot be created', async () => {
+    makeStorageMock({ signedUrl: null })
+    const { resolveFileUrl } = useFileAttachment()
+    expect(await resolveFileUrl('storage://attachments/assignments/c1/i1/1-a.pdf')).toBeNull()
   })
 })
 

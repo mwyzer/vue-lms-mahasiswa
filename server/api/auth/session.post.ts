@@ -6,59 +6,59 @@
  *
  * Body: { userId: string, role: 'student' | 'instructor' | 'admin', name: string, campusId?: string }
  */
-export default defineEventHandler(
-  {
-    openAPI: {
-      summary: 'Create Session',
-      description: 'Membuat signed session cookie (lms_session) setelah login berhasil. Cookie berlaku 24 jam.',
-      tags: ['Auth'],
-      requestBody: {
-        required: true,
+defineRouteMeta({
+  openAPI: {
+    summary: 'Create Session',
+    description: 'Membuat signed session cookie (lms_session) setelah login berhasil. Cookie berlaku 24 jam.',
+    tags: ['Auth'],
+    requestBody: {
+      required: true,
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            required: ['userId', 'role', 'name'],
+            properties: {
+              userId: { type: 'string', description: 'ID pengguna (s1, i1, a1 untuk demo)', example: 's1' },
+              role: {
+                type: 'string',
+                enum: ['student', 'instructor', 'admin'],
+                description: 'Role pengguna',
+                example: 'student',
+              },
+              name: { type: 'string', description: 'Nama lengkap pengguna', example: 'Ahmad Fauzi' },
+              campusId: { type: 'string', nullable: true, description: 'ID kampus (multi-campus). Null untuk admin global.', example: 'camp-utama' },
+            },
+          },
+        },
+      },
+    },
+    responses: {
+      200: {
+        description: 'Session berhasil dibuat',
+        headers: {
+          'Set-Cookie': {
+            description: 'Signed session cookie (lms_session)',
+            schema: { type: 'string' },
+          },
+        },
         content: {
           'application/json': {
             schema: {
               type: 'object',
-              required: ['userId', 'role', 'name'],
               properties: {
-                userId: { type: 'string', description: 'ID pengguna (s1, i1, a1 untuk demo)', example: 's1' },
-                role: {
-                  type: 'string',
-                  enum: ['student', 'instructor', 'admin'],
-                  description: 'Role pengguna',
-                  example: 'student',
-                },
-                name: { type: 'string', description: 'Nama lengkap pengguna', example: 'Ahmad Fauzi' },
-                campusId: { type: 'string', nullable: true, description: 'ID kampus (multi-campus). Null untuk admin global.', example: 'camp-utama' },
+                ok: { type: 'boolean', example: true },
               },
             },
           },
         },
       },
-      responses: {
-        200: {
-          description: 'Session berhasil dibuat',
-          headers: {
-            'Set-Cookie': {
-              description: 'Signed session cookie (lms_session)',
-              schema: { type: 'string' },
-            },
-          },
-          content: {
-            'application/json': {
-              schema: {
-                type: 'object',
-                properties: {
-                  ok: { type: 'boolean', example: true },
-                },
-              },
-            },
-          },
-        },
-        400: { description: 'Data session tidak lengkap (userId, role, atau name kosong)' },
-      },
+      400: { description: 'Data session tidak lengkap (userId, role, atau name kosong)' },
     },
   },
-  async (event) => {
+})
+
+export default defineEventHandler(async (event) => {
   const body = await readBody<{ userId: string; role: 'student' | 'instructor' | 'admin'; name: string; campusId?: string | null }>(event)
 
   if (!body?.userId || !body?.role || !body?.name) {

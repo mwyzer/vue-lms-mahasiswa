@@ -10,6 +10,7 @@
 import { defineStore } from 'pinia'
 import type { Announcement } from '~/types/database'
 import { useAuthStore } from './auth'
+import { useNotificationsStore } from './notifications'
 
 // ── Demo data (fallback when demoMode=true) ──────────
 const DEMO_ANNOUNCEMENTS: Announcement[] = [
@@ -151,6 +152,13 @@ export const useAnnouncementsStore = defineStore('announcements', {
             updated_at: new Date().toISOString(),
           }
           this.announcements.unshift(newAnn)
+          // Demo: notify enrolled students (production uses a Postgres trigger).
+          useNotificationsStore().notifyCourseStudents(courseId, {
+            tipe: 'pengumuman',
+            judul: `Pengumuman: ${newAnn.judul}`,
+            pesan: newAnn.konten.slice(0, 160),
+            link: `/courses/${courseId}`,
+          })
           return true
         }
         // TODO: Implement Supabase insert

@@ -199,6 +199,18 @@ export const useUiStore = defineStore('ui', {
           campus.init(),
         ])
 
+        // Feature stores added later (notifications, forum, gradebook)
+        const { useNotificationsStore } = await import('./notifications')
+        const { useForumStore } = await import('./forum')
+        const { useGradebookStore } = await import('./gradebook')
+        const notifications = useNotificationsStore()
+        const forum = useForumStore()
+        const gradebook = useGradebookStore()
+        notifications.reset()
+        forum.initialized = false
+        gradebook.initialized = false
+        await Promise.all([notifications.init(), forum.init(), gradebook.init()])
+
         this.showToast('info', next ? 'Demo mode aktif — menggunakan data lokal' : 'Demo mode nonaktif — menggunakan data Supabase')
       } catch (err) {
         console.error('Failed to toggle demo mode:', err)

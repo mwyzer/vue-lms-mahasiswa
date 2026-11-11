@@ -7,11 +7,25 @@ definePageMeta({
   middleware: ['auth', 'student']
 })
 
+import { useGradebookStore, GRADE_COMPONENTS, COMPONENT_LABELS } from '~/stores/gradebook'
+
 const assignmentsStore = useAssignmentsStore()
+const gradebook = useGradebookStore()
 
 onMounted(() => {
-  assignmentsStore.init()
+  // Also initializes the assignments, quiz, attendance and courses stores.
+  gradebook.init()
 })
+
+// Weighted final grade per enrolled course
+const courseGrades = computed(() => gradebook.myGrades)
+
+function letterClass(letter: string | null): string {
+  if (letter === 'A' || letter === 'B') return 'badge-success'
+  if (letter === 'C') return 'badge-warning'
+  if (letter === 'D' || letter === 'E') return 'badge-danger'
+  return 'badge-neutral'
+}
 
 // Get all assignments and filter graded ones
 const myAssignments = computed(() => assignmentsStore.myAssignments as any[])
@@ -70,6 +84,36 @@ function getScoreColor(nilai: number): string {
         <p class="text-muted">Nilai tugas yang telah dinilai oleh instruktur.</p>
       </div>
     </div>
+
+    <!-- Final grade per course -->
+    <section v-if="courseGrades.length > 0" class="final-section">
+      <h2 class="final-heading">Nilai Akhir per Mata Kuliah</h2>
+      <div class="final-list">
+        <div v-for="g in courseGrades" :key="g.course_id" class="card final-card">
+          <div class="final-top">
+            <div>
+              <span class="final-kode">{{ g.course_kode }}</span>
+              <h3 class="final-nama">{{ g.course_nama }}</h3>
+            </div>
+            <div class="final-score">
+              <span class="final-value">{{ g.final ?? '–' }}</span>
+              <span class="badge" :class="letterClass(g.letter)">{{ g.letter ?? 'Belum ada' }}</span>
+            </div>
+          </div>
+          <dl class="component-row">
+            <div v-for="k in GRADE_COMPONENTS" :key="k" class="component">
+              <dt>{{ COMPONENT_LABELS[k] }} <span class="component-weight">{{ g.weights[k] }}%</span></dt>
+              <dd>{{ g[k] ?? '–' }}</dd>
+            </div>
+          </dl>
+          <p v-if="g.final !== null && g.isProvisional" class="final-note">
+            Nilai sementara — baru {{ g.coveredWeight }}% bobot yang sudah ada datanya.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <h2 v-if="courseGrades.length > 0" class="final-heading">Nilai Tugas</h2>
 
     <!-- Stats -->
     <div v-if="totalGraded > 0" class="stats-row">
@@ -147,6 +191,94 @@ function getScoreColor(nilai: number): string {
 </template>
 
 <style scoped>
+/* Final grade per course */
+.final-section {
+  margin-bottom: 1.75rem;
+}
+
+.final-heading {
+  font-size: 1.0625rem;
+  margin: 0 0 0.75rem;
+}
+
+.final-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.final-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.final-kode {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-neutral-500);
+}
+
+.final-nama {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.final-score {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.final-value {
+  font-size: 1.75rem;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-neutral-900);
+}
+
+.component-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.5rem;
+  margin: 0.875rem 0 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-neutral-100);
+}
+
+.component dt {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--color-neutral-500);
+}
+
+.component-weight {
+  font-weight: 400;
+  color: var(--color-neutral-400);
+}
+
+.component dd {
+  margin: 0.125rem 0 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-neutral-800);
+}
+
+.final-note {
+  margin: 0.625rem 0 0;
+  font-size: 0.75rem;
+  color: var(--color-neutral-500);
+}
+
+@media (max-width: 480px) {
+  .component-row {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
 .grades-page {
   max-width: 720px;
 }

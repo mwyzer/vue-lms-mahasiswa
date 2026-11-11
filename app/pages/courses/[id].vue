@@ -101,6 +101,15 @@ const nextIncompleteLesson = computed(() =>
             <div class="progress-fill" :style="{ width: progressPercent + '%' }" />
           </div>
         </div>
+
+        <div class="course-links">
+          <NuxtLink :to="`/courses/${course.id}/forum`" class="btn btn-secondary btn-sm">
+            💬 Forum Diskusi
+          </NuxtLink>
+          <NuxtLink to="/student/grades" class="btn btn-secondary btn-sm">
+            🏆 Nilai Saya
+          </NuxtLink>
+        </div>
       </div>
 
       <!-- Lesson list -->
@@ -159,6 +168,13 @@ const nextIncompleteLesson = computed(() =>
 </template>
 
 <style scoped>
+.course-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
 .course-detail-page {
   max-width: 720px;
 }

@@ -203,7 +203,7 @@ const steps = [
 /* ── Features ─────────────────────────────── */
 .features {
   padding: 5rem 0;
-  background-color: white;
+  background-color: var(--color-surface);
 }
 
 .features-grid {
@@ -264,7 +264,7 @@ const steps = [
   height: 2.5rem;
   border-radius: 50%;
   background-color: var(--color-primary-600);
-  color: white;
+  color: var(--color-on-accent, #fff);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -291,7 +291,7 @@ const steps = [
 /* ── CTA ──────────────────────────────────── */
 .cta {
   padding: 5rem 0;
-  background-color: white;
+  background-color: var(--color-surface);
 }
 
 .cta-card {
@@ -314,8 +314,9 @@ const steps = [
 }
 
 .cta-card .btn-primary {
+  /* White button on the primary card in both themes */
   background-color: white;
-  color: var(--color-primary-700);
+  color: #1d4ed8;
 }
 
 .cta-card .btn-primary:hover {

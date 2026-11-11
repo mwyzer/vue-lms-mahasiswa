@@ -445,7 +445,7 @@ const suggestions = [
 
 .message-user .message-content {
   background: var(--color-primary-500);
-  color: white;
+  color: var(--color-on-accent, #fff);
   border-bottom-right-radius: var(--radius-sm);
 }
 
@@ -652,8 +652,8 @@ a.source-chip:focus-visible {
   align-items: center;
   gap: 0.5rem;
   padding: 0.6rem 1rem;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
+  background: var(--tint-danger-bg, #fef2f2);
+  border: 1px solid var(--tint-danger-border, #fecaca);
   border-radius: var(--radius-md);
   color: var(--color-error);
   font-size: 0.85rem;
@@ -721,7 +721,7 @@ a.source-chip:focus-visible {
 
 .btn-send {
   background: var(--color-primary-500);
-  color: white;
+  color: var(--color-on-accent, #fff);
 }
 
 .btn-send:hover:not(:disabled) {
@@ -735,7 +735,7 @@ a.source-chip:focus-visible {
 
 .btn-stop {
   background: var(--color-error);
-  color: white;
+  color: var(--color-on-accent, #fff);
 }
 
 .btn-stop:hover {
@@ -754,7 +754,7 @@ a.source-chip:focus-visible {
 .badge-demo {
   display: inline-block;
   background: var(--color-warning);
-  color: white;
+  color: var(--color-on-accent, #fff);
   font-size: 0.65rem;
   font-weight: 600;
   padding: 0.125rem 0.375rem;

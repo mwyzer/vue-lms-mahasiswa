@@ -398,7 +398,7 @@ function handleKeydown(e: KeyboardEvent) {
 
 .output-badge {
   background-color: var(--color-primary-500);
-  color: white;
+  color: var(--color-on-accent, #fff);
   font-size: 0.625rem;
   font-weight: 700;
   min-width: 1.125rem;
@@ -435,7 +435,8 @@ function handleKeydown(e: KeyboardEvent) {
   align-items: center;
   gap: 0.75rem;
   padding: 0.625rem 1rem;
-  background-color: var(--color-neutral-800);
+  /* Editor chrome stays dark in both themes — fixed colors, not theme neutrals */
+  background-color: #1e293b;
   color: white;
   flex-shrink: 0;
 }
@@ -457,7 +458,7 @@ function handleKeydown(e: KeyboardEvent) {
 
 .editor-filename {
   font-size: 0.75rem;
-  color: var(--color-neutral-400);
+  color: #94a3b8;
   font-family: var(--font-mono);
   flex: 1;
 }
@@ -468,7 +469,7 @@ function handleKeydown(e: KeyboardEvent) {
 }
 
 .clear-btn {
-  color: var(--color-neutral-400);
+  color: #94a3b8;
 }
 
 .clear-btn:hover {

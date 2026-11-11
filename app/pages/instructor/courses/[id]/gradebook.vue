@@ -449,7 +449,7 @@ function exportExcel() {
 .th-weight {
   display: block;
   font-weight: 400;
-  color: var(--color-neutral-400);
+  color: var(--color-neutral-500);
 }
 
 .col-name {

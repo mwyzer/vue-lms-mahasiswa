@@ -271,8 +271,8 @@ function meetingLabel(student: { totalMeetings: number }): string {
 }
 
 .badge-warn {
-  background: oklch(92% 0.10 60 / 0.4);
-  color: oklch(42% 0.16 55);
+  background: var(--tint-warning-bg, oklch(92% 0.10 60 / 0.4));
+  color: var(--tint-warning-fg, oklch(42% 0.16 55));
 }
 
 .stat-grid {
@@ -308,7 +308,7 @@ function meetingLabel(student: { totalMeetings: number }): string {
   gap: 0.75rem;
   padding: 0.5rem;
   border-radius: var(--radius-md);
-  background: oklch(96% 0.02 55 / 0.4);
+  background: var(--tint-warning-bg, oklch(96% 0.02 55 / 0.4));
 }
 
 .student-avatar {
@@ -319,7 +319,7 @@ function meetingLabel(student: { totalMeetings: number }): string {
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  color: #fff;
+  color: var(--color-on-accent, #fff);
   background: var(--color-accent);
   flex-shrink: 0;
 }
@@ -425,11 +425,11 @@ function meetingLabel(student: { totalMeetings: number }): string {
   font-weight: 800;
 }
 
-.grade-a { color: oklch(45% 0.15 150); }
-.grade-b { color: oklch(50% 0.14 190); }
-.grade-c { color: oklch(50% 0.13 85); }
+.grade-a { color: var(--tint-success-fg, oklch(45% 0.15 150)); }
+.grade-b { color: var(--tint-info-fg, oklch(50% 0.14 190)); }
+.grade-c { color: var(--tint-warning-fg, oklch(50% 0.13 85)); }
 .grade-d,
-.grade-e { color: oklch(50% 0.16 25); }
+.grade-e { color: var(--tint-danger-fg, oklch(50% 0.16 25)); }
 
 .grade-badge {
   display: inline-flex;

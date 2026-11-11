@@ -275,15 +275,15 @@ function setActiveScope(campusId: string | null) {
 }
 
 .badge-primary {
-  background-color: #dbeafe;
-  color: #1d4ed8;
-  border: 1px solid #bfdbfe;
+  background-color: var(--tint-info-bg, #dbeafe);
+  color: var(--tint-info-fg, #1d4ed8);
+  border: 1px solid var(--tint-info-border, #bfdbfe);
 }
 
 .badge-neutral {
-  background-color: #f1f5f9;
-  color: #475569;
-  border: 1px solid #e2e8f0;
+  background-color: var(--color-neutral-100);
+  color: var(--color-neutral-600);
+  border: 1px solid var(--color-neutral-200);
 }
 
 .form-group {
@@ -303,7 +303,7 @@ function setActiveScope(campusId: string | null) {
   padding: 0.5rem 0.75rem;
   border: 1px solid var(--color-neutral-300);
   border-radius: var(--radius-md);
-  background: white;
+  background: var(--color-surface);
   color: var(--color-neutral-800);
   font-size: 0.875rem;
 }
@@ -346,8 +346,8 @@ function setActiveScope(campusId: string | null) {
   width: 3rem;
   height: 3rem;
   border-radius: 50%;
-  background: #dbeafe;
-  color: #1d4ed8;
+  background: var(--tint-info-bg, #dbeafe);
+  color: var(--tint-info-fg, #1d4ed8);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -377,8 +377,8 @@ function setActiveScope(campusId: string | null) {
 .campus-kode {
   font-size: 0.6875rem;
   font-weight: 700;
-  background: #eef2ff;
-  color: #4338ca;
+  background: var(--tint-info-bg, #eef2ff);
+  color: var(--tint-info-fg, #4338ca);
   padding: 0.125rem 0.375rem;
   border-radius: 0.25rem;
 }

@@ -115,6 +115,7 @@ function closeSidebar() {
         </button>
 
         <div class="topbar-right">
+          <ThemeToggle />
           <NotificationBell />
           <span class="badge badge-danger">Administrator</span>
           <span class="text-sm text-muted">{{ auth.user?.nama }}</span>
@@ -374,9 +375,9 @@ function closeSidebar() {
 
 /* Badge for admin */
 .badge.badge-danger {
-  background-color: #fef2f2;
-  color: #dc2626;
-  border: 1px solid #fecaca;
+  background-color: var(--tint-danger-bg, #fef2f2);
+  color: var(--tint-danger-fg, #dc2626);
+  border: 1px solid var(--tint-danger-border, #fecaca);
   padding: 0.25rem 0.75rem;
   border-radius: 999px;
   font-size: 0.75rem;

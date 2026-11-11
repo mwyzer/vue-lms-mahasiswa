@@ -596,13 +596,13 @@ function getLevelLabel(lv: number): string {
 }
 
 .badge-primary {
-  background: #dbeafe;
-  color: #1d4ed8;
+  background: var(--tint-info-bg, #dbeafe);
+  color: var(--tint-info-fg, #1d4ed8);
 }
 
 .badge-warning {
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--tint-warning-bg, #fef3c7);
+  color: var(--tint-warning-fg, #92400e);
 }
 
 /* ── Buttons ── */
@@ -626,7 +626,7 @@ function getLevelLabel(lv: number): string {
 
 .btn-primary {
   background-color: var(--color-primary-500);
-  color: white;
+  color: var(--color-on-accent, #fff);
   padding: 0.5rem 1rem;
   font-size: 0.875rem;
 }

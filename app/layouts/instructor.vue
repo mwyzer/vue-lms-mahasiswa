@@ -113,6 +113,7 @@ function closeSidebar() {
         </button>
 
         <div class="topbar-right">
+          <ThemeToggle />
           <NotificationBell />
           <span class="badge badge-primary">Instruktur</span>
           <span class="text-sm text-muted">{{ auth.user?.nama }}</span>
@@ -151,7 +152,7 @@ function closeSidebar() {
 /* Sidebar */
 .sidebar {
   width: var(--sidebar-width);
-  background-color: white;
+  background-color: var(--color-surface);
   border-right: 1px solid var(--color-neutral-200);
   display: flex;
   flex-direction: column;
@@ -295,7 +296,7 @@ function closeSidebar() {
 
 .topbar {
   height: var(--header-height);
-  background-color: white;
+  background-color: var(--color-surface);
   border-bottom: 1px solid var(--color-neutral-200);
   display: flex;
   align-items: center;

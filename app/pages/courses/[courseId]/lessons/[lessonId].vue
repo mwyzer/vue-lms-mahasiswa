@@ -311,14 +311,14 @@ onUnmounted(() => {
 }
 
 .toggle-complete-btn.completed {
-  background-color: #dcfce7;
+  background-color: var(--tint-success-bg, #dcfce7);
   border-color: var(--color-success);
-  color: #15803d;
+  color: var(--tint-success-fg, #15803d);
   font-weight: 600;
 }
 
 .toggle-complete-btn.completed:hover {
-  background-color: #fef2f2;
+  background-color: var(--tint-danger-bg, #fef2f2);
   border-color: var(--color-error);
   color: var(--color-error);
 }

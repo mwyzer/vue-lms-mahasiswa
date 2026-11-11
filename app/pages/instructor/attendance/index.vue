@@ -125,8 +125,8 @@ function statusClass(status: string): string {
   border-radius: 6px;
 }
 
-.stat-hadir { background: #dcfce7; color: #15803d; }
-.stat-alpha { background: #fce7e7; color: #b91c1c; }
+.stat-hadir { background: var(--tint-success-bg, #dcfce7); color: var(--tint-success-fg, #15803d); }
+.stat-alpha { background: var(--tint-danger-bg, #fce7e7); color: var(--tint-danger-fg, #b91c1c); }
 
 .recent-records {
   display: flex;

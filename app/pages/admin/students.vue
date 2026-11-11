@@ -328,7 +328,7 @@ async function confirmDelete(s: any) {
   padding: 0.5rem 0.75rem;
   border: 1px solid var(--color-neutral-300);
   border-radius: var(--radius-md);
-  background: white;
+  background: var(--color-surface);
   color: var(--color-neutral-800);
   font-size: 0.875rem;
 }
@@ -461,12 +461,12 @@ async function confirmDelete(s: any) {
 }
 
 .badge-primary {
-  background: #dbeafe;
-  color: #1d4ed8;
+  background: var(--tint-info-bg, #dbeafe);
+  color: var(--tint-info-fg, #1d4ed8);
 }
 
 .badge-warning {
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--tint-warning-bg, #fef3c7);
+  color: var(--tint-warning-fg, #92400e);
 }
 </style>

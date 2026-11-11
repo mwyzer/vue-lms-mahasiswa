@@ -140,9 +140,9 @@ function statusClass(status: string): string {
   border: 3px solid;
 }
 
-.persentase-ring.baik { border-color: #15803d; color: #15803d; }
-.persentase-ring.cukup { border-color: #a16207; color: #a16207; }
-.persentase-ring.kurang { border-color: #b91c1c; color: #b91c1c; }
+.persentase-ring.baik { border-color: #15803d; color: var(--tint-success-fg, #15803d); }
+.persentase-ring.cukup { border-color: #a16207; color: var(--tint-warning-fg, #a16207); }
+.persentase-ring.kurang { border-color: #b91c1c; color: var(--tint-danger-fg, #b91c1c); }
 
 .persentase-num {
   display: block;

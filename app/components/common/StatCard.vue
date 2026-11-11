@@ -25,9 +25,9 @@ const props = withDefaults(defineProps<{
 
 const variantStyles: Record<string, { bg: string; fg: string }> = {
   primary: { bg: 'var(--color-accent-soft)', fg: 'var(--color-accent-deep)' },
-  success: { bg: 'oklch(88% 0.10 145 / 0.3)', fg: 'oklch(38% 0.12 145)' },
-  warning: { bg: 'oklch(88% 0.10 85 / 0.3)', fg: 'oklch(45% 0.14 75)' },
-  info:    { bg: 'oklch(88% 0.06 240 / 0.3)', fg: 'oklch(38% 0.08 240)' },
+  success: { bg: 'var(--tint-success-bg, oklch(88% 0.10 145 / 0.3))', fg: 'var(--tint-success-fg, oklch(38% 0.12 145))' },
+  warning: { bg: 'var(--tint-warning-bg, oklch(88% 0.10 85 / 0.3))', fg: 'var(--tint-warning-fg, oklch(45% 0.14 75))' },
+  info:    { bg: 'var(--tint-info-bg, oklch(88% 0.06 240 / 0.3))', fg: 'var(--tint-info-fg, oklch(38% 0.08 240))' },
   accent:  { bg: 'var(--color-accent-soft)', fg: 'var(--color-accent)' },
 }
 </script>

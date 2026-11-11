@@ -91,16 +91,18 @@ export const useUiStore = defineStore('ui', {
     },
 
     /**
-     * Set the theme and persist to localStorage + DOM attribute.
-     * The `data-theme` attribute on <html> drives all CSS variable overrides
-     * and Vuestic UI's color preset switching.
+     * Set the theme on the DOM and, by default, save it as the user's choice.
+     * The `data-theme` attribute on <html> drives all CSS variable overrides.
+     * Pass `persist = false` when applying the OS preference, so the app keeps
+     * following the OS until the user picks a theme themselves.
      */
-    setTheme(theme: 'light' | 'dark') {
+    setTheme(theme: 'light' | 'dark', persist: boolean = true) {
       this.theme = theme
 
-      if (import.meta.client) {
+      // Runtime check (not import.meta.client) so this is also exercised in unit tests.
+      if (typeof document !== 'undefined') {
         document.documentElement.setAttribute('data-theme', theme)
-        localStorage.setItem('lms-theme', theme)
+        if (persist) localStorage.setItem('lms-theme', theme)
       }
     },
 
@@ -117,19 +119,21 @@ export const useUiStore = defineStore('ui', {
      * Call once on app mount (e.g., in a client-only plugin or layout).
      */
     initTheme() {
-      if (!import.meta.client) return
+      if (typeof window === 'undefined') return
 
       const stored = localStorage.getItem('lms-theme') as UiState['theme'] | null
       const preferred =
-        stored ??
-        (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+        stored === 'light' || stored === 'dark'
+          ? stored
+          : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
 
-      this.setTheme(preferred)
+      // Never write on init: only an explicit choice (toggle) is persisted.
+      this.setTheme(preferred, false)
 
       // Listen for OS-level changes when no explicit preference is stored
       window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
         if (!localStorage.getItem('lms-theme')) {
-          this.setTheme(e.matches ? 'dark' : 'light')
+          this.setTheme(e.matches ? 'dark' : 'light', false)
         }
       })
     },

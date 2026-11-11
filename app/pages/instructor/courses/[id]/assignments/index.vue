@@ -27,7 +27,7 @@ const directGradeStudents = ref<{ studentId: string; nilai: number; feedback: st
 const directGradingSave = ref(false)
 // Plagiarism state
 const plagiarismAssignmentId = ref<string | null>(null)
-const plagiarismReport = ref<{ checked: any[]; flagged: any[]; threshold: number; total: number } | null>(null)
+const plagiarismReport = ref<PlagiarismReport | null>(null)
 
 // New/Edit assignment form
 const formJudul = ref('')
@@ -548,52 +548,7 @@ function formatDate(dateStr: string): string {
 
             <p v-else-if="plagiarismError" class="text-sm error-text">{{ plagiarismError }}</p>
 
-            <template v-else-if="plagiarismReport">
-              <p v-if="plagiarismReport.total < 2" class="text-sm text-muted">
-                Perlu minimal 2 jawaban teks untuk pemeriksaan.
-              </p>
-              <template v-else>
-                <p class="text-sm text-muted">
-                  Membandingkan <strong>{{ plagiarismReport.total }}</strong> jawaban teks. Ambang batas
-                  kemiripan tinggi: <strong>&ge; {{ plagiarismReport.threshold }}%</strong>.
-                </p>
-
-                <div v-if="plagiarismReport.flagged.length === 0" class="plagiarism-clean">
-                  ✅ Tidak ada pasangan jawaban yang terdeteksi kemiripan tinggi.
-                </div>
-
-                <div
-                  v-for="(result, ri) in plagiarismReport.flagged"
-                  :key="result.submissionId"
-                  class="plagiarism-result"
-                >
-                  <div class="plagiarism-result-header">
-                    <span class="plagiarism-author">{{ ri + 1 }}. {{ result.authorName }}</span>
-                    <span
-                      v-if="result.highestScore >= plagiarismReport.threshold"
-                      class="badge badge-danger"
-                    >
-                      {{ result.highestScore }}%
-                    </span>
-                  </div>
-                  <div class="plagiarism-matches">
-                    <div
-                      v-for="m in result.matches"
-                      :key="m.withId"
-                      class="plagiarism-match"
-                    >
-                      <div class="plagiarism-match-head">
-                        <span class="text-sm">Mirip dengan <strong>{{ m.withName }}</strong></span>
-                        <span class="badge" :class="severityBadgeClass(m.label)">
-                          {{ m.score }}% <small>{{ m.label }}</small>
-                        </span>
-                      </div>
-                      <p v-if="m.excerpt" class="plagiarism-excerpt">“{{ m.excerpt }}”</p>
-                    </div>
-                  </div>
-                </div>
-              </template>
-            </template>
+            <PlagiarismResults v-else-if="plagiarismReport" :report="plagiarismReport" />
           </div>
         </div>
       </div>

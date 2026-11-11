@@ -316,6 +316,37 @@ describe('embedTextsWith', () => {
     expect(JSON.parse(String(fetch.mock.calls[0]![1]!.body)).dimensions).toBeUndefined()
   })
 
+  it('sends `dimensions` for Gemini embedding models via the OpenAI-compatible endpoint', async () => {
+    const fetch = embeddingsFetch()
+    const gemini = {
+      ...LIVE,
+      baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
+      embeddingModel: 'gemini-embedding-001',
+    }
+    const r = await embedTextsWith(gemini, ['materi perulangan'], { ...deps, fetch })
+    expect(r.mode).toBe('api')
+
+    const [url, init] = fetch.mock.calls[0]!
+    expect(url).toBe('https://generativelanguage.googleapis.com/v1beta/openai/embeddings')
+    expect(JSON.parse(String(init!.body))).toMatchObject({ model: 'gemini-embedding-001', dimensions: 1536 })
+    expect((init!.headers as Record<string, string>).Authorization).toBe('Bearer ' + gemini.apiKey)
+  })
+
+  it('falls back to local mode, naming the size, when a model returns the wrong dimension count', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const fetch = vi.fn<FetchLike>(async () =>
+      new Response(JSON.stringify({ data: [{ index: 0, embedding: new Array(3072).fill(0.01) }], usage: { prompt_tokens: 2 } }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    )
+    const r = await embedTextsWith({ ...LIVE, embeddingModel: 'some-3072-model' }, ['a'], { ...deps, fetch })
+    expect(r.mode).toBe('local')
+    expect(r.vectors[0]).toHaveLength(EMBEDDING_DIMS)
+    expect(String(warn.mock.calls[0]![0])).toContain('3072 dimensions, expected 1536')
+    warn.mockRestore()
+  })
+
   it('splits large inputs into sub-batches', async () => {
     const fetch = embeddingsFetch()
     const texts = Array.from({ length: EMBED_BATCH_SIZE * 2 + 5 }, (_, i) => `teks ${i}`)

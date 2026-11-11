@@ -123,6 +123,22 @@ Kode galat yang umum:
   - Draf nilai hanya mengisi form, dan penyimpanan tetap lewat tombol biasa.
   - Hasil plagiarisme hanya sinyal untuk ditinjau.
 
+## Memakai provider selain OpenAI (mis. Gemini)
+
+Klien AI memanggil endpoint yang kompatibel dengan OpenAI (`/chat/completions`, `/embeddings`), jadi provider lain cukup diatur lewat env:
+
+```env
+NUXT_AI_API_KEY=<gemini-api-key>
+NUXT_AI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai
+NUXT_AI_MODEL=gemini-3.6-flash
+NUXT_AI_EMBEDDING_MODEL=gemini-embedding-001
+```
+
+- Nama model berubah dari waktu ke waktu; cek daftar model aktif di Google AI Studio.
+- Kolom `lesson_chunks.embedding` berukuran 1536. Parameter `dimensions: 1536` dikirim untuk model `text-embedding-3-*` dan `gemini-embedding-*`. Model lain yang mengembalikan ukuran berbeda ditolak dan seluruh batch jatuh ke mode lokal; log server menyebut ukuran yang diterima.
+- Vektor dari model embedding yang berbeda tidak bisa dibandingkan. Setelah mengganti model embedding, indeks ulang materi (`POST /api/ai/index-lessons`).
+- Konfigurasi Gemini belum diuji terhadap API sungguhan; hanya dengan mock.
+
 ## Batasan dan yang belum diuji
 
 - **Panggilan OpenAI sungguhan belum pernah dijalankan** dari lingkungan pengembangan ini, karena `api.openai.com` tidak dapat dijangkau. Jalur dengan kunci API hanya diuji terhadap mock dan stub lokal. Uji ulang keempat fitur dengan kunci sungguhan sebelum produksi.

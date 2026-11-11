@@ -316,6 +316,17 @@ export function chatJson<T>(event: H3Event, opts: ChatOptions, validate: (raw: u
 // Embeddings
 // ────────────────────────────────────────────
 
+/**
+ * Whether the embedding model accepts the `dimensions` request parameter.
+ * We need {@link EMBEDDING_DIMS}-sized vectors, so it is sent whenever supported:
+ * - OpenAI `text-embedding-3-*` (ada-002 is 1536 natively and rejects the parameter)
+ * - Google `gemini-embedding-*` through Gemini's OpenAI-compatible endpoint
+ *   (its native size is larger, so without `dimensions` the vectors are rejected)
+ */
+export function supportsEmbeddingDimensions(model: string): boolean {
+  return /text-embedding-3|gemini-embedding/i.test(model)
+}
+
 /** Local (offline) embeddings for a whole batch, at {@link EMBEDDING_DIMS}. */
 function localBatch(prepared: string[]): EmbedResult {
   return { vectors: prepared.map((t) => localEmbedding(t, EMBEDDING_DIMS)), mode: 'local', dims: EMBEDDING_DIMS }
@@ -339,8 +350,7 @@ export async function embedTextsWith(config: AiConfig, texts: string[], deps: Ai
   const doFetch = deps.fetch ?? ((input, init) => fetch(input, init))
   const record = deps.recordUsage ?? recordUsage
   const timeoutMs = deps.timeoutMs ?? EMBED_TIMEOUT_MS
-  // `dimensions` is only supported by text-embedding-3-*; ada-002 is 1536 natively.
-  const supportsDims = /text-embedding-3/.test(config.embeddingModel)
+  const supportsDims = supportsEmbeddingDimensions(config.embeddingModel)
 
   // The API rejects empty strings: send only non-empty texts, zero vectors for the rest.
   const indices = prepared.map((t, i) => (t ? i : -1)).filter((i) => i >= 0)
@@ -365,10 +375,16 @@ export async function embedTextsWith(config: AiConfig, texts: string[], deps: Ai
         const emb = row.embedding
         if (
           at < 0 || at >= idx.length ||
-          !Array.isArray(emb) || emb.length !== EMBEDDING_DIMS ||
+          !Array.isArray(emb) ||
           !emb.every((v) => typeof v === 'number' && Number.isFinite(v))
         ) {
           throw new AiUnavailableError('invalid_response', 'Malformed embedding in API response')
+        }
+        if (emb.length !== EMBEDDING_DIMS) {
+          throw new AiUnavailableError(
+            'invalid_response',
+            `Embedding model "${config.embeddingModel}" returned ${emb.length} dimensions, expected ${EMBEDDING_DIMS}`
+          )
         }
         vectors[idx[at]!] = emb as number[]
       })

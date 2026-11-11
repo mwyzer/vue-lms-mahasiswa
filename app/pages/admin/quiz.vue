@@ -873,7 +873,7 @@ function downloadCsvTemplate() {
 
 .btn-primary {
   background: var(--color-primary-500, #3b82f6);
-  color: #fff;
+  color: var(--color-on-accent, #fff);
   border-color: var(--color-primary-500, #3b82f6);
 }
 
@@ -884,19 +884,19 @@ function downloadCsvTemplate() {
 
 .btn-danger {
   background: var(--color-danger, #ef4444);
-  color: #fff;
+  color: var(--color-on-accent, #fff);
   border-color: var(--color-danger, #ef4444);
 }
 
 .btn-warning {
   background: var(--color-warning, #f59e0b);
-  color: #fff;
+  color: var(--color-on-accent, #fff);
   border-color: var(--color-warning, #f59e0b);
 }
 
 .btn-success {
   background: var(--color-success, #15803d);
-  color: #fff;
+  color: var(--color-on-accent, #fff);
   border-color: var(--color-success, #15803d);
 }
 

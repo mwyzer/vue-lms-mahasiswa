@@ -131,7 +131,7 @@ const campusCounts = computed(() => campusStore.campusCounts)
     <!-- Stats Cards -->
     <div class="stats-grid">
       <div class="card stat-card">
-        <div class="stat-icon" style="background-color: #dbeafe; color: #1d4ed8;">👥</div>
+        <div class="stat-icon" style="background-color: var(--tint-info-bg, #dbeafe); color: var(--tint-info-fg, #1d4ed8);">👥</div>
         <div class="stat-body">
           <span class="stat-value">{{ totalStudents }}</span>
           <span class="stat-label">Total Mahasiswa</span>
@@ -139,7 +139,7 @@ const campusCounts = computed(() => campusStore.campusCounts)
       </div>
 
       <div class="card stat-card">
-        <div class="stat-icon" style="background-color: #dcfce7; color: #15803d;">👨‍🏫</div>
+        <div class="stat-icon" style="background-color: var(--tint-success-bg, #dcfce7); color: var(--tint-success-fg, #15803d);">👨‍🏫</div>
         <div class="stat-body">
           <span class="stat-value">{{ totalInstructors }}</span>
           <span class="stat-label">Total Instruktur</span>
@@ -147,7 +147,7 @@ const campusCounts = computed(() => campusStore.campusCounts)
       </div>
 
       <div class="card stat-card">
-        <div class="stat-icon" style="background-color: #fef3c7; color: #92400e;">📖</div>
+        <div class="stat-icon" style="background-color: var(--tint-warning-bg, #fef3c7); color: var(--tint-warning-fg, #92400e);">📖</div>
         <div class="stat-body">
           <span class="stat-value">{{ totalCourses }}</span>
           <span class="stat-label">Mata Kuliah</span>
@@ -155,7 +155,7 @@ const campusCounts = computed(() => campusStore.campusCounts)
       </div>
 
       <div class="card stat-card">
-        <div class="stat-icon" style="background-color: #fce7f3; color: #be185d;">📝</div>
+        <div class="stat-icon" style="background-color: var(--tint-danger-bg, #fce7f3); color: var(--tint-danger-fg, #be185d);">📝</div>
         <div class="stat-body">
           <span class="stat-value">{{ totalAssignments }}</span>
           <span class="stat-label">Total Tugas</span>
@@ -182,7 +182,7 @@ const campusCounts = computed(() => campusStore.campusCounts)
 
       <div v-else-if="aiUsage" class="ai-usage-grid">
         <div class="card stat-card ai-stat">
-          <div class="stat-icon mini" style="background-color: #e0f2fe; color: #0369a1;">🪙</div>
+          <div class="stat-icon mini" style="background-color: var(--tint-info-bg, #e0f2fe); color: var(--tint-info-fg, #0369a1);">🪙</div>
           <div class="stat-body">
             <span class="stat-value">{{ aiUsage.totalTokens.toLocaleString() }}</span>
             <span class="stat-label">Token Dipakai</span>
@@ -190,7 +190,7 @@ const campusCounts = computed(() => campusStore.campusCounts)
         </div>
 
         <div class="card stat-card ai-stat">
-          <div class="stat-icon mini" style="background-color: #f0fdf4; color: #15803d;">📨</div>
+          <div class="stat-icon mini" style="background-color: var(--tint-success-bg, #f0fdf4); color: var(--tint-success-fg, #15803d);">📨</div>
           <div class="stat-body">
             <span class="stat-value">{{ aiUsage.requestCount }}</span>
             <span class="stat-label">Total Request</span>
@@ -198,7 +198,7 @@ const campusCounts = computed(() => campusStore.campusCounts)
         </div>
 
         <div class="card stat-card ai-stat">
-          <div class="stat-icon mini" style="background-color: #fffbeb; color: #92400e;">📤</div>
+          <div class="stat-icon mini" style="background-color: var(--tint-warning-bg, #fffbeb); color: var(--tint-warning-fg, #92400e);">📤</div>
           <div class="stat-body">
             <span class="stat-value">{{ aiUsage.promptTokens.toLocaleString() }}</span>
             <span class="stat-label">Prompt Tokens</span>
@@ -206,7 +206,7 @@ const campusCounts = computed(() => campusStore.campusCounts)
         </div>
 
         <div class="card stat-card ai-stat">
-          <div class="stat-icon mini" style="background-color: #fdf2f8; color: #be185d;">📥</div>
+          <div class="stat-icon mini" style="background-color: var(--tint-danger-bg, #fdf2f8); color: var(--tint-danger-fg, #be185d);">📥</div>
           <div class="stat-body">
             <span class="stat-value">{{ aiUsage.completionTokens.toLocaleString() }}</span>
             <span class="stat-label">Completion Tokens</span>
@@ -284,7 +284,7 @@ const campusCounts = computed(() => campusStore.campusCounts)
 
       <div class="quick-links">
         <NuxtLink to="/admin/students" class="card quick-link-card">
-          <div class="ql-icon" style="background-color: #dbeafe;">👥</div>
+          <div class="ql-icon" style="background-color: var(--tint-info-bg, #dbeafe);">👥</div>
           <div class="ql-content">
             <h3>Kelola Mahasiswa</h3>
             <p>Lihat daftar seluruh mahasiswa terdaftar</p>
@@ -293,7 +293,7 @@ const campusCounts = computed(() => campusStore.campusCounts)
         </NuxtLink>
 
         <NuxtLink to="/admin/instructors" class="card quick-link-card">
-          <div class="ql-icon" style="background-color: #dcfce7;">👨‍🏫</div>
+          <div class="ql-icon" style="background-color: var(--tint-success-bg, #dcfce7);">👨‍🏫</div>
           <div class="ql-content">
             <h3>Kelola Instruktur</h3>
             <p>Lihat daftar seluruh instruktur</p>
@@ -302,7 +302,7 @@ const campusCounts = computed(() => campusStore.campusCounts)
         </NuxtLink>
 
         <NuxtLink to="/admin/courses" class="card quick-link-card">
-          <div class="ql-icon" style="background-color: #fef3c7;">📖</div>
+          <div class="ql-icon" style="background-color: var(--tint-warning-bg, #fef3c7);">📖</div>
           <div class="ql-content">
             <h3>Kelola Mata Kuliah</h3>
             <p>Lihat seluruh mata kuliah yang tersedia</p>
@@ -311,7 +311,7 @@ const campusCounts = computed(() => campusStore.campusCounts)
         </NuxtLink>
 
         <NuxtLink to="/admin/assignments" class="card quick-link-card">
-          <div class="ql-icon" style="background-color: #fce7f3;">📝</div>
+          <div class="ql-icon" style="background-color: var(--tint-danger-bg, #fce7f3);">📝</div>
           <div class="ql-content">
             <h3>Kelola Tugas</h3>
             <p>Lihat seluruh tugas dan submission</p>
@@ -537,9 +537,9 @@ const campusCounts = computed(() => campusStore.campusCounts)
 
 /* Badge */
 .badge.badge-danger {
-  background-color: #fef2f2;
-  color: #dc2626;
-  border: 1px solid #fecaca;
+  background-color: var(--tint-danger-bg, #fef2f2);
+  color: var(--tint-danger-fg, #dc2626);
+  border: 1px solid var(--tint-danger-border, #fecaca);
   padding: 0.25rem 0.75rem;
   border-radius: 999px;
   font-size: 0.75rem;
@@ -623,8 +623,8 @@ const campusCounts = computed(() => campusStore.campusCounts)
 .campus-ov-kode {
   font-size: 0.6875rem;
   font-weight: 700;
-  background: #eef2ff;
-  color: #4338ca;
+  background: var(--tint-info-bg, #eef2ff);
+  color: var(--tint-info-fg, #4338ca);
   padding: 0.125rem 0.375rem;
   border-radius: 0.25rem;
 }
@@ -661,15 +661,15 @@ const campusCounts = computed(() => campusStore.campusCounts)
 }
 
 .data-toggle-demo {
-  background-color: #fef3c7;
-  border-color: #fde68a;
-  color: #92400e;
+  background-color: var(--tint-warning-bg, #fef3c7);
+  border-color: var(--tint-warning-border, #fde68a);
+  color: var(--tint-warning-fg, #92400e);
 }
 
 .data-toggle-live {
-  background-color: #e0f2fe;
-  border-color: #bae6fd;
-  color: #0369a1;
+  background-color: var(--tint-info-bg, #e0f2fe);
+  border-color: var(--tint-info-border, #bae6fd);
+  color: var(--tint-info-fg, #0369a1);
 }
 
 .toggle-icon {
@@ -780,18 +780,18 @@ const campusCounts = computed(() => campusStore.campusCounts)
 }
 
 .error-card {
-  border-color: #fecaca !important;
-  background-color: #fef2f2;
+  border-color: var(--tint-danger-border, #fecaca) !important;
+  background-color: var(--tint-danger-bg, #fef2f2);
 }
 
 .error-card p {
-  color: #dc2626;
+  color: var(--tint-danger-fg, #dc2626);
 }
 
 .badge-success {
-  background-color: #dcfce7;
-  color: #15803d;
-  border: 1px solid #bbf7d0;
+  background-color: var(--tint-success-bg, #dcfce7);
+  color: var(--tint-success-fg, #15803d);
+  border: 1px solid var(--tint-success-border, #bbf7d0);
   padding: 0.25rem 0.75rem;
   border-radius: 999px;
   font-size: 0.75rem;
@@ -799,9 +799,9 @@ const campusCounts = computed(() => campusStore.campusCounts)
 }
 
 .badge-warning {
-  background-color: #fffbeb;
-  color: #d97706;
-  border: 1px solid #fde68a;
+  background-color: var(--tint-warning-bg, #fffbeb);
+  color: var(--tint-warning-fg, #d97706);
+  border: 1px solid var(--tint-warning-border, #fde68a);
   padding: 0.25rem 0.75rem;
   border-radius: 999px;
   font-size: 0.75rem;

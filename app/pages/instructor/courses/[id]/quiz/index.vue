@@ -822,8 +822,8 @@ textarea.form-input {
 }
 
 .badge-success {
-  background: #dcfce7;
-  color: #15803d;
+  background: var(--tint-success-bg, #dcfce7);
+  color: var(--tint-success-fg, #15803d);
   padding: 0.15rem 0.5rem;
   border-radius: 4px;
   font-size: 0.75rem;
@@ -831,8 +831,8 @@ textarea.form-input {
 }
 
 .badge-secondary {
-  background: #f3f4f6;
-  color: #6b7280;
+  background: var(--tint-neutral-bg, #f3f4f6);
+  color: var(--tint-neutral-fg, #6b7280);
   padding: 0.15rem 0.5rem;
   border-radius: 4px;
   font-size: 0.75rem;
@@ -840,8 +840,8 @@ textarea.form-input {
 }
 
 .badge-danger {
-  background: #fef2f2;
-  color: #dc2626;
+  background: var(--tint-danger-bg, #fef2f2);
+  color: var(--tint-danger-fg, #dc2626);
   padding: 0.15rem 0.5rem;
   border-radius: 4px;
   font-size: 0.75rem;
@@ -849,18 +849,18 @@ textarea.form-input {
 }
 
 .btn-warning {
-  background: #fef3c7;
-  color: #b45309;
+  background: var(--tint-warning-bg, #fef3c7);
+  color: var(--tint-warning-fg, #b45309);
   border: none;
 }
 
 .btn-success {
-  background: #dcfce7;
-  color: #15803d;
+  background: var(--tint-success-bg, #dcfce7);
+  color: var(--tint-success-fg, #15803d);
   border: none;
 }
 
 .text-danger {
-  color: #dc2626;
+  color: var(--tint-danger-fg, #dc2626);
 }
 </style>

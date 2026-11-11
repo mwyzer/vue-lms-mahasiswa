@@ -506,7 +506,7 @@ function resetLogin() {
   width: 100%;
   max-width: 480px;
   margin: 0 auto;
-  background: white;
+  background: var(--color-surface);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-md);
   border: 1px solid var(--color-neutral-200);
@@ -515,9 +515,9 @@ function resetLogin() {
 }
 
 .demo-banner {
-  background-color: #fef3c7;
-  color: #92400e;
-  border: 1px solid #fde68a;
+  background-color: var(--tint-warning-bg, #fef3c7);
+  color: var(--tint-warning-fg, #92400e);
+  border: 1px solid var(--tint-warning-border, #fde68a);
   border-radius: var(--radius-md);
   padding: 0.625rem 1rem;
   font-size: 0.8rem;
@@ -526,9 +526,9 @@ function resetLogin() {
 }
 
 .demo-hint {
-  background-color: #eff6ff;
-  color: #1e40af;
-  border: 1px solid #bfdbfe;
+  background-color: var(--tint-info-bg, #eff6ff);
+  color: var(--tint-info-fg, #1e40af);
+  border: 1px solid var(--tint-info-border, #bfdbfe);
   border-radius: var(--radius-md);
   padding: 0.5rem 0.75rem;
   font-size: 0.8rem;
@@ -536,7 +536,7 @@ function resetLogin() {
 }
 
 .demo-hint code {
-  background: #dbeafe;
+  background: var(--tint-info-bg, #dbeafe);
   padding: 0.125rem 0.375rem;
   border-radius: 4px;
   font-family: monospace;
@@ -602,7 +602,7 @@ function resetLogin() {
   transition: all 0.2s ease;
   text-align: left;
   width: 100%;
-  background: white;
+  background: var(--color-surface);
 }
 
 .role-card:hover {
@@ -644,7 +644,7 @@ function resetLogin() {
   border-radius: var(--radius-lg);
   cursor: pointer;
   transition: all 0.2s ease;
-  background: white;
+  background: var(--color-surface);
 }
 
 .level-btn:hover {
@@ -681,7 +681,7 @@ function resetLogin() {
   border-radius: var(--radius-lg);
   cursor: pointer;
   transition: all 0.2s ease;
-  background: white;
+  background: var(--color-surface);
 }
 
 .session-btn:hover {
@@ -719,7 +719,7 @@ function resetLogin() {
   transition: all 0.15s ease;
   text-align: left;
   width: 100%;
-  background: white;
+  background: var(--color-surface);
 }
 
 .roster-item:hover {
@@ -775,7 +775,7 @@ function resetLogin() {
   transition: all 0.15s ease;
   text-align: left;
   width: 100%;
-  background: white;
+  background: var(--color-surface);
 }
 
 .instructor-item:hover {
@@ -787,8 +787,8 @@ function resetLogin() {
   width: 2.75rem;
   height: 2.75rem;
   border-radius: 50%;
-  background-color: #fef3c7;
-  color: #92400e;
+  background-color: var(--tint-warning-bg, #fef3c7);
+  color: var(--tint-warning-fg, #92400e);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -871,9 +871,9 @@ function resetLogin() {
 
 /* ── Error ───────────────────────────────── */
 .error-msg {
-  background-color: #fce4ec;
-  color: #c62828;
-  border: 1px solid #f8bbd0;
+  background-color: var(--tint-danger-bg, #fce4ec);
+  color: var(--tint-danger-fg, #c62828);
+  border: 1px solid var(--tint-danger-border, #f8bbd0);
   border-radius: var(--radius-md);
   padding: 0.75rem 1rem;
   font-size: 0.875rem;

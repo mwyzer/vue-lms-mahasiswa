@@ -206,12 +206,12 @@ const progressPercent = computed(() =>
 
 .sidebar-lesson-item.active .lesson-item-number {
   background-color: var(--color-primary-500);
-  color: white;
+  color: var(--color-on-accent, #fff);
 }
 
 .sidebar-lesson-item.completed .lesson-item-number {
   background-color: var(--color-success);
-  color: white;
+  color: var(--color-on-accent, #fff);
 }
 
 .check-icon {

@@ -65,9 +65,16 @@ async function saveAll() {
   notification.success(`Presensi pertemuan ${currentPertemuan.value} disimpan (${saved} mahasiswa)!`)
 }
 
-function statusColor(status: string): string {
-  const map: Record<string, string> = { hadir: '#dcfce7', izin: '#fef3c7', sakit: '#f3e8ff', alpha: '#fce7e7' }
-  return map[status] || ''
+/** Fill + text color of the selected status button (tints follow the theme). */
+function statusStyle(status: string): Record<string, string> {
+  const map: Record<string, [string, string]> = {
+    hadir: ['var(--tint-success-bg, #dcfce7)', 'var(--tint-success-fg, #15803d)'],
+    izin: ['var(--tint-warning-bg, #fef3c7)', 'var(--tint-warning-fg, #92400e)'],
+    sakit: ['var(--tint-info-bg, #f3e8ff)', 'var(--tint-info-fg, #6b21a8)'],
+    alpha: ['var(--tint-danger-bg, #fce7e7)', 'var(--tint-danger-fg, #b91c1c)'],
+  }
+  const pair = map[status]
+  return pair ? { background: pair[0], color: pair[1], borderColor: 'transparent' } : {}
 }
 
 function statusLabel(status: string): string {
@@ -147,7 +154,7 @@ function statusLabel(status: string): string {
                 :key="s"
                 class="btn btn-xs"
                 :class="record._status === s ? 'btn-primary' : 'btn-ghost'"
-                :style="record._status === s ? { background: statusColor(s), borderColor: 'transparent' } : {}"
+                :style="record._status === s ? statusStyle(s) : {}"
                 @click="record._status = s"
               >
                 {{ statusLabel(s) }}
@@ -314,10 +321,10 @@ function statusLabel(status: string): string {
   margin-top: 0.125rem;
 }
 
-.stat-hadir .stat-num { color: #15803d; }
+.stat-hadir .stat-num { color: var(--tint-success-fg, #15803d); }
 .stat-izin .stat-num { color: #a16207; }
 .stat-sakit .stat-num { color: #7c3aed; }
-.stat-alpha .stat-num { color: #b91c1c; }
+.stat-alpha .stat-num { color: var(--tint-danger-fg, #b91c1c); }
 
 .form-group {
   margin-bottom: 0;
@@ -337,7 +344,7 @@ function statusLabel(status: string): string {
   border-radius: 8px;
   font-size: 0.875rem;
   font-family: inherit;
-  background-color: white;
+  background-color: var(--color-surface);
   color: var(--color-neutral-800);
 }
 

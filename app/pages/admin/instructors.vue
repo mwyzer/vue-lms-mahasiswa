@@ -226,7 +226,7 @@ async function confirmDelete(inst: any) {
   padding: 0.5rem 0.75rem;
   border: 1px solid var(--color-neutral-300);
   border-radius: var(--radius-md);
-  background: white;
+  background: var(--color-surface);
   color: var(--color-neutral-800);
   font-size: 0.875rem;
 }
@@ -263,8 +263,8 @@ async function confirmDelete(inst: any) {
   width: 3rem;
   height: 3rem;
   border-radius: 50%;
-  background: #dcfce7;
-  color: #15803d;
+  background: var(--tint-success-bg, #dcfce7);
+  color: var(--tint-success-fg, #15803d);
   display: flex;
   align-items: center;
   justify-content: center;

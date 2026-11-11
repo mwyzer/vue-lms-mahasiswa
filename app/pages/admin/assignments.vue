@@ -516,7 +516,7 @@ function formatDate(iso?: string | null): string {
 }
 
 .btn-outline {
-  background: white;
+  background: var(--color-surface);
   color: var(--color-neutral-800);
   border: 1px solid var(--color-neutral-300);
 }

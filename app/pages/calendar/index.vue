@@ -623,8 +623,8 @@ async function confirmDeleteEvent(id: string) {
 .today-card {
   padding: 1rem;
   margin-bottom: 1.25rem;
-  background: #fffbeb;
-  border-color: #fcd34d;
+  background: var(--tint-warning-bg, #fffbeb);
+  border-color: var(--tint-warning-border, #fcd34d);
 }
 
 .today-card h3 {
@@ -716,7 +716,7 @@ async function confirmDeleteEvent(id: string) {
   min-width: 55px;
   min-height: 55px;
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-on-accent, #fff);
   border-radius: 8px;
   flex-shrink: 0;
 }
@@ -820,12 +820,12 @@ async function confirmDeleteEvent(id: string) {
 }
 
 .day-cell.today {
-  background: #eff6ff;
+  background: var(--tint-info-bg, #eff6ff);
 }
 
 .day-cell.today .day-number {
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-on-accent, #fff);
   border-radius: 50%;
   width: 24px;
   height: 24px;
@@ -855,7 +855,7 @@ async function confirmDeleteEvent(id: string) {
 }
 
 .empty-day {
-  background: #f9fafb;
+  background: var(--tint-neutral-bg, #f9fafb);
 }
 
 /* Legend */
@@ -998,7 +998,7 @@ async function confirmDeleteEvent(id: string) {
 }
 
 .modal-content {
-  background: white;
+  background: var(--color-surface);
   border-radius: 12px;
   width: 100%;
   max-width: 540px;

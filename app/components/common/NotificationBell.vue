@@ -197,7 +197,7 @@ watch(() => auth.user?.id, (id) => {
   padding: 0 0.25rem;
   border-radius: 9999px;
   background-color: var(--color-error);
-  color: #fff;
+  color: var(--color-on-accent, #fff);
   font-size: 0.6875rem;
   font-weight: 700;
   line-height: 1.125rem;

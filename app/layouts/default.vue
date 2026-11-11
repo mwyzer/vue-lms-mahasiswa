@@ -15,6 +15,7 @@
         </NuxtLink>
 
         <nav class="nav-links">
+          <ThemeToggle />
           <NuxtLink to="/login" class="btn btn-primary btn-sm">Masuk</NuxtLink>
         </nav>
       </div>
@@ -34,6 +35,12 @@
 </template>
 
 <style scoped>
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .layout-default {
   min-height: 100vh;
   display: flex;
@@ -42,7 +49,7 @@
 
 .layout-header {
   height: var(--header-height);
-  background-color: white;
+  background-color: var(--color-surface);
   border-bottom: 1px solid var(--color-neutral-200);
   position: sticky;
   top: 0;
@@ -79,7 +86,7 @@
 .layout-footer {
   padding: 1.5rem 0;
   border-top: 1px solid var(--color-neutral-200);
-  background-color: white;
+  background-color: var(--color-surface);
   color: var(--color-neutral-500);
 }
 </style>

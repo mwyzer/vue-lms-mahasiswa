@@ -257,7 +257,7 @@ function getScoreColor(nilai: number): string {
 
 .component-weight {
   font-weight: 400;
-  color: var(--color-neutral-400);
+  color: var(--color-neutral-500);
 }
 
 .component dd {

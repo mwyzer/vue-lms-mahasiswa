@@ -81,7 +81,7 @@ function handleSWUpdate() {
   max-width: 480px;
   width: 100%;
   padding: 1rem 1.25rem;
-  background: #fff;
+  background: var(--color-surface);
   border-radius: var(--radius-lg, 0.75rem);
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15), 0 4px 10px rgba(0, 0, 0, 0.1);
   animation: slideUp 0.3s ease-out;
@@ -147,7 +147,7 @@ function handleSWUpdate() {
 
 .update-prompt-btn-primary {
   background: var(--color-primary-600, #2563eb);
-  color: #fff;
+  color: var(--color-on-accent, #fff);
 }
 
 .update-prompt-btn-primary:hover {

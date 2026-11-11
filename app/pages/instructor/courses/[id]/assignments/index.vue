@@ -595,9 +595,9 @@ function formatDate(dateStr: string): string {
 }
 
 .btn-success {
-  background: #dcfce7;
-  color: #15803d;
-  border: 1px solid #86efac;
+  background: var(--tint-success-bg, #dcfce7);
+  color: var(--tint-success-fg, #15803d);
+  border: 1px solid var(--tint-success-border, #86efac);
 }
 
 .text-muted {
@@ -633,7 +633,7 @@ function formatDate(dateStr: string): string {
   border-radius: 8px;
   font-size: 0.875rem;
   font-family: inherit;
-  background-color: white;
+  background-color: var(--color-surface);
   color: var(--color-neutral-800);
   transition: border-color 0.2s;
 }
@@ -653,7 +653,7 @@ function formatDate(dateStr: string): string {
   font-family: inherit;
   line-height: 1.6;
   resize: vertical;
-  background-color: white;
+  background-color: var(--color-surface);
   color: var(--color-neutral-800);
   transition: border-color 0.2s;
 }
@@ -770,7 +770,7 @@ function formatDate(dateStr: string): string {
 
 .jawaban-text {
   font-size: 0.8125rem;
-  background-color: white;
+  background-color: var(--color-surface);
   padding: 0.75rem;
   border-radius: 6px;
   border: 1px solid var(--color-neutral-200);
@@ -812,7 +812,7 @@ function formatDate(dateStr: string): string {
 }
 
 .btn-outline {
-  background: white;
+  background: var(--color-surface);
   color: var(--color-neutral-800);
   border: 1px solid var(--color-neutral-300);
 }

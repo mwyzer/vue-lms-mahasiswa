@@ -174,23 +174,23 @@ function getCourseName(quiz: any): string {
 
 .badge-course {
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-on-accent, #fff);
   padding: 0.15rem 0.5rem;
   border-radius: 4px;
   font-size: 0.75rem;
 }
 
 .badge-time {
-  background: #f0f9ff;
-  color: #0369a1;
+  background: var(--tint-info-bg, #f0f9ff);
+  color: var(--tint-info-fg, #0369a1);
   padding: 0.15rem 0.5rem;
   border-radius: 4px;
   font-size: 0.75rem;
 }
 
 .badge-passing {
-  background: #f0fdf4;
-  color: #15803d;
+  background: var(--tint-success-bg, #f0fdf4);
+  color: var(--tint-success-fg, #15803d);
   padding: 0.15rem 0.5rem;
   border-radius: 4px;
   font-size: 0.75rem;

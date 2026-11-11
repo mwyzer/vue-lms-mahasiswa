@@ -401,7 +401,7 @@ function handleSubmit() {
   line-height: 1.6;
   resize: vertical;
   transition: border-color 0.2s;
-  background-color: white;
+  background-color: var(--color-surface);
   color: var(--color-neutral-800);
 }
 
@@ -546,7 +546,7 @@ function handleSubmit() {
 }
 
 .btn-outline {
-  background: white;
+  background: var(--color-surface);
   color: var(--color-neutral-800);
   border: 1px solid var(--color-neutral-300);
 }
@@ -628,7 +628,7 @@ function handleSubmit() {
   background: linear-gradient(135deg, #fef3c7, #fde68a);
   border: 1px solid #f59e0b;
   border-radius: 10px;
-  color: #92400e;
+  color: var(--tint-warning-fg, #92400e);
 }
 
 .exam-banner-icon {
@@ -666,7 +666,7 @@ function handleSubmit() {
   padding: 2rem;
   margin-bottom: 1rem;
   border-color: var(--color-error);
-  background-color: #fef2f2;
+  background-color: var(--tint-danger-bg, #fef2f2);
   color: var(--color-error-700);
 }
 

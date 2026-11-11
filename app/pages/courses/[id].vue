@@ -316,8 +316,8 @@ const nextIncompleteLesson = computed(() =>
 }
 
 .lesson-card.completed {
-  background-color: #f0fdf4;
-  border-color: #bbf7d0;
+  background-color: var(--tint-success-bg, #f0fdf4);
+  border-color: var(--tint-success-border, #bbf7d0);
 }
 
 .lesson-left {
@@ -342,7 +342,7 @@ const nextIncompleteLesson = computed(() =>
 
 .lesson-number.done {
   background-color: var(--color-success);
-  color: white;
+  color: var(--color-on-accent, #fff);
 }
 
 .lesson-info {

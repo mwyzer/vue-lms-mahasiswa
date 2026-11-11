@@ -152,7 +152,7 @@ function formatDate(dateStr: string): string {
 
 .stat-item {
   flex: 1;
-  background: white;
+  background: var(--color-surface);
   border: 1px solid var(--color-neutral-200);
   border-radius: var(--radius-md);
   padding: 0.75rem 1rem;
@@ -239,7 +239,7 @@ function formatDate(dateStr: string): string {
   font-size: 0.6875rem;
   font-weight: 600;
   color: var(--color-warning);
-  background: #fef3c7;
+  background: var(--tint-warning-bg, #fef3c7);
   padding: 0.125rem 0.5rem;
   border-radius: var(--radius-sm);
 }

@@ -48,7 +48,7 @@ const greeting = computed(() => {
     <!-- Stats Cards -->
     <div class="stats-grid">
       <div class="card stat-card">
-        <div class="stat-icon" style="background-color: #dbeafe; color: #1d4ed8;">📖</div>
+        <div class="stat-icon" style="background-color: var(--tint-info-bg, #dbeafe); color: var(--tint-info-fg, #1d4ed8);">📖</div>
         <div class="stat-body">
           <span class="stat-value">{{ totalCourses }}</span>
           <span class="stat-label">Mata Kuliah Diampu</span>
@@ -56,7 +56,7 @@ const greeting = computed(() => {
       </div>
 
       <div class="card stat-card">
-        <div class="stat-icon" style="background-color: #dcfce7; color: #15803d;">👥</div>
+        <div class="stat-icon" style="background-color: var(--tint-success-bg, #dcfce7); color: var(--tint-success-fg, #15803d);">👥</div>
         <div class="stat-body">
           <span class="stat-value">{{ totalStudents }}</span>
           <span class="stat-label">Total Mahasiswa</span>
@@ -64,7 +64,7 @@ const greeting = computed(() => {
       </div>
 
       <div class="card stat-card">
-        <div class="stat-icon" style="background-color: #fef3c7; color: #92400e;">📝</div>
+        <div class="stat-icon" style="background-color: var(--tint-warning-bg, #fef3c7); color: var(--tint-warning-fg, #92400e);">📝</div>
         <div class="stat-body">
           <span class="stat-value">{{ myCourses.length > 0 ? 'Aktif' : '—' }}</span>
           <span class="stat-label">Status Perkuliahan</span>

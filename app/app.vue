@@ -73,7 +73,7 @@ onMounted(() => {
   box-shadow: var(--shadow-lg);
   font-size: 0.875rem;
   font-weight: 500;
-  background-color: white;
+  background-color: var(--color-surface);
   border: 1px solid var(--color-neutral-200);
 }
 

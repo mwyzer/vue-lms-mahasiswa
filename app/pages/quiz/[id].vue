@@ -295,19 +295,19 @@ function getTimerClass(): string {
   font-variant-numeric: tabular-nums;
   padding: 0.4rem 0.85rem;
   border-radius: 8px;
-  background: #f0f9ff;
-  color: #0369a1;
+  background: var(--tint-info-bg, #f0f9ff);
+  color: var(--tint-info-fg, #0369a1);
   white-space: nowrap;
 }
 
 .timer.timer-warning {
-  background: #fef3c7;
-  color: #b45309;
+  background: var(--tint-warning-bg, #fef3c7);
+  color: var(--tint-warning-fg, #b45309);
 }
 
 .timer.timer-danger {
-  background: #fef2f2;
-  color: #dc2626;
+  background: var(--tint-danger-bg, #fef2f2);
+  color: var(--tint-danger-fg, #dc2626);
   animation: pulse 1s ease-in-out infinite;
 }
 
@@ -389,12 +389,12 @@ function getTimerClass(): string {
 
 .option-item:hover {
   border-color: var(--color-primary-light, #93c5fd);
-  background: #f8fafc;
+  background: var(--color-neutral-50);
 }
 
 .option-item.selected {
   border-color: var(--color-primary);
-  background: #eff6ff;
+  background: var(--tint-info-bg, #eff6ff);
 }
 
 .option-item input[type="radio"] {
@@ -441,17 +441,17 @@ function getTimerClass(): string {
   width: 120px;
   height: 120px;
   border-radius: 50%;
-  background: #fef2f2;
+  background: var(--tint-danger-bg, #fef2f2);
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 0 auto 1.5rem;
-  border: 4px solid #fca5a5;
+  border: 4px solid var(--tint-danger-border, #fca5a5);
 }
 
 .score-circle.passed {
-  background: #f0fdf4;
-  border-color: #86efac;
+  background: var(--tint-success-bg, #f0fdf4);
+  border-color: var(--tint-success-border, #86efac);
 }
 
 .score-value {

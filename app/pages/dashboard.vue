@@ -751,13 +751,13 @@ const upcomingAssignments = computed(() =>
 }
 
 .score--pass {
-  background: oklch(88% 0.10 145 / 0.3);
-  color: oklch(38% 0.12 145);
+  background: var(--tint-success-bg, oklch(88% 0.10 145 / 0.3));
+  color: var(--tint-success-fg, oklch(38% 0.12 145));
 }
 
 .score--fail {
-  background: oklch(88% 0.14 30 / 0.3);
-  color: oklch(45% 0.16 30);
+  background: var(--tint-danger-bg, oklch(88% 0.14 30 / 0.3));
+  color: var(--tint-danger-fg, oklch(45% 0.16 30));
 }
 
 /* ── Responsive ─────────────────────────── */

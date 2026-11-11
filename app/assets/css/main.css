@@ -66,6 +66,9 @@
   /* Surface & background (used instead of hardcoded white/gray) */
   --color-surface: #ffffff;
   --color-background: #f8fafc;
+  /* Text on filled accent controls (buttons, badges). Flips in dark mode,
+     where the accent fills become light. */
+  --color-on-accent: #ffffff;
 
   /* ═══════════════════════════════════════════════════════
      Scholar theme axes (Hallmark-inspired design tokens)
@@ -152,6 +155,7 @@
 
   --color-surface: #1e293b;
   --color-background: #0f172a;
+  --color-on-accent: #0f172a;
 
   /* Scholar theme axes — dark mode */
   --color-paper:      oklch(15% 0.010 265);
@@ -159,13 +163,69 @@
   --color-paper-3:    oklch(24% 0.014 263);
   --color-ink:        oklch(95% 0.006 262);
   --color-ink-2:      oklch(78% 0.008 262);
-  --color-ink-muted:  oklch(58% 0.010 262);
+  --color-ink-muted:  oklch(72% 0.010 262);
   --color-accent:     oklch(65% 0.10 270);
   --color-accent-soft: oklch(55% 0.08 270 / 0.20);
   --color-accent-deep: oklch(72% 0.10 270);
   --color-glow:       oklch(65% 0.10 270 / 0.08);
   --shadow-card:  0 1px 3px oklch(0% 0 0 / 0.25), 0 1px 2px oklch(0% 0 0 / 0.2);
   --shadow-card-hover: 0 10px 24px -8px oklch(0% 0 0 / 0.4);
+
+  /* ── Legacy aliases ──────────────────────────────────────
+     Many components use var(--alias, <light hex>) where the alias was never
+     defined, so the light fallback always won. Defining the aliases here (dark
+     only) makes those declarations follow the theme without touching light mode. */
+  --bg-card: var(--color-surface);
+  --bg-body: var(--color-background);
+  --bg-hover: var(--color-neutral-200);
+  --color-bg: var(--color-surface);
+  --color-bg-secondary: var(--color-neutral-50);
+  --color-white: var(--color-surface);
+  --text-primary: var(--color-neutral-800);
+  --text-secondary: var(--color-neutral-500);
+  --text-muted: var(--color-neutral-500);
+  --border-color: var(--color-neutral-200);
+  --color-primary: var(--color-primary-600);
+  --color-primary-light: var(--color-primary-300);
+  --color-primary-bg: var(--tint-info-bg);
+  --color-danger: var(--color-error);
+  --color-danger-bg: var(--tint-danger-bg);
+  --color-success-bg: var(--tint-success-bg);
+
+  /* ── Status tints ────────────────────────────────────────
+     Used as var(--tint-*, <light hex>): light mode keeps each component's
+     original pastel, dark mode gets a translucent tint with light text. */
+  --tint-success-bg: rgb(34 197 94 / 0.16);
+  --tint-success-fg: #86efac;
+  --tint-success-border: rgb(34 197 94 / 0.45);
+  --tint-warning-bg: rgb(245 158 11 / 0.16);
+  --tint-warning-fg: #fcd34d;
+  --tint-warning-border: rgb(245 158 11 / 0.45);
+  --tint-danger-bg: rgb(239 68 68 / 0.16);
+  --tint-danger-fg: #fca5a5;
+  --tint-danger-border: rgb(239 68 68 / 0.45);
+  --tint-info-bg: rgb(59 130 246 / 0.18);
+  --tint-info-fg: #93c5fd;
+  --tint-info-border: rgb(59 130 246 / 0.45);
+  --tint-neutral-bg: var(--color-neutral-100);
+  --tint-neutral-fg: var(--color-neutral-500);
+
+  /* Vuestic's reset stylesheet (loaded after this file) sets body colors from
+     its own light palette; point those variables at our tokens. */
+  --va-background-primary: var(--color-background);
+  --va-on-background-primary: var(--color-neutral-800);
+  --va-text-primary: var(--color-neutral-800);
+}
+
+/* Vuestic's `body { color; background-color }` has the same specificity as ours
+   and loads later, so restate the dark values with a stronger selector. */
+[data-theme="dark"] .btn-danger:hover {
+  background-color: #fca5a5;
+}
+
+[data-theme="dark"] body {
+  color: var(--color-neutral-800);
+  background-color: var(--color-background);
 }
 
 /* ============================================
@@ -381,20 +441,20 @@ button {
   padding: 1.25rem;
   margin-bottom: 1.25rem;
   border: 1px solid var(--color-primary-300);
-  background: #f0f7ff;
+  background: var(--tint-info-bg, #f0f7ff);
 }
 
 .confirm-card {
   padding: 1rem 1.25rem;
   margin-bottom: 1rem;
   border: 1px solid var(--color-error);
-  background: #fef2f2;
+  background: var(--tint-danger-bg, #fef2f2);
 }
 
 .confirm-card p {
   margin: 0 0 0.75rem;
   font-size: 0.875rem;
-  color: #b91c1c;
+  color: var(--tint-danger-fg, #b91c1c);
 }
 
 .confirm-actions {
@@ -495,7 +555,7 @@ button {
 
 .btn-primary {
   background-color: var(--color-primary-600);
-  color: white;
+  color: var(--color-on-accent, #fff);
 }
 
 .btn-primary:hover {
@@ -513,7 +573,7 @@ button {
 
 .btn-danger {
   background-color: var(--color-error);
-  color: white;
+  color: var(--color-on-accent, #fff);
 }
 
 .btn-danger:hover {
@@ -600,18 +660,18 @@ button {
 }
 
 .badge-success {
-  background-color: #dcfce7;
-  color: #166534;
+  background-color: var(--tint-success-bg, #dcfce7);
+  color: var(--tint-success-fg, #166534);
 }
 
 .badge-warning {
-  background-color: #fef3c7;
-  color: #92400e;
+  background-color: var(--tint-warning-bg, #fef3c7);
+  color: var(--tint-warning-fg, #92400e);
 }
 
 .badge-danger {
-  background-color: #fce4ec;
-  color: #c62828;
+  background-color: var(--tint-danger-bg, #fce4ec);
+  color: var(--tint-danger-fg, #c62828);
 }
 
 .badge-neutral {

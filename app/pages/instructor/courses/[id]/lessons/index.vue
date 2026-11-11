@@ -280,7 +280,7 @@ function confirmDelete(lessonId: string, judul: string) {
   border-radius: 8px;
   font-size: 0.875rem;
   font-family: inherit;
-  background-color: white;
+  background-color: var(--color-surface);
   color: var(--color-neutral-800);
   transition: border-color 0.2s;
 }
@@ -300,7 +300,7 @@ function confirmDelete(lessonId: string, judul: string) {
   font-family: inherit;
   line-height: 1.6;
   resize: vertical;
-  background-color: white;
+  background-color: var(--color-surface);
   color: var(--color-neutral-800);
   transition: border-color 0.2s;
 }

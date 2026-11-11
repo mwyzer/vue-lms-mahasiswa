@@ -343,7 +343,8 @@ describe('embedTextsWith', () => {
     const r = await embedTextsWith({ ...LIVE, embeddingModel: 'some-3072-model' }, ['a'], { ...deps, fetch })
     expect(r.mode).toBe('local')
     expect(r.vectors[0]).toHaveLength(EMBEDDING_DIMS)
-    expect(String(warn.mock.calls[0]![0])).toContain('3072 dimensions, expected 1536')
+    // Other warnings (e.g. h3 deprecations) may be logged too — look for ours.
+    expect(warn.mock.calls.some((c) => String(c[0]).includes('3072 dimensions, expected 1536'))).toBe(true)
     warn.mockRestore()
   })
 

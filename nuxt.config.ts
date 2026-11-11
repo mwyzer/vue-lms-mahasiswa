@@ -121,6 +121,9 @@ export default defineNuxtConfig({
     // Server-only (not exposed to client)
     aiApiKey: '',
     aiModel: 'gpt-4o-mini',
+    // Shared AI client (server/utils/ai.ts) — embeddings + OpenAI-compatible base URL
+    aiEmbeddingModel: 'text-embedding-3-small',
+    aiBaseUrl: 'https://api.openai.com/v1',
     // Deadline-reminder cron (server/api/cron/deadline-reminders.get.ts)
     cronSecret: '',
     supabaseServiceRoleKey: '',

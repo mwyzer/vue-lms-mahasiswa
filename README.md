@@ -137,6 +137,7 @@ Video conference, live chat, forum diskusi, plagiarism checker, integrasi pembay
 - **v1.1:** ✅ Leaderboard quiz — forum diskusi, notifikasi email
 - **v1.2:** Export nilai, push notification
 - **v2.0:** ✅ Multi-campus, AI learning assistant (enhanced), analitik pembelajaran, plagiarism checker ✅
+- **v2.1 (Prioritas 2):** ✅ AI tutor berbasis materi (RAG + sumber), generate soal kuis dari materi, draf nilai + feedback tugas, skor kemiripan semantik pada cek plagiarisme — lihat [docs/12-prioritas-2.md](docs/12-prioritas-2.md)
 
 ### Success Metrics
 

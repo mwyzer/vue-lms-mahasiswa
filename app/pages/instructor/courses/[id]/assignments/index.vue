@@ -175,6 +175,12 @@ function cancelGrading() {
   showGrading.value = null
 }
 
+/** Fill the grade form from an AI draft. Not saved until the instructor clicks "Simpan Nilai". */
+function applyAiGradeDraft(d: { nilai: number; feedback: string }) {
+  gradeNilai.value = d.nilai
+  gradeFeedback.value = d.feedback
+}
+
 // Direct grading for all students
 function openDirectGrade(assignmentId: string) {
   directGradeAssignmentId.value = assignmentId
@@ -429,7 +435,7 @@ function formatDate(dateStr: string): string {
                 <span v-else class="badge badge-neutral">Belum Dinilai</span>
               </div>
 
-              <div v-if="showGrading === a.id" class="grading-form">
+              <div v-if="showGrading === a.id && selectedSubmissionId === sub.id" class="grading-form">
                 <div class="grade-fields">
                   <div class="form-group">
                     <label class="form-label">Jawaban:</label>
@@ -447,6 +453,16 @@ function formatDate(dateStr: string): string {
                     <pre v-if="sub.jawaban" class="jawaban-text">{{ sub.jawaban }}</pre>
                     <p v-if="!sub.file_url && !sub.jawaban" class="text-sm text-muted">(Tidak ada jawaban / file)</p>
                   </div>
+                  <AiGradeDraft
+                    v-if="sub.id === selectedSubmissionId"
+                    :judul="a.judul"
+                    :deskripsi="a.deskripsi"
+                    :submission-text="sub.jawaban"
+                    :has-file="!!sub.file_url"
+                    :current-score="gradeNilai"
+                    :current-feedback="gradeFeedback"
+                    @apply="applyAiGradeDraft"
+                  />
                   <div class="form-group">
                     <label class="form-label">Nilai (0-100)</label>
                     <input
@@ -480,7 +496,7 @@ function formatDate(dateStr: string): string {
               </div>
 
               <button
-                v-if="showGrading !== a.id"
+                v-if="showGrading !== a.id || selectedSubmissionId !== sub.id"
                 class="btn btn-ghost btn-sm"
                 @click="openGrading(a.id); selectedSubmissionId = sub.id; gradeNilai = sub.nilai || 0; gradeFeedback = sub.feedback || ''"
               >

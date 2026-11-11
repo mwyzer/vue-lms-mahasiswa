@@ -263,12 +263,6 @@ function closePlagiarism() {
   plagiarismReport.value = null
 }
 
-function severityBadgeClass(label: string): string {
-  if (label === 'tinggi') return 'plag-high'
-  if (label === 'sedang') return 'plag-mid'
-  return 'plag-low'
-}
-
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('id-ID', {
     day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
@@ -705,6 +699,17 @@ function formatDate(dateStr: string): string {
   flex-shrink: 0;
 }
 
+@media (max-width: 640px) {
+  .assignment-header-card {
+    flex-direction: column;
+  }
+
+  .assignment-actions {
+    flex-wrap: wrap;
+    flex-shrink: 1;
+  }
+}
+
 .assignment-desc {
   font-size: 0.875rem;
   color: var(--color-neutral-600);
@@ -980,83 +985,5 @@ function formatDate(dateStr: string): string {
 
 @keyframes plag-spin {
   to { transform: rotate(360deg); }
-}
-
-.plagiarism-clean {
-  margin-top: 0.5rem;
-  padding: 0.75rem;
-  border: 1px solid var(--color-success);
-  background-color: #dcfce7;
-  color: #15803d;
-  border-radius: 8px;
-  font-size: 0.875rem;
-}
-
-.plagiarism-result {
-  margin-top: 0.75rem;
-  padding: 0.75rem;
-  border: 1px solid #fca5a5;
-  background-color: #fef2f2;
-  border-radius: 8px;
-}
-
-.plagiarism-result-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
-}
-
-.plagiarism-author {
-  font-weight: 600;
-  font-size: 0.875rem;
-}
-
-.plagiarism-matches {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.plagiarism-match {
-  padding: 0.5rem 0.625rem;
-  border: 1px solid var(--color-neutral-200);
-  border-radius: 6px;
-  background-color: white;
-}
-
-.plagiarism-match-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.plagiarism-excerpt {
-  margin-top: 0.375rem;
-  font-size: 0.75rem;
-  color: var(--color-neutral-500);
-  font-style: italic;
-  white-space: pre-wrap;
-}
-
-.badge.plag-high {
-  background: #fef2f2;
-  color: #b91c1c;
-  border: 1px solid #fca5a5;
-}
-
-.badge.plag-mid {
-  background: #fffbeb;
-  color: #b45309;
-  border: 1px solid #fde68a;
-}
-
-.badge.plag-low {
-  background: #eff6ff;
-  color: #1d4ed8;
-  border: 1px solid #bfdbfe;
 }
 </style>

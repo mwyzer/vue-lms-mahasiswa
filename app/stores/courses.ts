@@ -43,16 +43,59 @@ const DEMO_ENROLLMENTS: Record<string, string[]> = {
   'i3': ['c3', 'c7', 'c10', 'c13'],
 }
 
+// Demo lesson text is deliberately substantive: the AI tutor (RAG) answers from it in demo mode.
 const DEMO_LESSONS: Record<string, Lesson[]> = {
   'c1': [
-    { id: 'l1', course_id: 'c1', judul: 'Pengantar Pemrograman', konten: 'Apa itu pemrograman?', urutan: 1 },
-    { id: 'l2', course_id: 'c1', judul: 'Variabel dan Tipe Data', konten: 'Mengenal variabel dan tipe data.', urutan: 2 },
-    { id: 'l3', course_id: 'c1', judul: 'Percabangan (If-Else)', konten: 'Logika percabangan dalam pemrograman.', urutan: 3 },
-    { id: 'l4', course_id: 'c1', judul: 'Perulangan (Looping)', konten: 'For, while, dan do-while loops.', urutan: 4 },
+    {
+      id: 'l1', course_id: 'c1', judul: 'Pengantar Pemrograman', urutan: 1,
+      konten: [
+        'Pemrograman adalah proses menulis instruksi yang dapat dijalankan oleh komputer untuk menyelesaikan suatu masalah. Kumpulan instruksi itu disebut program, dan bahasa yang dipakai untuk menuliskannya disebut bahasa pemrograman.',
+        'Pada mata kuliah ini kita memakai bahasa Python karena sintaksnya sederhana dan mudah dibaca. Program Python dijalankan oleh interpreter baris demi baris, sehingga kesalahan langsung terlihat saat program dijalankan.',
+        'Algoritma adalah urutan langkah logis untuk menyelesaikan masalah. Sebelum menulis kode, biasakan menyusun algoritma terlebih dahulu, misalnya dengan pseudocode atau flowchart. Program pertama yang biasa ditulis adalah mencetak teks ke layar dengan perintah print("Halo, dunia!").',
+      ].join('\n\n'),
+    },
+    {
+      id: 'l2', course_id: 'c1', judul: 'Variabel dan Tipe Data', urutan: 2,
+      konten: [
+        'Dalam pemrograman, variabel adalah nama yang menunjuk ke sebuah nilai yang disimpan di memori komputer. Di Python, variabel dibuat dengan operator penugasan, misalnya umur = 20 atau nama = "Ahmad". Python tidak mengharuskan kita menuliskan tipe data saat membuat variabel; tipe ditentukan dari nilainya.',
+        'Tipe data dasar di Python adalah int untuk bilangan bulat, float untuk bilangan desimal, str untuk teks (string), dan bool untuk nilai logika True atau False. Fungsi type() dipakai untuk mengetahui tipe data sebuah variabel, misalnya type(3.14) menghasilkan float.',
+        'Nilai dapat diubah dari satu tipe ke tipe lain dengan konversi tipe (casting), misalnya int("42") mengubah string menjadi bilangan bulat dan str(42) mengubah bilangan menjadi string. Nama variabel sebaiknya deskriptif, ditulis dengan huruf kecil dan garis bawah, contohnya total_nilai.',
+      ].join('\n\n'),
+    },
+    {
+      id: 'l3', course_id: 'c1', judul: 'Percabangan (If-Else)', urutan: 3,
+      konten: [
+        'Percabangan digunakan agar program dapat mengambil keputusan berdasarkan sebuah kondisi. Kondisi adalah ekspresi yang bernilai True atau False, misalnya nilai >= 60.',
+        'Di Python, percabangan ditulis dengan kata kunci if, elif, dan else. Blok if dijalankan ketika kondisinya benar, blok elif memeriksa kondisi lain bila kondisi sebelumnya salah, dan blok else dijalankan ketika semua kondisi salah. Setiap blok ditandai dengan titik dua dan indentasi, biasanya empat spasi.',
+        'Operator perbandingan yang sering dipakai adalah ==, !=, <, >, <= dan >=. Beberapa kondisi dapat digabung dengan operator logika and, or, dan not. Kesalahan umum pemula adalah lupa indentasi atau tertukar antara = (penugasan) dan == (perbandingan).',
+      ].join('\n\n'),
+    },
+    {
+      id: 'l4', course_id: 'c1', judul: 'Perulangan (Looping)', urutan: 4,
+      konten: [
+        'Perulangan digunakan untuk menjalankan blok kode yang sama berkali-kali. Python menyediakan dua jenis perulangan utama, yaitu for dan while.',
+        'Perulangan for dipakai ketika jumlah pengulangan sudah diketahui atau ketika kita ingin menelusuri setiap elemen sebuah koleksi. Contohnya for i in range(5) akan mengulang sebanyak lima kali dengan nilai i dari 0 sampai 4.',
+        'Perulangan while dipakai ketika pengulangan bergantung pada kondisi, misalnya while saldo > 0. Pastikan kondisi suatu saat menjadi salah agar tidak terjadi infinite loop (perulangan tanpa akhir). Python tidak memiliki do-while; pola serupa dibuat dengan while True yang dihentikan memakai break. Perintah continue melompati sisa blok dan langsung ke putaran berikutnya.',
+      ].join('\n\n'),
+    },
   ],
   'c2': [
-    { id: 'l5', course_id: 'c2', judul: 'Himpunan', konten: 'Konsep dasar himpunan.', urutan: 1 },
-    { id: 'l6', course_id: 'c2', judul: 'Relasi dan Fungsi', konten: 'Relasi dan fungsi dalam matematika.', urutan: 2 },
+    {
+      id: 'l5', course_id: 'c2', judul: 'Himpunan', urutan: 1,
+      konten: [
+        'Himpunan adalah kumpulan objek yang terdefinisi dengan jelas dan tidak memiliki anggota ganda. Objek di dalam himpunan disebut anggota atau elemen. Himpunan biasanya ditulis dengan huruf kapital dan anggotanya diapit kurung kurawal, misalnya A = {1, 2, 3}.',
+        'Himpunan kosong adalah himpunan yang tidak memiliki anggota. Kardinalitas adalah banyaknya anggota sebuah himpunan, ditulis |A|. Himpunan A disebut himpunan bagian (subset) dari B jika setiap anggota A juga anggota B.',
+        'Operasi dasar himpunan adalah gabungan (union), irisan (intersection), selisih, dan komplemen. Gabungan A dan B berisi semua anggota yang ada di A atau B, sedangkan irisan berisi anggota yang ada di A dan sekaligus di B. Diagram Venn sering dipakai untuk menggambarkan operasi-operasi ini.',
+      ].join('\n\n'),
+    },
+    {
+      id: 'l6', course_id: 'c2', judul: 'Relasi dan Fungsi', urutan: 2,
+      konten: [
+        'Relasi dari himpunan A ke himpunan B adalah himpunan pasangan terurut (a, b) dengan a anggota A dan b anggota B. Relasi dapat disajikan dengan diagram panah, tabel, atau matriks.',
+        'Sebuah relasi pada satu himpunan dapat memiliki sifat refleksif, simetris, antisimetris, dan transitif. Relasi yang refleksif, simetris, dan transitif sekaligus disebut relasi ekivalensi.',
+        'Fungsi adalah relasi khusus yang memasangkan setiap anggota domain dengan tepat satu anggota kodomain. Fungsi disebut injektif (satu-satu) jika anggota domain yang berbeda selalu dipetakan ke anggota kodomain yang berbeda, surjektif (pada) jika setiap anggota kodomain memiliki pasangan, dan bijektif jika injektif sekaligus surjektif. Hanya fungsi bijektif yang memiliki fungsi invers.',
+      ].join('\n\n'),
+    },
   ],
 }
 
@@ -220,6 +263,41 @@ export const useCoursesStore = defineStore('courses', {
   },
 
   actions: {
+    /**
+     * All lessons (with text) of the current user's courses — enrolled courses
+     * for students, taught courses for instructors. Sent to the AI tutor as
+     * retrieval context (`context.lessons` of POST /api/ai/chat).
+     * Lessons without text are skipped. Works in demo and Supabase mode.
+     * An action (not a getter) because demo lesson arrays are not reactive, so a
+     * cached getter could go stale after an instructor edits a lesson.
+     */
+    getLessonsForAi(): Array<{
+      id: string
+      course_id: string
+      course_kode: string
+      course_nama: string
+      judul: string
+      konten: string
+    }> {
+      const out: Array<{ id: string; course_id: string; course_kode: string; course_nama: string; judul: string; konten: string }> = []
+      for (const course of this.myCourses) {
+        const lessons = this.isDemoMode ? DEMO_LESSONS[course.id] || [] : this.sbCourseMap[course.id] || []
+        for (const l of lessons) {
+          const konten = typeof l.konten === 'string' ? l.konten.trim() : ''
+          if (!konten) continue
+          out.push({
+            id: l.id,
+            course_id: course.id,
+            course_kode: course.kode,
+            course_nama: course.nama,
+            judul: l.judul,
+            konten,
+          })
+        }
+      }
+      return out
+    },
+
     /**
      * Initialize store: fetch all data from Supabase in production mode.
      */

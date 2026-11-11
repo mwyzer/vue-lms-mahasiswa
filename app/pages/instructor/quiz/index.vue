@@ -11,6 +11,7 @@ import { useQuizStore } from '~/stores/quiz'
 import { useCoursesStore } from '~/stores/courses'
 import { useAuthStore } from '~/stores/auth'
 import { useNotification } from '~/composables/useNotification'
+import AiQuizGenerator from '~/components/quiz/AiQuizGenerator.vue'
 
 const quizStore = useQuizStore()
 const courseStore = useCoursesStore()
@@ -55,6 +56,9 @@ function getQuestionCount(quizId: string): number {
 function getAttemptCount(quizId: string): number {
   return quizStore.attempts.filter(a => a.quiz_id === quizId).length
 }
+
+/** Quiz whose "✨ Generate dengan AI" dialog is open. */
+const aiQuiz = ref<{ id: string; course_id: string } | null>(null)
 </script>
 
 <template>
@@ -71,38 +75,55 @@ function getAttemptCount(quizId: string): number {
     </div>
 
     <div v-else class="quiz-list">
-      <NuxtLink
+      <div
         v-for="quiz in myQuizzes"
         :key="quiz.id"
-        :to="`/instructor/courses/${quiz.course_id}/quiz`"
         class="card quiz-card"
       >
-        <div class="quiz-top">
-          <div class="quiz-info">
-            <div class="quiz-title-row">
-              <span
-                class="badge"
-                :class="quiz.is_active ? 'badge-success' : 'badge-secondary'"
-              >
-                {{ quiz.is_active ? 'Aktif' : 'Nonaktif' }}
-              </span>
-              <h3>{{ quiz.judul }}</h3>
+        <NuxtLink :to="`/instructor/courses/${quiz.course_id}/quiz`" class="quiz-link">
+          <div class="quiz-top">
+            <div class="quiz-info">
+              <div class="quiz-title-row">
+                <span
+                  class="badge"
+                  :class="quiz.is_active ? 'badge-success' : 'badge-secondary'"
+                >
+                  {{ quiz.is_active ? 'Aktif' : 'Nonaktif' }}
+                </span>
+                <h3>{{ quiz.judul }}</h3>
+              </div>
+              <p class="course-label" :style="{ color: getCourseColor(quiz.course_id) }">
+                {{ getCourseName(quiz.course_id) }}
+              </p>
             </div>
-            <p class="course-label" :style="{ color: getCourseColor(quiz.course_id) }">
-              {{ getCourseName(quiz.course_id) }}
-            </p>
+            <div class="quiz-stats">
+              <span class="stat-item" title="Jumlah soal" data-testid="question-count">📝 {{ getQuestionCount(quiz.id) }}</span>
+              <span class="stat-item" title="Jumlah pengerjaan">👥 {{ getAttemptCount(quiz.id) }}</span>
+            </div>
           </div>
-          <div class="quiz-stats">
-            <span class="stat-item" title="Jumlah soal">📝 {{ getQuestionCount(quiz.id) }}</span>
-            <span class="stat-item" title="Jumlah pengerjaan">👥 {{ getAttemptCount(quiz.id) }}</span>
+          <div class="quiz-meta">
+            <span class="meta-item">⏱ {{ quiz.time_limit_minutes }} menit</span>
+            <span class="meta-item">📋 Lulus ≥ {{ quiz.passing_score }}%</span>
           </div>
+        </NuxtLink>
+        <div class="quiz-card-actions">
+          <button
+            type="button"
+            class="btn btn-secondary btn-sm"
+            @click="aiQuiz = { id: quiz.id, course_id: quiz.course_id }"
+          >
+            ✨ Generate dengan AI<span class="sr-only">: {{ quiz.judul }}</span>
+          </button>
         </div>
-        <div class="quiz-meta">
-          <span class="meta-item">⏱ {{ quiz.time_limit_minutes }} menit</span>
-          <span class="meta-item">📋 Lulus ≥ {{ quiz.passing_score }}%</span>
-        </div>
-      </NuxtLink>
+      </div>
     </div>
+
+    <AiQuizGenerator
+      v-if="aiQuiz"
+      :quiz-id="aiQuiz.id"
+      :course-id="aiQuiz.course_id"
+      @close="aiQuiz = null"
+    />
   </div>
 </template>
 
@@ -142,6 +163,20 @@ function getAttemptCount(quizId: string): number {
   border-color: var(--color-primary-300);
 }
 
+.quiz-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
+.quiz-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.6rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--color-neutral-200);
+}
+
 .quiz-top {
   display: flex;
   align-items: flex-start;
@@ -178,14 +213,14 @@ function getAttemptCount(quizId: string): number {
   gap: 0.75rem;
   flex-shrink: 0;
   font-size: 0.85rem;
-  color: var(--color-muted);
+  color: var(--color-neutral-500);
 }
 
 .quiz-meta {
   display: flex;
   gap: 1rem;
   font-size: 0.8rem;
-  color: var(--color-muted);
+  color: var(--color-neutral-500);
 }
 
 /* Badges */

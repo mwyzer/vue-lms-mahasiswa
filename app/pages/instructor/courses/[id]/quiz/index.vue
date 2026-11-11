@@ -8,6 +8,12 @@ import { useQuizStore, parseQuestionsCsv } from '~/stores/quiz'
 import { useCoursesStore } from '~/stores/courses'
 import { useAuthStore } from '~/stores/auth'
 import { useNotification } from '~/composables/useNotification'
+import AiQuizGenerator from '~/components/quiz/AiQuizGenerator.vue'
+
+definePageMeta({
+  layout: 'instructor',
+  middleware: ['auth', 'instructor']
+})
 
 const quizStore = useQuizStore()
 const courseStore = useCoursesStore()
@@ -72,6 +78,9 @@ const selectedQuizQuestions = computed(() => {
   if (!showQuestions.value) return []
   return quizStore.questionsForQuiz(showQuestions.value)
 })
+
+/** Quiz whose "✨ Generate dengan AI" dialog is open (always a quiz of this course). */
+const aiQuizId = ref<string | null>(null)
 
 // Add question
 const showAddQuestion = ref(false)
@@ -407,6 +416,9 @@ function attemptedCount(quizId: string): number {
               <button class="btn btn-ghost btn-sm" :disabled="importing" @click="openCsvImport">
                 {{ importing ? 'Mengimpor...' : '⬆ Import CSV' }}
               </button>
+              <button type="button" class="btn btn-secondary btn-sm" @click="aiQuizId = quiz.id">
+                ✨ Generate dengan AI
+              </button>
               <button class="btn btn-primary btn-sm" @click="openAddQuestion">+ Soal</button>
               <input
                 ref="importFileInput"
@@ -529,6 +541,12 @@ function attemptedCount(quizId: string): number {
         </div>
       </div>
     </div>
+    <AiQuizGenerator
+      v-if="aiQuizId"
+      :quiz-id="aiQuizId"
+      :course-id="courseId"
+      @close="aiQuizId = null"
+    />
   </div>
 </template>
 
@@ -589,6 +607,19 @@ function attemptedCount(quizId: string): number {
   display: flex;
   gap: 0.4rem;
   flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .quiz-header,
+  .questions-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .quiz-actions {
+    flex-wrap: wrap;
+    flex-shrink: 1;
+  }
 }
 
 .quiz-desc {

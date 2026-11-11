@@ -27,7 +27,7 @@ const directGradeStudents = ref<{ studentId: string; nilai: number; feedback: st
 const directGradingSave = ref(false)
 // Plagiarism state
 const plagiarismAssignmentId = ref<string | null>(null)
-const plagiarismReport = ref<{ checked: any[]; flagged: any[]; threshold: number; total: number } | null>(null)
+const plagiarismReport = ref<PlagiarismReport | null>(null)
 
 // New/Edit assignment form
 const formJudul = ref('')
@@ -175,6 +175,12 @@ function cancelGrading() {
   showGrading.value = null
 }
 
+/** Fill the grade form from an AI draft. Not saved until the instructor clicks "Simpan Nilai". */
+function applyAiGradeDraft(d: { nilai: number; feedback: string }) {
+  gradeNilai.value = d.nilai
+  gradeFeedback.value = d.feedback
+}
+
 // Direct grading for all students
 function openDirectGrade(assignmentId: string) {
   directGradeAssignmentId.value = assignmentId
@@ -255,12 +261,6 @@ async function runPlagiarismCheck(assignmentId: string) {
 function closePlagiarism() {
   plagiarismAssignmentId.value = null
   plagiarismReport.value = null
-}
-
-function severityBadgeClass(label: string): string {
-  if (label === 'tinggi') return 'plag-high'
-  if (label === 'sedang') return 'plag-mid'
-  return 'plag-low'
 }
 
 function formatDate(dateStr: string): string {
@@ -429,7 +429,7 @@ function formatDate(dateStr: string): string {
                 <span v-else class="badge badge-neutral">Belum Dinilai</span>
               </div>
 
-              <div v-if="showGrading === a.id" class="grading-form">
+              <div v-if="showGrading === a.id && selectedSubmissionId === sub.id" class="grading-form">
                 <div class="grade-fields">
                   <div class="form-group">
                     <label class="form-label">Jawaban:</label>
@@ -447,6 +447,16 @@ function formatDate(dateStr: string): string {
                     <pre v-if="sub.jawaban" class="jawaban-text">{{ sub.jawaban }}</pre>
                     <p v-if="!sub.file_url && !sub.jawaban" class="text-sm text-muted">(Tidak ada jawaban / file)</p>
                   </div>
+                  <AiGradeDraft
+                    v-if="sub.id === selectedSubmissionId"
+                    :judul="a.judul"
+                    :deskripsi="a.deskripsi"
+                    :submission-text="sub.jawaban"
+                    :has-file="!!sub.file_url"
+                    :current-score="gradeNilai"
+                    :current-feedback="gradeFeedback"
+                    @apply="applyAiGradeDraft"
+                  />
                   <div class="form-group">
                     <label class="form-label">Nilai (0-100)</label>
                     <input
@@ -480,7 +490,7 @@ function formatDate(dateStr: string): string {
               </div>
 
               <button
-                v-if="showGrading !== a.id"
+                v-if="showGrading !== a.id || selectedSubmissionId !== sub.id"
                 class="btn btn-ghost btn-sm"
                 @click="openGrading(a.id); selectedSubmissionId = sub.id; gradeNilai = sub.nilai || 0; gradeFeedback = sub.feedback || ''"
               >
@@ -548,52 +558,7 @@ function formatDate(dateStr: string): string {
 
             <p v-else-if="plagiarismError" class="text-sm error-text">{{ plagiarismError }}</p>
 
-            <template v-else-if="plagiarismReport">
-              <p v-if="plagiarismReport.total < 2" class="text-sm text-muted">
-                Perlu minimal 2 jawaban teks untuk pemeriksaan.
-              </p>
-              <template v-else>
-                <p class="text-sm text-muted">
-                  Membandingkan <strong>{{ plagiarismReport.total }}</strong> jawaban teks. Ambang batas
-                  kemiripan tinggi: <strong>&ge; {{ plagiarismReport.threshold }}%</strong>.
-                </p>
-
-                <div v-if="plagiarismReport.flagged.length === 0" class="plagiarism-clean">
-                  ✅ Tidak ada pasangan jawaban yang terdeteksi kemiripan tinggi.
-                </div>
-
-                <div
-                  v-for="(result, ri) in plagiarismReport.flagged"
-                  :key="result.submissionId"
-                  class="plagiarism-result"
-                >
-                  <div class="plagiarism-result-header">
-                    <span class="plagiarism-author">{{ ri + 1 }}. {{ result.authorName }}</span>
-                    <span
-                      v-if="result.highestScore >= plagiarismReport.threshold"
-                      class="badge badge-danger"
-                    >
-                      {{ result.highestScore }}%
-                    </span>
-                  </div>
-                  <div class="plagiarism-matches">
-                    <div
-                      v-for="m in result.matches"
-                      :key="m.withId"
-                      class="plagiarism-match"
-                    >
-                      <div class="plagiarism-match-head">
-                        <span class="text-sm">Mirip dengan <strong>{{ m.withName }}</strong></span>
-                        <span class="badge" :class="severityBadgeClass(m.label)">
-                          {{ m.score }}% <small>{{ m.label }}</small>
-                        </span>
-                      </div>
-                      <p v-if="m.excerpt" class="plagiarism-excerpt">“{{ m.excerpt }}”</p>
-                    </div>
-                  </div>
-                </div>
-              </template>
-            </template>
+            <PlagiarismResults v-else-if="plagiarismReport" :report="plagiarismReport" />
           </div>
         </div>
       </div>
@@ -732,6 +697,17 @@ function formatDate(dateStr: string): string {
   display: flex;
   gap: 0.25rem;
   flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .assignment-header-card {
+    flex-direction: column;
+  }
+
+  .assignment-actions {
+    flex-wrap: wrap;
+    flex-shrink: 1;
+  }
 }
 
 .assignment-desc {
@@ -1009,83 +985,5 @@ function formatDate(dateStr: string): string {
 
 @keyframes plag-spin {
   to { transform: rotate(360deg); }
-}
-
-.plagiarism-clean {
-  margin-top: 0.5rem;
-  padding: 0.75rem;
-  border: 1px solid var(--color-success);
-  background-color: #dcfce7;
-  color: #15803d;
-  border-radius: 8px;
-  font-size: 0.875rem;
-}
-
-.plagiarism-result {
-  margin-top: 0.75rem;
-  padding: 0.75rem;
-  border: 1px solid #fca5a5;
-  background-color: #fef2f2;
-  border-radius: 8px;
-}
-
-.plagiarism-result-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
-}
-
-.plagiarism-author {
-  font-weight: 600;
-  font-size: 0.875rem;
-}
-
-.plagiarism-matches {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.plagiarism-match {
-  padding: 0.5rem 0.625rem;
-  border: 1px solid var(--color-neutral-200);
-  border-radius: 6px;
-  background-color: white;
-}
-
-.plagiarism-match-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.plagiarism-excerpt {
-  margin-top: 0.375rem;
-  font-size: 0.75rem;
-  color: var(--color-neutral-500);
-  font-style: italic;
-  white-space: pre-wrap;
-}
-
-.badge.plag-high {
-  background: #fef2f2;
-  color: #b91c1c;
-  border: 1px solid #fca5a5;
-}
-
-.badge.plag-mid {
-  background: #fffbeb;
-  color: #b45309;
-  border: 1px solid #fde68a;
-}
-
-.badge.plag-low {
-  background: #eff6ff;
-  color: #1d4ed8;
-  border: 1px solid #bfdbfe;
 }
 </style>

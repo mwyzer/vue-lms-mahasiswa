@@ -5,7 +5,8 @@
  * Provides a full chat UI with message history, streaming responses,
  * typing indicator, and input controls.
  */
-import { useAiChat, type ChatMessage } from '~/composables/useAiChat'
+import { useAiChat, sourceLink, type ChatMessage, type ChatSource } from '~/composables/useAiChat'
+import { useAuthStore } from '~/stores/auth'
 
 const {
   messages,
@@ -18,6 +19,8 @@ const {
   formatTime,
   renderMarkdown,
 } = useAiChat()
+
+const auth = useAuthStore()
 
 const inputText = ref('')
 const messagesContainer = ref<HTMLElement | null>(null)
@@ -35,6 +38,33 @@ watch(
   },
   { deep: true }
 )
+
+// Keep following the reply while it streams in
+watch(
+  () => messages.value[messages.value.length - 1]?.content.length,
+  () => {
+    nextTick(() => {
+      const el = messagesContainer.value
+      if (el && el.scrollHeight - el.scrollTop - el.clientHeight < 160) {
+        el.scrollTop = el.scrollHeight
+      }
+    })
+  }
+)
+
+// ── Sources ("📖 Sumber") ──
+const expandedSource = ref<string | null>(null)
+const sourceKey = (msg: ChatMessage, src: ChatSource) => `${msg.id}:${src.lesson_id}`
+function toggleExcerpt(msg: ChatMessage, src: ChatSource) {
+  const key = sourceKey(msg, src)
+  expandedSource.value = expandedSource.value === key ? null : key
+}
+function expandedExcerpt(msg: ChatMessage): ChatSource | null {
+  return msg.sources?.find((s) => sourceKey(msg, s) === expandedSource.value) ?? null
+}
+const linkFor = (src: ChatSource) => sourceLink(src, auth.role)
+const isStreaming = (msg: ChatMessage) =>
+  isProcessing.value && msg === messages.value[messages.value.length - 1]
 
 // Auto-resize textarea
 function autoResize() {
@@ -148,6 +178,48 @@ const suggestions = [
               <span class="dot" />
               <span class="dot" />
             </div>
+
+            <!-- Sources: lessons the answer is grounded in (plain text only) -->
+            <div
+              v-if="msg.role === 'assistant' && msg.sources?.length && !isStreaming(msg)"
+              class="message-sources"
+              data-testid="chat-sources"
+            >
+              <span class="sources-label">📖 Sumber:</span>
+              <ul class="source-list">
+                <li v-for="src in msg.sources" :key="src.lesson_id" class="source-item">
+                  <NuxtLink
+                    v-if="linkFor(src)"
+                    :to="linkFor(src)!"
+                    class="source-chip"
+                    :title="src.excerpt || src.judul"
+                    data-testid="chat-source-link"
+                  >
+                    <span v-if="src.course_kode" class="source-kode">{{ src.course_kode }}</span>
+                    <span class="source-title">{{ src.judul }}</span>
+                  </NuxtLink>
+                  <span v-else class="source-chip" :title="src.excerpt || src.judul">
+                    <span v-if="src.course_kode" class="source-kode">{{ src.course_kode }}</span>
+                    <span class="source-title">{{ src.judul }}</span>
+                  </span>
+                  <button
+                    v-if="src.excerpt"
+                    type="button"
+                    class="source-toggle"
+                    :aria-expanded="expandedSource === sourceKey(msg, src)"
+                    :aria-label="`Tampilkan kutipan materi ${src.judul}`"
+                    :title="expandedSource === sourceKey(msg, src) ? 'Sembunyikan kutipan' : 'Lihat kutipan'"
+                    @click="toggleExcerpt(msg, src)"
+                  >
+                    {{ expandedSource === sourceKey(msg, src) ? '▴' : '▾' }}
+                  </button>
+                </li>
+              </ul>
+              <blockquote v-if="expandedExcerpt(msg)" class="source-excerpt" data-testid="chat-source-excerpt">
+                <span class="source-excerpt-title">{{ expandedExcerpt(msg)!.judul }}</span>
+                {{ expandedExcerpt(msg)!.excerpt }}
+              </blockquote>
+            </div>
           </div>
         </div>
       </div>
@@ -207,7 +279,7 @@ const suggestions = [
   height: 100%;
   border: 1px solid var(--color-neutral-200);
   border-radius: var(--radius-lg);
-  background: white;
+  background: var(--color-surface);
   overflow: hidden;
 }
 
@@ -379,6 +451,8 @@ const suggestions = [
 
 .message-assistant .message-content {
   background: var(--color-neutral-100);
+  /* explicit: the inherited page colour is not theme-aware (unreadable in dark mode) */
+  color: var(--color-neutral-800);
   border-bottom-left-radius: var(--radius-sm);
 }
 
@@ -432,6 +506,120 @@ const suggestions = [
   content: '';
   display: block;
   margin: 0.25rem 0;
+}
+
+/* ── Sources ── */
+.message-sources {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  margin-top: 0.6rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed var(--color-neutral-300);
+  font-size: 0.78rem;
+}
+
+.sources-label {
+  color: var(--color-neutral-600);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.source-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.source-item {
+  display: inline-flex;
+  align-items: stretch;
+  max-width: 100%;
+  min-width: 0;
+  border: 1px solid var(--color-primary-200);
+  border-radius: 100px;
+  background: var(--color-primary-50);
+  overflow: hidden;
+}
+
+.source-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+  padding: 0.2rem 0.6rem;
+  color: var(--color-primary-700);
+  text-decoration: none;
+}
+
+a.source-chip:hover,
+a.source-chip:focus-visible {
+  background: var(--color-primary-100);
+  text-decoration: underline;
+}
+
+.source-kode {
+  flex-shrink: 0;
+  font-weight: 600;
+  font-size: 0.7rem;
+  opacity: 0.85;
+}
+
+.source-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 16rem;
+}
+
+.source-toggle {
+  flex-shrink: 0;
+  border: none;
+  border-left: 1px solid var(--color-primary-200);
+  background: transparent;
+  color: var(--color-primary-700);
+  padding: 0 0.5rem;
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+
+.source-toggle:hover,
+.source-toggle:focus-visible {
+  background: var(--color-primary-100);
+}
+
+.source-excerpt {
+  flex-basis: 100%;
+  margin: 0.25rem 0 0;
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid var(--color-primary-400);
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  color: var(--color-neutral-700);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.source-excerpt-title {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.15rem;
+  color: var(--color-neutral-800);
+}
+
+@media (max-width: 480px) {
+  .message {
+    max-width: 100%;
+  }
+  .source-title {
+    max-width: 11rem;
+  }
 }
 
 /* Typing indicator */
@@ -496,7 +684,8 @@ const suggestions = [
   transition: border-color 0.2s;
   max-height: 160px;
   line-height: 1.5;
-  background: white;
+  background: var(--color-surface);
+  color: var(--color-neutral-800);
 }
 
 .chat-input:focus {

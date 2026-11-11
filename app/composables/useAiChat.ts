@@ -3,15 +3,98 @@
  *
  * Manages chat messages, streaming responses, and connection state.
  * Uses the Nuxt server route /api/ai/chat for both demo and real AI modes.
+ *
+ * Every request carries the lessons of the user's courses (`context.lessons`)
+ * so the tutor can answer from the material; the reply carries `sources`
+ * (lessons the answer came from), in JSON and as the final SSE event.
  */
 import { useNotification } from '~/composables/useNotification'
+import { useAuthStore } from '~/stores/auth'
+import { useCoursesStore } from '~/stores/courses'
+
+/** A lesson the answer was grounded in (mirrors `RagSource` in server/utils/rag.ts). */
+export interface ChatSource {
+  lesson_id: string
+  course_id: string
+  course_kode: string
+  judul: string
+  excerpt: string
+  score: number
+}
 
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant' | 'system'
   content: string
   timestamp: Date
-  sources?: string[]
+  sources?: ChatSource[]
+}
+
+// Client-side caps, kept in line with the server's (server/utils/rag.ts).
+const MAX_CONTEXT_LESSONS = 100
+const MAX_LESSON_CHARS = 20_000
+const MAX_CONTEXT_TOTAL_CHARS = 150_000
+
+/** Keep only well-formed source objects (older servers sent `string[]` / nothing). */
+export function normalizeSources(raw: unknown): ChatSource[] {
+  if (!Array.isArray(raw)) return []
+  const out: ChatSource[] = []
+  const seen = new Set<string>()
+  for (const s of raw) {
+    if (!s || typeof s !== 'object') continue
+    const r = s as Record<string, unknown>
+    if (typeof r.lesson_id !== 'string' || typeof r.course_id !== 'string' || seen.has(r.lesson_id)) continue
+    seen.add(r.lesson_id)
+    out.push({
+      lesson_id: r.lesson_id,
+      course_id: r.course_id,
+      course_kode: typeof r.course_kode === 'string' ? r.course_kode : '',
+      judul: typeof r.judul === 'string' && r.judul ? r.judul : 'Materi',
+      excerpt: typeof r.excerpt === 'string' ? r.excerpt : '',
+      score: typeof r.score === 'number' ? r.score : 0,
+    })
+  }
+  return out
+}
+
+/**
+ * Default chat context: the user's courses and their lessons (capped).
+ * Initialises the courses store first if the app has not done so yet (e.g. the
+ * chat page was opened before the global init finished).
+ * Returns `undefined` when the stores are unavailable (e.g. isolated tests).
+ */
+export async function buildChatContext(): Promise<Record<string, unknown> | undefined> {
+  try {
+    const courses = useCoursesStore()
+    if (!courses.initialized) await courses.init()
+    const myCourses = courses.myCourses
+    const lessons: Array<Record<string, string>> = []
+    let total = 0
+    for (const l of courses.getLessonsForAi()) {
+      if (lessons.length >= MAX_CONTEXT_LESSONS) break
+      const konten = l.konten.slice(0, MAX_LESSON_CHARS)
+      if (total + konten.length > MAX_CONTEXT_TOTAL_CHARS) continue
+      total += konten.length
+      lessons.push({ ...l, konten })
+    }
+    return {
+      courses: myCourses.map((c) => ({ kode: c.kode, nama: c.nama, deskripsi: c.deskripsi || '' })),
+      lessons,
+    }
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Where a source chip links to: the student lesson page, or the instructor's
+ * lesson management page. `null` for roles without a lesson page (admin).
+ */
+export function sourceLink(source: Pick<ChatSource, 'course_id' | 'lesson_id'>, role: string | null | undefined): string | null {
+  const c = encodeURIComponent(source.course_id)
+  if (role === 'student') return `/courses/${c}/lessons/${encodeURIComponent(source.lesson_id)}`
+  if (role === 'instructor') return `/instructor/courses/${c}/lessons`
+  return null
 }
 
 interface ChatState {
@@ -50,17 +133,19 @@ export function useAiChat() {
     state.messages.push(userMsg)
 
     // Create placeholder assistant message
-    const assistantMsg: ChatMessage = {
+    state.messages.push({
       id: `assistant-${Date.now()}`,
       role: 'assistant',
       content: '',
       timestamp: new Date(),
-    }
-    state.messages.push(assistantMsg)
+    })
+    // Mutate through the reactive proxy so streamed words and sources re-render.
+    const assistantMsg = state.messages[state.messages.length - 1]!
 
     abortController = new AbortController()
 
     try {
+      if (context === undefined) context = await buildChatContext()
       const response = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: {
@@ -81,7 +166,7 @@ export function useAiChat() {
       if (contentType.includes('application/json')) {
         const data = await response.json()
         assistantMsg.content = data.reply || 'Tidak ada respons.'
-        assistantMsg.sources = data.sources
+        assistantMsg.sources = normalizeSources(data.sources)
         return
       }
 
@@ -90,12 +175,28 @@ export function useAiChat() {
       if (!reader) {
         const data = await response.json()
         assistantMsg.content = data.reply || 'Tidak ada respons.'
-        assistantMsg.sources = data.sources
+        assistantMsg.sources = normalizeSources(data.sources)
         return
       }
 
       const decoder = new TextDecoder()
       let buffer = ''
+
+      // Final event: { sources: [...], done: true }. Older servers send only { word }.
+      const handleEvent = (line: string) => {
+        if (!line.startsWith('data: ')) return
+        try {
+          const data = JSON.parse(line.slice(6))
+          if (typeof data.word === 'string' && data.word) {
+            assistantMsg.content += data.word
+          }
+          if (Array.isArray(data.sources)) {
+            assistantMsg.sources = normalizeSources(data.sources)
+          }
+        } catch {
+          // skip malformed chunks
+        }
+      }
 
       while (true) {
         const { done, value } = await reader.read()
@@ -104,35 +205,16 @@ export function useAiChat() {
         buffer += decoder.decode(value, { stream: true })
         const lines = buffer.split('\n')
         buffer = lines.pop() || ''
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.slice(6))
-              if (data.word) {
-                assistantMsg.content += data.word
-              }
-            } catch {
-              // skip malformed chunks
-            }
-          }
-        }
+        for (const line of lines) handleEvent(line)
       }
 
       // Process remaining buffer
-      if (buffer.startsWith('data: ')) {
-        try {
-          const data = JSON.parse(buffer.slice(6))
-          if (data.word) {
-            assistantMsg.content += data.word
-          }
-        } catch {
-          // skip
-        }
-      }
+      buffer += decoder.decode()
+      for (const line of buffer.split('\n')) handleEvent(line)
+      if (!assistantMsg.content) assistantMsg.content = 'Tidak ada respons.'
     } catch (err: any) {
       if (err.name === 'AbortError') {
-        assistantMsg.content += '\n\n_(pernelponan dihentikan)_'
+        assistantMsg.content += '\n\n_(respons dihentikan)_'
         return
       }
       const errMsg = err.message || 'Gagal terhubung ke AI assistant.'

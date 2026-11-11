@@ -1,15 +1,56 @@
 /**
  * AI Chat API — POST /api/ai/chat
  *
- * Accepts a user message and optional course context, returns an AI-generated reply.
- * Supports two modes:
- *   1. Real AI: Uses OpenAI-compatible API when NUXT_AI_API_KEY is set
- *   2. Demo mode: Returns context-aware mock responses based on lesson content
+ * AI tutor grounded in lesson content (RAG) with citations.
  *
- * Request:  { message: string, context?: { courses?: { nama, kode, deskripsi }[] } }
- * Response: { reply: string, sources?: string[] }
+ * Retrieval (server/utils/rag.ts):
+ *   - pgvector: when SUPABASE_SERVICE_ROLE_KEY + Supabase URL are configured and the
+ *     client's courses are real (UUID) courses, `match_lesson_chunks` restricted to
+ *     the courses the user may read (checked server-side). Falls back to ↓ when it
+ *     errors or finds nothing.
+ *   - client context (default / demo): lessons sent in `context.lessons`, chunked
+ *     and embedded together with the question, ranked by cosine similarity.
+ *
+ * Answering:
+ *   - API key set: model answers from the retrieved material (wrapped as untrusted data).
+ *   - Demo / AI unavailable: extractive answer quoted from the best lesson; if nothing
+ *     relevant was retrieved, the canned demo knowledge base.
+ *
+ * Request:  { message: string, context?: { courses?: { nama, kode, deskripsi }[],
+ *             lessons?: { id, course_id, course_kode, course_nama, judul, konten }[] } }
+ * Response: { reply: string, sources: RagSource[] }
+ * Stream (Accept: text/event-stream): `data: {"word": "..."}` events, then one final
+ *           `data: {"sources": RagSource[], "done": true}` event.
+ * RagSource: { lesson_id, course_id, course_kode, judul, excerpt, score }
  */
-import type { Lesson } from '~/types/database'
+import { createClient } from '@supabase/supabase-js'
+import { createError, defineEventHandler, getRequestHeader, readBody, setResponseHeader, type H3Event } from 'h3'
+import { chatCompletionWith, embedTextsWith, getAiConfig, isAiUnavailable, CHAT_TIMEOUT_MS, type AiConfig } from '../../utils/ai'
+import { getUsage, isOverBudget, recordUsage } from '../../utils/costTracker'
+import type { SessionData } from '../../utils/session'
+import {
+  allowedCourseIds,
+  buildExtractiveAnswer,
+  buildSystemPrompt,
+  createUpstreamSseParser,
+  dbLookupLessons,
+  isUuid,
+  resolveServiceConfig,
+  retrieveFromContext,
+  retrieveFromPgvector,
+  rpcMatchChunks,
+  sanitizeContextLessons,
+  splitForStreaming,
+  sseData,
+  type LessonMeta,
+  type RagLesson,
+  type RagSource,
+  type RetrievalResult,
+} from '../../utils/rag'
+
+const MAX_MESSAGE_CHARS = 2000
+const STREAM_TIMEOUT_MS = 60_000
+const GREETING_RE = /^(halo|hai|hi|hey|selamat|pagi|siang|sore|malam|hello|test|terima kasih|thanks|makasih|thank you)\b/i
 
 // ── Knowledge base for demo mode ──
 const DEMO_KNOWLEDGE: { keywords: string[]; reply: string }[] = [
@@ -90,8 +131,11 @@ const DEMO_KNOWLEDGE: { keywords: string[]; reply: string }[] = [
   },
 ]
 
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const startsWord = (text: string, kw: string) => new RegExp(`(^|[^\\p{L}\\p{N}])${escapeRe(kw)}`, 'u').test(text)
+
 // ── Demo mode response ──
-function getDemoReply(message: string): { reply: string; sources?: string[] } {
+function getDemoReply(message: string): { reply: string } {
   const lower = message.toLowerCase()
 
   // Check for greetings
@@ -123,7 +167,8 @@ function getDemoReply(message: string): { reply: string; sources?: string[] } {
   let bestScore = 0
 
   for (const item of DEMO_KNOWLEDGE) {
-    const score = item.keywords.filter((kw) => lower.includes(kw.toLowerCase())).length
+    // Keywords must start a word ("ai" must not match "bagaimana").
+    const score = item.keywords.filter((kw) => startsWord(lower, kw.toLowerCase())).length
     if (score > bestScore) {
       bestScore = score
       bestMatch = item
@@ -145,15 +190,28 @@ function getDemoReply(message: string): { reply: string; sources?: string[] } {
   }
 }
 
-// ── EventStream: write a SSE chunk ──
-function writeChunk(res: { write: (chunk: string) => void }, word: string) {
-  res.write(`data: ${JSON.stringify({ word })}\n\n`)
+
+const ragSourceSchema = {
+  type: 'object',
+  properties: {
+    lesson_id: { type: 'string' },
+    course_id: { type: 'string' },
+    course_kode: { type: 'string', example: 'MK101' },
+    judul: { type: 'string', example: 'Variabel dan Tipe Data' },
+    excerpt: { type: 'string', description: 'Potongan materi yang dipakai' },
+    score: { type: 'number', description: 'Skor kemiripan (0–1)', example: 0.42 },
+  },
 }
 
 defineRouteMeta({
   openAPI: {
-    summary: 'AI Chat',
-    description: `Mengirim pesan ke AI assistant LMS dan menerima balasan.\n\n**Mode Demo**: Menggunakan knowledge-base lokal untuk respons kontekstual.\n**Mode Produksi**: Menggunakan OpenAI-compatible API jika NUXT_AI_API_KEY diset.\n**Streaming**: Kirim header \`Accept: text/event-stream\` untuk respons streaming SSE.`,
+    summary: 'AI Chat (tutor berbasis materi)',
+    description:
+      'Mengirim pertanyaan ke AI tutor. Jawaban didasarkan pada isi materi (lessons.konten) dari mata kuliah pengguna ' +
+      'dan disertai daftar sumber (materi yang dipakai).\n\n' +
+      '**Retrieval**: pgvector (`match_lesson_chunks`) bila service role key dikonfigurasi, selain itu dari `context.lessons` yang dikirim klien.\n' +
+      '**Mode Demo** (tanpa NUXT_AI_API_KEY): jawaban ekstraktif dari materi; bila tidak ada materi relevan, knowledge-base lokal.\n' +
+      '**Streaming**: kirim header `Accept: text/event-stream`. Event `data: {"word": "..."}` lalu satu event akhir `data: {"sources": [...], "done": true}`.',
     tags: ['AI'],
     security: [{ cookieAuth: [] }],
     requestBody: {
@@ -185,6 +243,23 @@ defineRouteMeta({
                     },
                     description: 'Daftar mata kuliah mahasiswa untuk konteks AI',
                   },
+                  lessons: {
+                    type: 'array',
+                    maxItems: 100,
+                    description: 'Materi dari mata kuliah pengguna (kandidat retrieval). Maks 100 materi, 20.000 karakter per materi, 150.000 total.',
+                    items: {
+                      type: 'object',
+                      required: ['id', 'course_id', 'konten'],
+                      properties: {
+                        id: { type: 'string' },
+                        course_id: { type: 'string' },
+                        course_kode: { type: 'string' },
+                        course_nama: { type: 'string' },
+                        judul: { type: 'string' },
+                        konten: { type: 'string' },
+                      },
+                    },
+                  },
                 },
               },
             },
@@ -201,168 +276,267 @@ defineRouteMeta({
               type: 'object',
               properties: {
                 reply: { type: 'string', description: 'Balasan dari AI assistant', example: 'Variabel adalah tempat menyimpan data...' },
-                sources: { type: 'array', items: { type: 'string' }, description: 'Sumber referensi (opsional)', nullable: true },
+                sources: { type: 'array', items: ragSourceSchema, description: 'Materi sumber jawaban (maks 3, satu per materi)' },
               },
             },
           },
           'text/event-stream': {
             schema: {
               type: 'string',
-              description: 'SSE stream — setiap chunk berformat `data: {"word": "..."}\\n\\n`',
+              description: 'SSE stream — chunk `data: {"word": "..."}\\n\\n`, diakhiri `data: {"sources": [...], "done": true}\\n\\n`',
             },
           },
         },
       },
-      400: { description: 'Pesan kosong atau terlalu panjang (>2000 karakter)' },
+      400: { description: 'Pesan kosong/terlalu panjang (>2000 karakter) atau konteks materi terlalu besar' },
       401: { description: 'Unauthorized — session cookie tidak valid' },
-      429: { description: 'Rate limit exceeded — 20 req/menit per user, 100 req/menit global' },
+      429: { description: 'Rate limit / batas harian token AI tercapai' },
     },
   },
 })
 
+// ── Retrieval ──
+
+function serviceClient(event: H3Event) {
+  const config = useRuntimeConfig(event) as unknown as { supabaseServiceRoleKey?: string; public?: { supabaseUrl?: string } }
+  const svc = resolveServiceConfig({
+    serviceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || config.supabaseServiceRoleKey,
+    url: config.public?.supabaseUrl,
+  })
+  if (!svc) return null
+  return createClient(svc.url, svc.serviceKey, { auth: { persistSession: false, autoRefreshToken: false } })
+}
+
+const isHttp429 = (err: unknown) => (err as { statusCode?: number } | null)?.statusCode === 429
+
+async function retrieve(
+  event: H3Event,
+  config: AiConfig,
+  session: SessionData | undefined,
+  message: string,
+  lessons: RagLesson[],
+): Promise<RetrievalResult> {
+  const embed = (texts: string[]) => embedTextsWith(config, texts)
+  const expectedMode = config.isDemo ? ('local' as const) : ('api' as const)
+
+  // Backend 2 — pgvector (only for real UUID courses and a configured service role).
+  const courseIds = [...new Set(lessons.map((l) => l.course_id))].filter(isUuid)
+  if (session && courseIds.length > 0) {
+    const db = serviceClient(event)
+    if (db) {
+      try {
+        const allowed = await allowedCourseIds(db, session, courseIds)
+        if (allowed.length > 0) {
+          const known: Record<string, LessonMeta> = {}
+          for (const l of lessons) known[l.id] = { judul: l.judul, course_id: l.course_id, course_kode: l.course_kode }
+          const res = await retrieveFromPgvector(message, {
+            embed,
+            matchChunks: rpcMatchChunks(db),
+            lookupLessons: dbLookupLessons(db),
+            knownLessons: known,
+            courseIds: allowed,
+          })
+          if (res.sources.length > 0) return res
+        }
+      } catch (err) {
+        if (isHttp429(err)) throw err
+        console.warn('[RAG] pgvector retrieval failed, using client context:', (err as Error)?.message ?? err)
+      }
+    }
+  }
+
+  // Backend 1 — lessons sent by the client.
+  return retrieveFromContext(message, lessons, { embed, expectedMode, namespace: config.embeddingModel })
+}
+
+// ── Streaming helpers ──
+
+function startStream(event: H3Event) {
+  setResponseHeader(event, 'content-type', 'text/event-stream')
+  setResponseHeader(event, 'cache-control', 'no-cache')
+  setResponseHeader(event, 'connection', 'keep-alive')
+  // Disable proxy buffering so chunks reach the client as they are written.
+  setResponseHeader(event, 'x-accel-buffering', 'no')
+}
+
+const isClosed = (event: H3Event) => event.node.res.writableEnded || event.node.res.destroyed
+
+function write(event: H3Event, chunk: string) {
+  if (!isClosed(event)) event.node.res.write(chunk)
+}
+
+/** Stream a finished reply word by word (demo / fallback), then the sources event. */
+async function streamReply(event: H3Event, reply: string, sources: RagSource[], delayMs = 30) {
+  startStream(event)
+  for (const word of splitForStreaming(reply)) {
+    if (isClosed(event)) break
+    write(event, sseData({ word }))
+    if (delayMs > 0) await new Promise((r) => setTimeout(r, delayMs))
+  }
+  write(event, sseData({ sources, done: true }))
+  if (!isClosed(event)) event.node.res.end()
+}
+
+/** Answer without the LLM: extractive from retrieved material, else the canned knowledge base. */
+function fallbackAnswer(message: string, retrieval: RetrievalResult): { reply: string; sources: RagSource[] } {
+  const extractive = buildExtractiveAnswer(message, retrieval.chunks)
+  if (extractive) return { reply: extractive, sources: retrieval.sources }
+  return { reply: getDemoReply(message).reply, sources: [] }
+}
+
+function budgetExceeded() {
+  const usage = getUsage()
+  console.warn(`[CostTracker] Daily budget exceeded: ${usage.totalTokens} tokens used`)
+  return createError({ statusCode: 429, statusMessage: 'Batas harian penggunaan AI telah tercapai. Coba lagi besok.' })
+}
+
+/**
+ * Relay an OpenAI-compatible streaming completion as `{ word }` events.
+ * Returns false (nothing written yet) when the upstream call fails before streaming,
+ * so the caller can fall back.
+ */
+async function relayModelStream(event: H3Event, config: AiConfig, system: string, message: string, sources: RagSource[]): Promise<boolean> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), STREAM_TIMEOUT_MS)
+  const onClose = () => controller.abort()
+  event.node.res.on('close', onClose)
+
+  let response: Response
+  try {
+    response = await fetch(`${config.baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.apiKey}` },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: message },
+        ],
+        temperature: 0.4,
+        max_tokens: 1024,
+        stream: true,
+        stream_options: { include_usage: true },
+      }),
+      signal: controller.signal,
+    })
+  } catch (err) {
+    clearTimeout(timer)
+    event.node.res.off('close', onClose)
+    console.warn('[AI Chat] stream request failed:', (err as Error)?.message ?? err)
+    return false
+  }
+  if (!response.ok || !response.body) {
+    clearTimeout(timer)
+    event.node.res.off('close', onClose)
+    const text = await response.text().catch(() => '')
+    console.warn(`[AI Chat] AI API error ${response.status}: ${text.slice(0, 300)}`)
+    return false
+  }
+
+  startStream(event)
+  const parser = createUpstreamSseParser()
+  const decoder = new TextDecoder()
+  const reader = response.body.getReader()
+  let reply = ''
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      for (const word of parser.push(decoder.decode(value, { stream: true }))) {
+        reply += word
+        write(event, sseData({ word }))
+      }
+    }
+    for (const word of parser.end()) {
+      reply += word
+      write(event, sseData({ word }))
+    }
+  } catch (err) {
+    if (!isClosed(event)) console.warn('[AI Chat] stream interrupted:', (err as Error)?.message ?? err)
+  } finally {
+    clearTimeout(timer)
+    event.node.res.off('close', onClose)
+  }
+
+  if (!reply.trim() && !isClosed(event)) {
+    write(event, sseData({ word: 'Maaf, saya tidak bisa memberikan jawaban saat ini.' }))
+  }
+  // Cost tracking — real usage when the API sent it (stream_options.include_usage), else estimate.
+  const usage = parser.usage
+  const promptTokens = Number(usage?.prompt_tokens ?? Math.ceil((system.length + message.length) / 4))
+  const completionTokens = Number(usage?.completion_tokens ?? Math.ceil(reply.length / 4))
+  recordUsage(promptTokens, completionTokens)
+
+  write(event, sseData({ sources, done: true }))
+  if (!isClosed(event)) event.node.res.end()
+  return true
+}
+
+// ── Handler ──
+
 export default defineEventHandler(async (event) => {
-  const body = await readBody<{ message: string; context?: Record<string, unknown> }>(event)
-  const message = body?.message?.trim()
+  const body = await readBody<{ message?: unknown; context?: Record<string, unknown> }>(event)
+  const message = typeof body?.message === 'string' ? body.message.trim() : ''
 
   if (!message) {
     throw createError({ statusCode: 400, statusMessage: 'Message is required' })
   }
-
-  const config = useRuntimeConfig(event)
-  const aiApiKey = config.aiApiKey as string | undefined
-  const aiModel = (config.aiModel as string) || 'gpt-4o-mini'
-  const isDemo = !aiApiKey
-
-  // ── Build context for the AI ──
-  const courseContext = body?.context?.courses
-  let systemPrompt =
-    'Kamu adalah asisten AI untuk LMS Mahasiswa, sebuah Learning Management System untuk mahasiswa Indonesia. ' +
-    'Kamu membantu mahasiswa memahami materi perkuliahan, mengerjakan tugas, dan menggunakan fitur LMS. ' +
-    'Gunakan bahasa Indonesia yang ramah dan mudah dipahami. ' +
-    'Jawab dengan jelas, berikan contoh jika memungkinkan. ' +
-    'Jika ditanya di luar konteks LMS, arahkan kembali ke materi perkuliahan.'
-
-  if (courseContext && Array.isArray(courseContext) && courseContext.length > 0) {
-    const courseList = courseContext
-      .map((c: any) => `- ${c.kode}: ${c.nama} — ${c.deskripsi || ''}`)
-      .join('\n')
-    systemPrompt += `\n\nMahasiswa ini sedang mengambil mata kuliah berikut:\n${courseList}`
+  if (message.length > MAX_MESSAGE_CHARS) {
+    throw createError({ statusCode: 400, statusMessage: `Pesan terlalu panjang. Maksimal ${MAX_MESSAGE_CHARS} karakter.` })
   }
 
-  // ── Check if client wants streaming ──
-  const acceptHeader = getRequestHeader(event, 'accept') || ''
-  const wantsStream = acceptHeader.includes('text/event-stream')
+  const context = body?.context && typeof body.context === 'object' ? body.context : {}
+  const { lessons } = sanitizeContextLessons(context.lessons)
+  const courses = Array.isArray(context.courses) ? (context.courses as Array<Record<string, string>>) : []
 
-  if (isDemo) {
-    // ── DEMO MODE ──
-    const { reply } = getDemoReply(message)
+  const config = getAiConfig(event)
+  const session = event.context.session as SessionData | undefined
+  const wantsStream = (getRequestHeader(event, 'accept') || '').includes('text/event-stream')
 
+  // Greetings/thanks need no retrieval.
+  const isSmallTalk = message.length <= 40 && GREETING_RE.test(message)
+  const retrieval: RetrievalResult = isSmallTalk
+    ? { chunks: [], sources: [], mode: null, backend: 'none' }
+    : await retrieve(event, config, session, message, lessons)
+
+  // ── DEMO MODE (no API key): extractive / canned ──
+  if (config.isDemo) {
+    const { reply, sources } = fallbackAnswer(message, retrieval)
     if (wantsStream) {
-      setResponseHeader(event, 'content-type', 'text/event-stream')
-      setResponseHeader(event, 'cache-control', 'no-cache')
-      setResponseHeader(event, 'connection', 'keep-alive')
-
-      const words = reply.split(/(?<=\s)/)
-      for (const word of words) {
-        writeChunk(event.node.res, word)
-        await new Promise((r) => setTimeout(r, 30))
-      }
-      event.node.res.end()
+      await streamReply(event, reply, sources)
       return
     }
-
-    // Simulate network delay for non-streaming
-    await new Promise((r) => setTimeout(r, 500))
-    return { reply, sources: [] }
+    await new Promise((r) => setTimeout(r, 300))
+    return { reply, sources }
   }
 
-  // ── REAL AI MODE (OpenAI-compatible) ──
-  // Check daily budget before calling API
-  if (isOverBudget()) {
-    const usage = getUsage()
-    console.warn(`[CostTracker] Daily budget exceeded: ${usage.totalTokens} tokens used`)
-    throw createError({
-      statusCode: 429,
-      statusMessage: 'Batas harian penggunaan AI telah tercapai. Coba lagi besok.',
-    })
+  // ── REAL AI MODE ──
+  const system = buildSystemPrompt({ chunks: retrieval.chunks, courses })
+  const sources = retrieval.sources
+
+  if (wantsStream) {
+    if (isOverBudget()) throw budgetExceeded()
+    const streamed = await relayModelStream(event, config, system, message, sources)
+    if (!streamed) {
+      const fb = fallbackAnswer(message, retrieval)
+      await streamReply(event, fb.reply, fb.sources, 0)
+    }
+    return
   }
 
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${aiApiKey}`,
-      },
-      body: JSON.stringify({
-        model: aiModel,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: message },
-        ],
-        temperature: 0.7,
-        max_tokens: 1024,
-        stream: wantsStream,
-      }),
+    const { content, promptTokens, completionTokens } = await chatCompletionWith(config, {
+      system,
+      user: message,
+      temperature: 0.4,
+      maxTokens: 1024,
+      timeoutMs: CHAT_TIMEOUT_MS,
     })
-
-    if (!response.ok) {
-      const errText = await response.text()
-      throw new Error(`AI API error: ${response.status} ${errText}`)
-    }
-
-    if (wantsStream) {
-      // Stream response back to client
-      setResponseHeader(event, 'content-type', 'text/event-stream')
-      setResponseHeader(event, 'cache-control', 'no-cache')
-      setResponseHeader(event, 'connection', 'keep-alive')
-
-      const reader = response.body?.getReader()
-      const decoder = new TextDecoder()
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-          const chunk = decoder.decode(value)
-          // Parse OpenAI SSE format and forward words
-          const lines = chunk.split('\n').filter((l) => l.startsWith('data: '))
-          for (const line of lines) {
-            const data = line.slice(6)
-            if (data === '[DONE]') continue
-            try {
-              const parsed = JSON.parse(data)
-              const content = parsed.choices?.[0]?.delta?.content || ''
-              if (content) {
-                writeChunk(event.node.res, content)
-              }
-            } catch {
-              // skip malformed chunks
-            }
-          }
-        }
-      }
-      event.node.res.end()
-
-      // Cost tracking for streaming (estimate)
-      const estimatedCompletion = Math.ceil((systemPrompt.length + message.length) / 4)
-      recordUsage(estimatedCompletion, 0)
-      return
-    }
-
-    const data = await response.json()
-    const reply = data.choices?.[0]?.message?.content || 'Maaf, saya tidak bisa memberikan jawaban saat ini.'
-
-    // Cost tracking — use OpenAI response usage if available, else estimate
-    const promptTokens = data.usage?.prompt_tokens ?? Math.ceil((systemPrompt.length + message.length) / 4)
-    const completionTokens = data.usage?.completion_tokens ?? Math.ceil(reply.length / 4)
-    const usage = recordUsage(promptTokens, completionTokens)
-    console.log(`[CostTracker] Request #${usage.requestCount}: ${usage.totalTokens} total tokens today`)
-
-    return { reply, sources: [] }
-  } catch (error: any) {
-    console.error('AI Chat error:', error)
-    // Fallback to demo mode on error
-    const { reply } = getDemoReply(message)
-    return { reply, sources: [] }
+    console.log(`[CostTracker] chat: ${promptTokens}+${completionTokens} tokens, ${getUsage().totalTokens} total today`)
+    return { reply: content, sources }
+  } catch (err) {
+    if (!isAiUnavailable(err)) throw err
+    console.warn(`[AI Chat] AI unavailable (${err.reason}), using fallback: ${err.message}`)
+    return fallbackAnswer(message, retrieval)
   }
 })

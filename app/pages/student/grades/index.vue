@@ -305,6 +305,12 @@ function getScoreColor(nilai: number): string {
   margin-bottom: 1.5rem;
 }
 
+@media (max-width: 480px) {
+  .stats-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .stat-card {
   text-align: center;
   padding: 1rem 0.75rem;

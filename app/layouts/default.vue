@@ -81,6 +81,7 @@
 
 .layout-main {
   flex: 1;
+  min-width: 0;
 }
 
 .layout-footer {

@@ -350,10 +350,6 @@ function meetingLabel(student: { totalMeetings: number }): string {
   overflow: hidden;
 }
 
-.table-scroll {
-  overflow-x: auto;
-}
-
 .analytics-table {
   width: 100%;
   border-collapse: collapse;

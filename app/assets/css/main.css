@@ -695,6 +695,34 @@ button {
 }
 
 /* ============================================
+   Horizontal scroll wrapper for wide content
+   (tables, wide grids). Root fix for mobile overflow lives in the layouts
+   (`min-width: 0` on the flex main area); this wrapper makes the wide child
+   scroll inside its own box instead of widening the page.
+   Usage: <div class="table-scroll"><table>…</table></div>
+   ============================================ */
+.table-scroll {
+  display: block;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-scroll > table {
+  min-width: 100%;
+}
+
+/* Generic safety net for media inside page content. */
+main.content img,
+main.content video,
+main.content canvas,
+main.content svg {
+  max-width: 100%;
+}
+
+/* ============================================
    Responsive Breakpoint Helpers
    ============================================ */
 @media (max-width: 320px) {

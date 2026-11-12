@@ -226,7 +226,7 @@ function exportExcel() {
 
         <p v-if="rows.length === 0" class="muted">Belum ada mahasiswa terdaftar di mata kuliah ini.</p>
 
-        <div v-else class="table-wrap">
+        <div v-else class="table-scroll">
           <table class="grade-table">
             <thead>
               <tr>
@@ -414,10 +414,6 @@ function exportExcel() {
 
 .weight-total.invalid {
   color: var(--color-error);
-}
-
-.table-wrap {
-  overflow-x: auto;
 }
 
 .grade-table {

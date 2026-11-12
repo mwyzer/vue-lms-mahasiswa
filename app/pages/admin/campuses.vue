@@ -325,7 +325,7 @@ function setActiveScope(campusId: string | null) {
 
 .campus-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
   gap: 1rem;
 }
 
@@ -415,7 +415,15 @@ function setActiveScope(campusId: string | null) {
     align-items: flex-start;
   }
   .campus-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* Narrow screens: let the action buttons wrap below the info block. */
+  .campus-card {
+    flex-wrap: wrap;
+  }
+  .campus-actions {
+    flex-basis: 100%;
+    justify-content: flex-end;
   }
 }
 </style>

@@ -290,7 +290,7 @@ function fmtDate(iso: string) {
             <label class="check"><input v-model="onlyProblems" type="checkbox" /> Hanya baris bermasalah</label>
           </div>
 
-          <div v-if="previewRows.length" class="table-wrap">
+          <div v-if="previewRows.length" class="table-scroll table-wrap">
             <table class="data-table">
               <thead>
                 <tr>
@@ -442,7 +442,7 @@ code { font-family: var(--font-mono); font-size: 0.8125em; background: var(--col
 .check input, .scope-radio input { width: auto; margin: 0; }
 
 /* contain: the wide table must not widen the layout's flex column (scrolls instead). */
-.table-wrap { contain: inline-size; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; max-height: 26rem; overflow-y: auto; border: 1px solid var(--color-neutral-200); border-radius: var(--radius-md); }
+.table-wrap { max-height: 26rem; overflow-y: auto; border: 1px solid var(--color-neutral-200); border-radius: var(--radius-md); }
 .data-table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; min-width: 52rem; }
 .data-table th, .data-table td { padding: 0.375rem 0.5rem; border-bottom: 1px solid var(--color-neutral-200); text-align: left; vertical-align: top; }
 .data-table thead th { position: sticky; top: 0; background: var(--color-surface); font-size: 0.75rem; color: var(--color-neutral-600); white-space: nowrap; }

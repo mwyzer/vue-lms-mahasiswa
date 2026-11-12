@@ -260,6 +260,27 @@ export const useCoursesStore = defineStore('courses', {
         progress: progress.find((p) => p.lesson_id === lesson.id),
       }))
     },
+
+    /**
+     * Lessons of any course (demo or Supabase), ordered by `urutan`.
+     * Used by the progress store and global search (Prioritas 3).
+     * Touches `courses`/`sbCourseMap` so callers re-evaluate after `_syncDemo()`.
+     */
+    lessonsByCourse(): (courseId: string) => Lesson[] {
+      return (courseId: string) => {
+        void this.courses.length
+        const list = this.isDemoMode ? DEMO_LESSONS[courseId] || [] : this.sbCourseMap[courseId] || []
+        return [...list].sort((a, b) => a.urutan - b.urutan)
+      }
+    },
+
+    /** Lesson progress rows of one student (demo or Supabase). */
+    lessonProgressFor(): (studentId: string) => LessonProgress[] {
+      return (studentId: string) => {
+        void this.courses.length
+        return [...((this.isDemoMode ? DEMO_LESSON_PROGRESS[studentId] : this.sbProgressMap[studentId]) || [])]
+      }
+    },
   },
 
   actions: {

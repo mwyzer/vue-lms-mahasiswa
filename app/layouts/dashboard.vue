@@ -101,6 +101,7 @@ function closeSidebar() {
         </button>
 
         <div class="topbar-right">
+          <GlobalSearch />
           <ThemeToggle />
           <NotificationBell />
           <span class="text-sm text-muted">

@@ -117,6 +117,7 @@ function closeSidebar() {
         </button>
 
         <div class="topbar-right">
+          <GlobalSearch />
           <ThemeToggle />
           <NotificationBell />
           <span class="badge badge-danger">Administrator</span>

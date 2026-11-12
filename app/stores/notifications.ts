@@ -193,6 +193,34 @@ export const useNotificationsStore = defineStore('notifications', {
     },
 
     /**
+     * Demo mode: notify the signed-in user (e.g. a badge they just earned).
+     * `notifyUsers` skips the actor, so self-notifications go through here.
+     * In production this is a no-op — a Postgres trigger creates the row
+     * (see supabase/migration-prioritas-3-w2.sql). Returns true if created.
+     */
+    notifySelf(payload: NotificationPayload): boolean {
+      if (!useUiStore().isDemoMode) return false
+      const uid = useAuthStore().user?.id
+      if (!uid) return false
+      if (payload.dedupe_key && DEMO_NOTIFICATIONS.some((n) => n.user_id === uid && n.dedupe_key === payload.dedupe_key)) {
+        return false
+      }
+      DEMO_NOTIFICATIONS.push({
+        id: `n-demo-${Date.now()}-${++demoSeq}`,
+        user_id: uid,
+        tipe: payload.tipe,
+        judul: payload.judul,
+        pesan: payload.pesan ?? null,
+        link: payload.link ?? null,
+        dedupe_key: payload.dedupe_key ?? null,
+        read_at: null,
+        created_at: new Date().toISOString(),
+      })
+      this.items = [...DEMO_NOTIFICATIONS]
+      return true
+    },
+
+    /**
      * Demo mode: notify every student enrolled in a course
      * (same level + session roster lookup the rest of the app uses).
      */

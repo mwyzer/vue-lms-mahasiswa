@@ -141,6 +141,8 @@ export function downloadFile(data: string | Uint8Array | Blob, filename: string,
 // ── Row builders ─────────────────────────────────────────
 
 export interface GradebookExportRow {
+  /** Needed to look up the peer review breakdown (optional for tables without peer columns). */
+  student_id?: string
   nama: string
   npm: string
   tugas: number | null
@@ -155,19 +157,68 @@ export interface GradebookExportRow {
 
 export type GradeWeightSet = Record<'tugas' | 'kuis' | 'presensi' | 'uts' | 'uas', number>
 
-export function gradebookTable(rows: GradebookExportRow[], weights: GradeWeightSet, name = 'Nilai'): ExportTable {
-  const dash = (v: number | null) => (v === null || v === undefined ? '-' : v)
+/** Per-assignment peer detail (same shape as gradebook's `PeerBreakdown`). */
+export interface PeerExportCell {
+  instructor: number | null
+  peerAverage: number | null
+  peerCounted: number
+  peerAssigned: number
+  weight: number
+  final: number | null
+}
+
+export interface PeerExportBreakdown {
+  assignments: { id: string; judul: string; weight: number }[]
+  /** student_id → assignment_id → cell. */
+  cells: Record<string, Record<string, PeerExportCell>>
+}
+
+/** Column headers added for one assignment with peer review. */
+export function peerColumnHeaders(judul: string): string[] {
+  return [
+    `${judul} - Nilai Dosen`,
+    `${judul} - Nilai Peer (rata-rata)`,
+    `${judul} - Review Dihitung`,
+    `${judul} - Bobot Peer (%)`,
+    `${judul} - Nilai Akhir Tugas`,
+  ]
+}
+
+/**
+ * Gradebook export. The component columns and the final grade come straight
+ * from the gradebook rows (Tugas already uses the peer-blended scores). When
+ * `peer` lists assignments with peer review, five columns per assignment are
+ * added after UAS: instructor score, peer average, counted/assigned reviews,
+ * peer weight and the blended assignment score that enters Tugas.
+ */
+export function gradebookTable(rows: GradebookExportRow[], weights: GradeWeightSet, name = 'Nilai', peer?: PeerExportBreakdown | null): ExportTable {
+  const dash = (v: number | null | undefined) => (v === null || v === undefined ? '-' : v)
+  const peerAssignments = peer?.assignments ?? []
+  const peerCells = (r: GradebookExportRow): CsvCell[] =>
+    peerAssignments.flatMap((a) => {
+      const c = r.student_id ? peer?.cells[r.student_id]?.[a.id] : undefined
+      if (!c) return ['-', '-', '-', a.weight, '-']
+      return [
+        dash(c.instructor),
+        dash(c.peerAverage),
+        c.peerAssigned ? `${c.peerCounted} dari ${c.peerAssigned}` : '-',
+        c.weight,
+        dash(c.final),
+      ]
+    })
   return {
     name,
     headers: [
       'No', 'NPM', 'Nama Mahasiswa',
       `Tugas (${weights.tugas}%)`, `Kuis (${weights.kuis}%)`, `Presensi (${weights.presensi}%)`,
       `UTS (${weights.uts}%)`, `UAS (${weights.uas}%)`,
+      ...peerAssignments.flatMap((a) => peerColumnHeaders(a.judul)),
       'Nilai Akhir', 'Huruf', 'Status',
     ],
     rows: rows.map((r, i) => [
       i + 1, r.npm, r.nama,
       dash(r.tugas), dash(r.kuis), dash(r.presensi), dash(r.uts), dash(r.uas),
+      ...peerCells(r),
       dash(r.final), r.letter ?? '-',
       r.final === null ? 'Belum ada nilai' : r.isProvisional ? 'Sementara' : 'Final',
     ]),

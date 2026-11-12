@@ -136,6 +136,20 @@ export function computeFinalScore(
   }
 }
 
+/**
+ * Score one assignment contributes to the Tugas component: graded → its
+ * score; not submitted and past the deadline → 0; otherwise null (skipped).
+ */
+export function assignmentScore(
+  assignment: Pick<Assignment, 'tenggat_waktu'>,
+  sub: Pick<Submission, 'nilai'> | undefined,
+  now: number = Date.now()
+): number | null {
+  if (sub && typeof sub.nilai === 'number') return sub.nilai
+  if (!sub && assignment.tenggat_waktu && new Date(assignment.tenggat_waktu).getTime() < now) return 0
+  return null
+}
+
 /** Tugas component — see the rules in the file header. */
 export function assignmentComponent(
   assignments: Assignment[],
@@ -146,11 +160,8 @@ export function assignmentComponent(
   const values: number[] = []
   for (const a of assignments) {
     const sub = submissions.find((s) => s.assignment_id === a.id && s.student_id === studentId)
-    if (sub && typeof sub.nilai === 'number') {
-      values.push(sub.nilai)
-    } else if (!sub && a.tenggat_waktu && new Date(a.tenggat_waktu).getTime() < now) {
-      values.push(0)
-    }
+    const v = assignmentScore(a, sub, now)
+    if (v !== null) values.push(v)
   }
   const avg = average(values)
   return avg === null ? null : round1(avg)
@@ -189,6 +200,19 @@ interface GradebookSource {
   rubrics?: Pick<ReturnType<typeof useRubricsStore>, 'withFinalScores'>
 }
 
+function courseAssignmentData(courseId: string, assignments: GradebookSource['assignments']) {
+  const courseAssignments = (assignments.isDemoMode ? assignments.assignments : assignments.sbAssignments)
+    .filter((a) => a.course_id === courseId)
+  const rawSubmissions = (assignments.isDemoMode ? assignments.submissions : assignments.sbSubmissions)
+    .filter((s) => courseAssignments.some((a) => a.id === s.assignment_id))
+  return { courseAssignments, rawSubmissions }
+}
+
+function enrolledStudents(course: { level: number; session_time: string }, auth: GradebookSource['auth']) {
+  // Enrolled students: same level + session lookup the rest of the app uses.
+  return auth.studentRoster.filter((s) => s.level === course.level && s.session_time === course.session_time)
+}
+
 /** Build one gradebook row per enrolled student of a course. */
 export function buildGradebook(
   courseId: string,
@@ -202,10 +226,7 @@ export function buildGradebook(
   const course = courses.allCourses.find((c) => c.id === courseId)
   if (!course) return []
 
-  const courseAssignments = (assignments.isDemoMode ? assignments.assignments : assignments.sbAssignments)
-    .filter((a) => a.course_id === courseId)
-  const rawSubmissions = (assignments.isDemoMode ? assignments.submissions : assignments.sbSubmissions)
-    .filter((s) => courseAssignments.some((a) => a.id === s.assignment_id))
+  const { courseAssignments, rawSubmissions } = courseAssignmentData(courseId, assignments)
   // Peer review: `nilai` becomes the instructor score blended with the peer average.
   const courseSubmissions = rubrics ? rubrics.withFinalScores(rawSubmissions) : rawSubmissions
   const courseQuizzes = quiz.quizzes.filter((q) => q.course_id === courseId)
@@ -213,12 +234,7 @@ export function buildGradebook(
   const courseAttendance = (attendance.isDemoMode ? attendance.records : attendance.sbRecords)
     .filter((r) => r.course_id === courseId)
 
-  // Enrolled students: same level + session lookup the rest of the app uses.
-  const enrolled = auth.studentRoster.filter(
-    (s) => s.level === course.level && s.session_time === course.session_time
-  )
-
-  return enrolled
+  return enrolledStudents(course, auth)
     .map((s) => {
       const scores: ComponentScores = {
         tugas: assignmentComponent(courseAssignments, courseSubmissions, s.id, now),
@@ -240,6 +256,73 @@ export function buildGradebook(
       }
     })
     .sort((a, b) => a.nama.localeCompare(b.nama, 'id'))
+}
+
+// ── Peer review breakdown (export) ───────────────────────
+
+/** Per-student, per-assignment detail of an assignment with peer review. */
+export interface PeerBreakdownCell {
+  /** Instructor score (`submissions.nilai`), null when not graded / not submitted. */
+  instructor: number | null
+  /** Mean of the counted peer reviews (one decimal), null when none count yet. */
+  peerAverage: number | null
+  /** Reviews that count toward the average / reviews assigned. */
+  peerCounted: number
+  peerAssigned: number
+  /** Peer weight of the assignment (0–100). */
+  weight: number
+  /** Final assignment score exactly as it enters the Tugas component (null = skipped). */
+  final: number | null
+}
+
+export interface PeerBreakdown {
+  /** Assignments of the course with peer review enabled and weight > 0 (in course order). */
+  assignments: { id: string; judul: string; weight: number }[]
+  /** student_id → assignment_id → cell. */
+  cells: Record<string, Record<string, PeerBreakdownCell>>
+}
+
+interface PeerBreakdownSource extends Omit<GradebookSource, 'rubrics' | 'quiz' | 'attendance'> {
+  rubrics: Pick<ReturnType<typeof useRubricsStore>, 'withFinalScores' | 'rubricFor' | 'peerSummaryFor'>
+}
+
+/**
+ * Detail of the peer-blended assignment scores of a course, for exports.
+ * Uses the same functions as `buildGradebook` (`rubrics.withFinalScores` +
+ * `assignmentScore`), so `final` is exactly the value the gradebook averages.
+ */
+export function buildPeerBreakdown(courseId: string, src: PeerBreakdownSource, now: number = Date.now()): PeerBreakdown {
+  const { auth, courses, assignments, rubrics } = src
+  const course = courses.allCourses.find((c) => c.id === courseId)
+  if (!course) return { assignments: [], cells: {} }
+
+  const { courseAssignments, rawSubmissions } = courseAssignmentData(courseId, assignments)
+  const peerAssignments = courseAssignments.flatMap((a) => {
+    const peer = rubrics.rubricFor(a.id)?.peer
+    return peer?.enabled && peer.weight ? [{ id: a.id, judul: a.judul, weight: peer.weight, tenggat_waktu: a.tenggat_waktu }] : []
+  })
+  if (peerAssignments.length === 0) return { assignments: [], cells: {} }
+
+  const blended = rubrics.withFinalScores(rawSubmissions)
+  const cells: PeerBreakdown['cells'] = {}
+  for (const s of enrolledStudents(course, auth)) {
+    const row: Record<string, PeerBreakdownCell> = {}
+    for (const a of peerAssignments) {
+      const raw = rawSubmissions.find((x) => x.assignment_id === a.id && x.student_id === s.id)
+      const fin = blended.find((x) => x.assignment_id === a.id && x.student_id === s.id)
+      const summary = raw ? rubrics.peerSummaryFor(raw.id) : null
+      row[a.id] = {
+        instructor: raw && typeof raw.nilai === 'number' ? raw.nilai : null,
+        peerAverage: summary?.average ?? null,
+        peerCounted: summary?.counted ?? 0,
+        peerAssigned: summary?.assigned ?? 0,
+        weight: a.weight,
+        final: assignmentScore(a, fin, now),
+      }
+    }
+    cells[s.id] = row
+  }
+  return { assignments: peerAssignments.map(({ id, judul, weight }) => ({ id, judul, weight })), cells }
 }
 
 // ── Demo data ────────────────────────────────────────────
@@ -304,6 +387,17 @@ export const useGradebookStore = defineStore('gradebook', {
           this.weightsFor(courseId),
           this.examScores
         )
+    },
+
+    /** Per-assignment peer review detail of a course (instructor/peer/weight/final) — used by exports. */
+    coursePeerBreakdown(): (courseId: string) => PeerBreakdown {
+      return (courseId: string) =>
+        buildPeerBreakdown(courseId, {
+          auth: useAuthStore(),
+          courses: useCoursesStore(),
+          assignments: useAssignmentsStore(),
+          rubrics: useRubricsStore(),
+        })
     },
 
     /** Final grade per enrolled course for the signed-in student. */

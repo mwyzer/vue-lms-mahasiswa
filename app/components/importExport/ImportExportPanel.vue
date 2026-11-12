@@ -162,7 +162,8 @@ const stamp = () => new Date().toISOString().slice(0, 10)
 function gradeTable(): ExportTable | null {
   const c = exportCourse.value
   if (!c) return null
-  return gradebookTable(gradebook.courseGradebook(c.id), gradebook.weightsFor(c.id), `Nilai ${c.kode}`)
+  // Same rows as the gradebook page (Tugas = peer-blended), plus per-assignment peer detail.
+  return gradebookTable(gradebook.courseGradebook(c.id), gradebook.weightsFor(c.id), `Nilai ${c.kode}`, gradebook.coursePeerBreakdown(c.id))
 }
 
 function presensiTable(): ExportTable | null {
@@ -205,11 +206,13 @@ async function doExport(kind: 'nilai' | 'presensi' | 'mahasiswa', format: 'csv' 
     else {
       const c = exportCourse.value!
       const w = gradebook.weightsFor(c.id)
+      const hasPeer = gradebook.coursePeerBreakdown(c.id).assignments.length > 0
       const bytes = await buildPdf(table, {
         title: `Buku Nilai - ${c.kode} ${c.nama}`,
         subtitle: `Diekspor ${new Date().toLocaleString('id-ID')} oleh ${auth.user?.nama ?? '-'}`,
         orientation: 'landscape',
-        footnote: `Bobot: Tugas ${w.tugas}%, Kuis ${w.kuis}%, Presensi ${w.presensi}%, UTS ${w.uts}%, UAS ${w.uas}%. Status "Sementara": masih ada komponen tanpa data. Huruf: A >= 85, B >= 70, C >= 60, D >= 50, E < 50.`,
+        footnote: `Bobot: Tugas ${w.tugas}%, Kuis ${w.kuis}%, Presensi ${w.presensi}%, UTS ${w.uts}%, UAS ${w.uas}%. Status "Sementara": masih ada komponen tanpa data. Huruf: A >= 85, B >= 70, C >= 60, D >= 50, E < 50.`
+          + (hasPeer ? ' Tugas dengan peer review: Nilai Akhir Tugas = round(Nilai Dosen x (100 - Bobot Peer)/100 + Nilai Peer x Bobot Peer/100); tanpa review yang dihitung = Nilai Dosen. Komponen Tugas memakai nilai akhir tugas ini.' : ''),
       })
       downloadFile(bytes, `${base}.pdf`, 'application/pdf')
     }
@@ -377,7 +380,7 @@ function fmtDate(iso: string) {
         <div class="export-grid">
           <div class="export-card">
             <h3>Buku nilai</h3>
-            <p class="muted small">Komponen berbobot, nilai akhir, huruf, status (gradebook).</p>
+            <p class="muted small">Komponen berbobot, nilai akhir, huruf, status (gradebook). Tugas dengan peer review: kolom nilai dosen, nilai peer, bobot peer, dan nilai akhir gabungan.</p>
             <div class="btn-row">
               <button type="button" class="btn btn-secondary btn-sm" :disabled="!exportCourse || !!exporting" @click="doExport('nilai', 'xlsx')">Excel (.xlsx)</button>
               <button type="button" class="btn btn-secondary btn-sm" :disabled="!exportCourse || !!exporting" @click="doExport('nilai', 'pdf')">{{ exporting === 'nilai-pdf' ? 'Membuat PDF...' : 'PDF' }}</button>

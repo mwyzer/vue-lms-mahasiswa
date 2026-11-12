@@ -6,9 +6,12 @@
  *
  * Auth/rate limit: `01.ai-safeguard` (all /api/ai/*) + instructor/admin only.
  *
- * Request:  { assignment: { judul, deskripsi? }, submission: { text }, rubric?, max_score?: 100 }
+ * Request:  { assignment: { judul, deskripsi? }, submission: { text }, rubric?, rubric_criteria?, max_score?: 100 }
+ *           rubric_criteria (Prioritas 3): [{ id, nama, deskripsi?, bobot, levels: [{ id, label, deskripsi?, poin }] }]
  *           (no student name/NPM/id — not needed for grading and never sent to the model)
- * Response: { nilai_saran, feedback, kekuatan[], perbaikan[], catatan?, flags[], source: 'ai' | 'demo' }
+ * Response: { nilai_saran, feedback, kekuatan[], perbaikan[], catatan?, flags[], source: 'ai' | 'demo',
+ *             rubrik?: { kriteria: [{ criterion_id, level_id, alasan }], skor } }  (only with rubric_criteria;
+ *           nilai_saran is then computed from the chosen levels)
  *
  * Errors: 400 invalid/oversized input, 401/403 auth, 413 body too large,
  *         422 submission without text (file-only), 429 rate limit / daily AI budget.
@@ -46,6 +49,28 @@ defineRouteMeta({
                 properties: { text: { type: 'string', maxLength: GRADE_LIMITS.submission } },
               },
               rubric: { type: 'string', maxLength: GRADE_LIMITS.rubric },
+              rubric_criteria: {
+                type: 'array',
+                description: 'Rubrik terstruktur (opsional). AI memilih satu level per kriteria beserta alasannya.',
+                items: {
+                  type: 'object',
+                  required: ['id', 'nama', 'bobot', 'levels'],
+                  properties: {
+                    id: { type: 'string' },
+                    nama: { type: 'string' },
+                    deskripsi: { type: 'string' },
+                    bobot: { type: 'integer', minimum: 1, maximum: 100 },
+                    levels: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        required: ['id', 'label', 'poin'],
+                        properties: { id: { type: 'string' }, label: { type: 'string' }, deskripsi: { type: 'string' }, poin: { type: 'number' } },
+                      },
+                    },
+                  },
+                },
+              },
               max_score: { type: 'number', enum: [100] },
             },
           },

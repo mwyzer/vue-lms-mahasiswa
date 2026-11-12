@@ -292,3 +292,67 @@ Tiga fitur untuk mahasiswa (pencarian global juga untuk instruktur dan admin). S
 - **Bisa dimanipulasi:** badge, sertifikat, dan log aktivitas ditulis oleh klien, dan RLS hanya memastikan pemiliknya benar. Mahasiswa yang memanggil API langsung bisa memberi dirinya badge, atau sertifikat untuk mata kuliah yang ia ikuti. Untuk produksi sungguhan, evaluasi dan penerbitan perlu dipindah ke server/fungsi DB.
 - **Kode verifikasi:** bukan tanda tangan digital. Keasliannya hanya bisa dicek lewat tabel `certificates` (`verify_certificate`).
 - **Belum diuji terhadap backend nyata:** migrasi SQL dan jalur Supabase (`user_activity`, `user_badges`, `certificates`, `/api/search` dengan service role dan pgvector) belum dijalankan terhadap database sungguhan. Jalur ini hanya diuji dengan mock.
+
+## W3 — Rubrik penilaian + Peer review anonim
+
+Dua fitur di halaman tugas yang sudah ada (tidak ada menu baru): rubrik penilaian per tugas (juga dipakai oleh draf nilai AI) dan peer review anonim antar mahasiswa. Keduanya berjalan penuh dalam mode demo (in-memory) dan dalam mode Supabase.
+
+### Setup produksi
+
+1. Jalankan `supabase/migration-prioritas-3-w3.sql` setelah `migration-prioritas-1.sql` (memakai `current_profile_id()`, `is_course_member()`, `is_course_staff()` dan tabel `notifications`). Skrip ini idempoten dan membuat:
+   - tabel `rubrics` (satu per tugas, sekaligus pengaturan peer review: `peer_enabled`, `peer_reviewers` 1–5, `peer_deadline`, `peer_weight` 0–30, `peer_assigned_at`), `rubric_criteria` (nama, bobot %), `rubric_levels` (label, deskriptor, poin), `rubric_scores` (level pilihan dosen per submission × kriteria), dan `peer_reviews`;
+   - RLS: rubrik, kriteria, dan level dibaca anggota mata kuliah dan dikelola staf. `rubric_scores` dibaca pemilik jawaban dan dikelola staf. `peer_reviews` dikelola staf; reviewer hanya membaca dan mengisi barisnya sendiri. Pemilik jawaban **tidak** punya SELECT langsung ke `peer_reviews`;
+   - trigger `peer_reviews_guard`: menolak review atas jawaban sendiri atau submission dari tugas lain; untuk non-staf, mengunci kolom override/exclude/identitas dan menolak perubahan setelah tenggat review;
+   - RPC anonim (SECURITY DEFINER): `get_peer_review_tasks()` (jawaban yang harus direview, tanpa `student_id`) dan `get_received_peer_reviews()` (review atas jawaban sendiri, tanpa `reviewer_id`);
+   - trigger `trg_notify_peer_review_assigned` (notifikasi `tugas` ke reviewer saat ditugaskan) dan fungsi `notify_peer_review_deadlines(p_hours)` untuk pengingat tenggat.
+2. Tidak ada env baru. Cron `/api/cron/deadline-reminders` kini juga memanggil `notify_peer_review_deadlines` (bila fungsinya belum ada, langkah ini dilewati dengan peringatan di log). Respons cron menambah `peer_created`.
+
+### 1. Rubrik penilaian
+
+- **Membuat/mengedit (dosen):** `/instructor/courses/{id}/assignments` → tombol **📐 Rubrik & Peer** pada kartu tugas. Editor berisi kriteria (nama, deskripsi, bobot %), dan untuk tiap kriteria 2–6 level (label, poin, deskriptor). Ada tombol naik/turun, **Ratakan bobot**, dan **Hapus rubrik**. Validasi (`validateRubricCriteria`): 1–10 kriteria, bobot bilangan bulat 1–100 dengan **total 100%**, poin 0–1000, minimal satu level berpoin > 0. Tugas yang punya rubrik diberi badge "📐 Rubrik" di kartu tugas dan di `/instructor/assignments`.
+- **Skor:** skor kriteria = bobot × (poin level dipilih ÷ poin tertinggi kriteria). Total 0–100 dibulatkan ke bilangan bulat karena `submissions.nilai` bertipe INTEGER (`computeRubricScore` di `shared/rubric.ts`).
+- **Menilai (dosen):** form **Beri Nilai/Edit Nilai** menampilkan pemilih level per kriteria. Begitu semua kriteria terpilih, skor rubrik otomatis mengisi kolom **Nilai** (masih bisa disesuaikan manual). **Simpan Nilai** menyimpan level per kriteria (`rubric_scores`) lalu nilai lewat jalur lama `assignmentsStore.gradeSubmission`, sehingga gradebook, ekspor, dan notifikasi "Nilai keluar" tetap bekerja. Pilihan yang belum lengkap ditolak; **Kosongkan pilihan rubrik** untuk menilai manual tanpa rubrik.
+- **Mahasiswa:** `/assignments/{id}` menampilkan kartu **📐 Rubrik Penilaian** (terbuka sebelum mengumpulkan). Setelah dinilai dengan rubrik, bagian nilai menampilkan **Rincian skor per kriteria** (level terpilih dan kontribusinya).
+- **Demo:** tugas `a1` (Hello World, MK101) sudah punya rubrik 3 kriteria (50/30/20).
+
+### 2. Draf nilai AI berbasis rubrik
+
+- Bila tugas punya rubrik, panel **Saran AI** mengirim `rubric_criteria` (bukan rubrik teks bebas; kolom rubrik teks disembunyikan). Tanpa rubrik, perilaku dan kontrak lama tidak berubah.
+- **Prompt:** kriteria dan level diberi kode pendek (`K1`, `K1-L2`) dan seluruh rubrik serta jawaban dibungkus `wrapUntrusted`. Model wajib membalas `{"kriteria":[{"kode","level","alasan"}], "feedback", "kekuatan", "perbaikan", "catatan", "injeksi_terdeteksi"}`.
+- **Validasi ketat** (`validateRubricModelDraft`): setiap kriteria tepat satu kali, kode level harus milik kriteria itu, alasan wajib (maks. 400 karakter). Output tidak valid → cadangan demo dengan flag `ai_unavailable_fallback`. **Skor dihitung server dari level terpilih**; angka nilai dari model diabaikan.
+- **Cadangan deterministik** (`fallbackRubricDraft`): per kriteria, rasio = 0,5 × skor permukaan jawaban (heuristik lama) + 0,5 × cakupan istilah kriteria (nama, deskripsi, deskriptor level), lalu dipilih level dengan poin/maks terdekat. Alasan menyebut angka-angkanya dan diberi label "Heuristik demo".
+- **Human-in-the-loop:** **Gunakan saran** hanya mengisi pilihan level, Nilai, dan Feedback di form (BELUM disimpan). Deteksi prompt injection server tetap berjalan.
+- **Kontrak:** `POST /api/ai/grade-draft` menerima tambahan `rubric_criteria?: { id, nama, deskripsi?, bobot, levels: { id, label, deskripsi?, poin }[] }[]` dan, bila dikirim, mengembalikan tambahan `rubrik: { kriteria: { criterion_id, level_id, alasan }[], skor }` dengan `nilai_saran = skor`.
+
+### 3. Peer review anonim
+
+- **Pengaturan (dosen):** di panel **📐 Rubrik & Peer**, bagian **👥 Peer Review Anonim**: aktifkan, jumlah reviewer per jawaban (1–5), tenggat review, dan bobot ke nilai akhir (0–30%). Peer review **membutuhkan rubrik**.
+- **Penugasan:** **🎲 Tugaskan Reviewer Acak** memakai `assignReviewers` (`shared/peerReview.ts`): penulis yang sudah mengumpulkan (jawaban teks atau file) diurutkan, diacak dengan PRNG ber-seed (mulberry32), lalu disusun melingkar; penulis ke-i mereview jawaban i+1 … i+k. Hasilnya: tidak ada yang menilai diri sendiri, setiap jawaban mendapat tepat k reviewer berbeda, dan setiap reviewer mendapat tepat k tugas. k dibatasi n − 1 (UI memberi tahu bila dibatasi). Acak ulang hanya bisa selama belum ada review terkirim.
+- **Mahasiswa (reviewer):** kartu **👥 Peer Review** di `/assignments/{id}` (muncul setelah ia mengumpulkan) berisi "Jawaban 1…n" tanpa nama pemilik. Ia memilih level per kriteria dan menulis komentar (min. 10 karakter), lalu **Kirim Review**. Review bisa diubah sampai tenggat. Lampiran file tidak dibagikan, hanya namanya.
+- **Mahasiswa (pemilik):** bagian **Review dari teman (anonim)** menampilkan review yang dihitung sebagai "Reviewer 1…n" (urut id review, bukan identitas), rata-rata nilai peer, dan rumus nilai akhir.
+- **Dosen:** daftar per jawaban (dengan nama reviewer, status, skor, rincian level, komentar). Dosen bisa **Timpa** skor sebuah review (0–100, kosongkan untuk menghapus) atau **Kecualikan** review dari rata-rata.
+- **Agregasi** (`aggregatePeerScores`): rata-rata skor review yang dihitung (skor timpaan menang; review dikecualikan atau belum dikirim tidak dihitung).
+- **Nilai akhir** (`combineScores`): `round(nilai_dosen × (100 − w)/100 + rata_peer × w/100)`. Belum ada nilai dosen → tetap belum dinilai. Belum ada review yang dihitung atau w = 0 → nilai dosen apa adanya. `submissions.nilai` tetap menyimpan nilai dosen; nilai gabungan dihitung saat dibaca (`rubricsStore.finalScoreFor`) dan dipakai di komponen Tugas pada gradebook (`buildGradebook` menerima `rubrics.withFinalScores`), di halaman tugas mahasiswa, dan sebagai badge "Akhir" di daftar pengumpulan dosen.
+- **Notifikasi:** penugasan → notifikasi `tugas` "Peer review: {judul}" ke setiap reviewer. Pengingat → notifikasi `deadline` "Tenggat peer review: {judul}" bila masih ada review tertunda dan tenggat ≤ 24 jam. Demo: lewat `notificationsStore.notifyUsers` (dengan opsi baru `includeSelf` untuk pengingat ke user yang sedang login), dijalankan saat halaman tugas dibuka. Supabase: trigger + cron.
+
+### Kode
+
+- Logika murni: `shared/rubric.ts`, `shared/peerReview.ts` (diimpor sebagai `#shared/...` di app; alias `#shared` juga ditambahkan ke `vitest.config.ts`).
+- Store: `app/stores/rubrics.ts` (demo + Supabase). Perubahan kecil: `app/stores/gradebook.ts` (nilai peer), `app/stores/notifications.ts` (`includeSelf`).
+- Komponen: `RubricEditor.vue`, `RubricGrader.vue` (pilih level / tampilan baca-saja), `PeerReviewManager.vue`, `PeerReviewTasks.vue`, `PeerFeedback.vue`, dan `AiGradeDraft.vue` (mode rubrik) di `app/components/assignments/`.
+- Halaman: `app/pages/instructor/courses/[id]/assignments/index.vue`, `app/pages/assignments/[id].vue`, `app/pages/instructor/assignments/index.vue`.
+- Server: `server/utils/gradeDraft.ts`, `server/api/ai/grade-draft.post.ts`, `server/api/cron/deadline-reminders.get.ts`.
+
+### Tes
+
+`app/test/shared/rubric.test.ts` (hitung skor, validasi, pemilihan level), `app/test/shared/peerReview.test.ts` (penugasan: tanpa menilai diri sendiri, seimbang, deterministik, batas k; agregasi dengan timpaan/pengecualian; nilai gabungan), `app/test/server/gradeDraftRubric.test.ts` (validasi request, prompt berkode, validasi JSON model, cadangan deterministik, jalur AI dengan fetch mock, perilaku lama tanpa rubrik), `app/test/stores/rubrics.test.ts` (alur demo end-to-end termasuk gradebook dan notifikasi), `app/test/components/AiGradeDraftRubric.test.ts`.
+
+### Batasan
+
+- **Anonimitas di mode demo hanya di tingkat UI:** semua data ada di memori browser. Di mode Supabase identitas disaring oleh RLS + RPC, tetapi peninjauan keamanan menyeluruh belum dilakukan (sistem demo).
+- **Skor review dihitung di klien:** reviewer yang memanggil API langsung bisa menulis `skor` yang tidak cocok dengan `selections`. Dosen bisa menimpa/mengecualikan; untuk produksi sungguhan skor sebaiknya dihitung ulang di DB/server.
+- **Total bobot 100%** hanya divalidasi di aplikasi (kriteria disimpan per baris).
+- **Mengedit rubrik** setelah dipakai menilai: level/kriteria yang dihapus ikut menghapus rincian skornya; `nilai` yang sudah tersimpan tidak dihitung ulang. Review peer lama tetap memakai `selections` lama.
+- **Ekspor Excel nilai tugas** masih memakai nilai dosen (`submissions.nilai`), belum nilai gabungan peer; gradebook sudah memakai nilai gabungan.
+- **Data demo tidak persisten:** rubrik, skor rubrik, dan review hilang saat halaman dimuat ulang.
+- **Belum diuji terhadap backend nyata:** migrasi SQL, RLS, RPC, trigger notifikasi, dan jalur Supabase store belum dijalankan terhadap database sungguhan. Jalur AI hanya diuji dengan fetch mock.

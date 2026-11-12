@@ -28,6 +28,7 @@ import { useCoursesStore } from './courses'
 import { useAssignmentsStore } from './assignments'
 import { useQuizStore } from './quiz'
 import { useAttendanceStore } from './attendance'
+import { useRubricsStore } from './rubrics'
 import { average, clamp100, scoreToGrade } from './analytics'
 
 // ── Types ────────────────────────────────────────────────
@@ -184,6 +185,8 @@ interface GradebookSource {
   assignments: ReturnType<typeof useAssignmentsStore>
   quiz: ReturnType<typeof useQuizStore>
   attendance: ReturnType<typeof useAttendanceStore>
+  /** Optional: blends peer-review averages into assignment scores (Prioritas 3). */
+  rubrics?: Pick<ReturnType<typeof useRubricsStore>, 'withFinalScores'>
 }
 
 /** Build one gradebook row per enrolled student of a course. */
@@ -194,15 +197,17 @@ export function buildGradebook(
   examScores: ExamScore[],
   now: number = Date.now()
 ): GradebookRow[] {
-  const { auth, courses, assignments, quiz, attendance } = src
+  const { auth, courses, assignments, quiz, attendance, rubrics } = src
 
   const course = courses.allCourses.find((c) => c.id === courseId)
   if (!course) return []
 
   const courseAssignments = (assignments.isDemoMode ? assignments.assignments : assignments.sbAssignments)
     .filter((a) => a.course_id === courseId)
-  const courseSubmissions = (assignments.isDemoMode ? assignments.submissions : assignments.sbSubmissions)
+  const rawSubmissions = (assignments.isDemoMode ? assignments.submissions : assignments.sbSubmissions)
     .filter((s) => courseAssignments.some((a) => a.id === s.assignment_id))
+  // Peer review: `nilai` becomes the instructor score blended with the peer average.
+  const courseSubmissions = rubrics ? rubrics.withFinalScores(rawSubmissions) : rawSubmissions
   const courseQuizzes = quiz.quizzes.filter((q) => q.course_id === courseId)
   const courseAttempts = quiz.attempts.filter((a) => courseQuizzes.some((q) => q.id === a.quiz_id))
   const courseAttendance = (attendance.isDemoMode ? attendance.records : attendance.sbRecords)
@@ -294,6 +299,7 @@ export const useGradebookStore = defineStore('gradebook', {
             assignments: useAssignmentsStore(),
             quiz: useQuizStore(),
             attendance: useAttendanceStore(),
+            rubrics: useRubricsStore(),
           },
           this.weightsFor(courseId),
           this.examScores
@@ -332,6 +338,7 @@ export const useGradebookStore = defineStore('gradebook', {
         useAttendanceStore().init(),
       ])
       await useAssignmentsStore().init()
+      await useRubricsStore().init()
 
       if (this.initialized) return
       const ui = useUiStore()

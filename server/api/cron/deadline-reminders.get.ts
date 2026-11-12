@@ -5,6 +5,8 @@
  * an unsubmitted assignment due within the next N hours (default 24).
  * The work is done by the Postgres function `notify_upcoming_deadlines`
  * (see supabase/migration-prioritas-1.sql), which de-duplicates per assignment.
+ * Also reminds reviewers of pending peer reviews via `notify_peer_review_deadlines`
+ * (supabase/migration-prioritas-3-w3.sql) when that function exists.
  *
  * Triggered by Vercel Cron (see vercel.json). Vercel sends
  * `Authorization: Bearer <CRON_SECRET>` when the CRON_SECRET env var is set.
@@ -90,6 +92,10 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 500, statusMessage: `Gagal membuat pengingat: ${error.message}` })
     }
 
-    return { ok: true, created: Number(data ?? 0), hours }
+    // Prioritas 3: peer review deadlines (function from migration-prioritas-3-w3.sql; optional).
+    const peer = await supabase.rpc('notify_peer_review_deadlines', { p_hours: hours })
+    if (peer.error) console.warn('notify_peer_review_deadlines skipped:', peer.error.message)
+
+    return { ok: true, created: Number(data ?? 0), peer_created: peer.error ? 0 : Number(peer.data ?? 0), hours }
   }
 )

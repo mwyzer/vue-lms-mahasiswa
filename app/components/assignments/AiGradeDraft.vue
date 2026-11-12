@@ -10,8 +10,13 @@
  * never the student's name, NPM or id.
  *
  * Props in, `apply` out; no store access, so the page integration stays tiny.
+ *
+ * With a structured `rubric` (Prioritas 3) the AI suggests one level + reason
+ * per criterion; "Gunakan saran" then also emits the level `selection` so the
+ * page can fill its rubric grader. Without it the behaviour is unchanged.
  */
 import { computed, nextTick, ref, watch } from 'vue'
+import type { RubricCriterion } from '#shared/rubric'
 
 interface GradeDraft {
   nilai_saran: number
@@ -21,6 +26,7 @@ interface GradeDraft {
   catatan?: string
   flags: string[]
   source: 'ai' | 'demo'
+  rubrik?: { kriteria: { criterion_id: string; level_id: string; alasan: string }[]; skor: number }
 }
 
 const props = defineProps<{
@@ -33,11 +39,25 @@ const props = defineProps<{
   /** Current values of the page's grade fields (to avoid silent overwrites). */
   currentScore?: number | null
   currentFeedback?: string | null
+  /** Structured rubric of the assignment (optional). */
+  rubric?: RubricCriterion[] | null
 }>()
 
 const emit = defineEmits<{
-  apply: [value: { nilai: number; feedback: string }]
+  apply: [value: { nilai: number; feedback: string; selection?: Record<string, string> }]
 }>()
+
+const hasRubric = computed(() => !!props.rubric && props.rubric.length > 0)
+
+/** Rubric-mode rows for display: criterion name, chosen level and reason. */
+const rubricRows = computed(() => {
+  const items = draft.value?.rubrik?.kriteria ?? []
+  return items.map((it) => {
+    const c = props.rubric?.find((x) => x.id === it.criterion_id)
+    const l = c?.levels.find((x) => x.id === it.level_id)
+    return { id: it.criterion_id, nama: c?.nama ?? '?', bobot: c?.bobot ?? 0, level: l?.label ?? '?', poin: l?.poin ?? 0, alasan: it.alasan }
+  })
+})
 
 const RUBRIC_MAX = 4000
 
@@ -65,7 +85,7 @@ const flagLabel = (f: string) => FLAG_LABELS[f] ?? f
 
 // A different submission/assignment invalidates the current draft.
 watch(
-  () => [props.submissionText, props.judul],
+  () => [props.submissionText, props.judul, (props.rubric ?? []).map((c) => `${c.id}:${c.levels.map((l) => l.id).join(',')}`).join('|')],
   () => reset(),
 )
 
@@ -114,7 +134,19 @@ async function requestDraft() {
       body: {
         assignment: { judul: props.judul, deskripsi: props.deskripsi || '' },
         submission: { text: props.submissionText },
-        ...(rubric.value.trim() ? { rubric: rubric.value.trim() } : {}),
+        ...(hasRubric.value
+          ? {
+              rubric_criteria: props.rubric!.map((c) => ({
+                id: c.id,
+                nama: c.nama,
+                deskripsi: c.deskripsi || '',
+                bobot: c.bobot,
+                levels: c.levels.map((l) => ({ id: l.id, label: l.label, deskripsi: l.deskripsi || '', poin: l.poin })),
+              })),
+            }
+          : rubric.value.trim()
+            ? { rubric: rubric.value.trim() }
+            : {}),
         max_score: 100,
       },
     })
@@ -158,10 +190,16 @@ function apply(mode: 'replace' | 'append') {
   const text = composeFeedback(draft.value)
   const existing = (props.currentFeedback ?? '').trim()
   const feedback = mode === 'append' && existing ? `${existing}\n\n${text}` : text
-  emit('apply', { nilai: draft.value.nilai_saran, feedback })
+  const items = draft.value.rubrik?.kriteria
+  emit('apply', {
+    nilai: draft.value.nilai_saran,
+    feedback,
+    ...(items?.length ? { selection: Object.fromEntries(items.map((k) => [k.criterion_id, k.level_id])) } : {}),
+  })
   confirming.value = false
-  appliedMsg.value =
-    'Saran dimasukkan ke kolom Nilai dan Feedback, tetapi BELUM disimpan. Periksa dan ubah bila perlu, lalu klik "Simpan Nilai".'
+  appliedMsg.value = items?.length
+    ? 'Saran level rubrik, Nilai, dan Feedback sudah diisikan ke form, tetapi BELUM disimpan. Periksa dan ubah bila perlu, lalu klik "Simpan Nilai".'
+    : 'Saran dimasukkan ke kolom Nilai dan Feedback, tetapi BELUM disimpan. Periksa dan ubah bila perlu, lalu klik "Simpan Nilai".'
 }
 
 function close() {
@@ -189,6 +227,10 @@ function close() {
     <p v-if="!hasText" :id="`${uid}-notext`" class="aigd-muted">
       {{ hasFile ? 'Jawaban ini hanya berupa file.' : 'Jawaban ini tidak berisi teks.' }}
       Saran AI hanya tersedia untuk jawaban teks; silakan nilai secara manual.
+    </p>
+
+    <p v-else-if="hasRubric && (status === 'idle' || status === 'error')" class="aigd-muted aigd-rubric-note">
+      Memakai rubrik tugas ({{ props.rubric!.length }} kriteria): AI akan mengusulkan level dan alasan untuk tiap kriteria.
     </p>
 
     <details v-else-if="status === 'idle' || status === 'error'" class="aigd-rubric">
@@ -229,8 +271,19 @@ function close() {
           <li v-for="f in otherFlags" :key="f">{{ flagLabel(f) }}</li>
         </ul>
 
+        <div v-if="rubricRows.length" class="aigd-block">
+          <span class="aigd-subtitle">Saran level per kriteria</span>
+          <ul class="aigd-criteria">
+            <li v-for="r in rubricRows" :key="r.id">
+              <span class="aigd-crit-name">{{ r.nama }} <span class="aigd-muted">({{ r.bobot }}%)</span></span>
+              <span class="aigd-crit-level">{{ r.level }} · {{ r.poin }} poin</span>
+              <span class="aigd-crit-reason">{{ r.alasan }}</span>
+            </li>
+          </ul>
+        </div>
+
         <div class="aigd-score">
-          <span class="aigd-muted">Saran nilai</span>
+          <span class="aigd-muted">{{ rubricRows.length ? 'Skor rubrik' : 'Saran nilai' }}</span>
           <strong>{{ draft.nilai_saran }}</strong><span class="aigd-muted">/100</span>
         </div>
 
@@ -500,6 +553,47 @@ function close() {
   justify-content: flex-end;
   gap: 0.5rem;
   margin-top: 0.25rem;
+}
+
+.aigd-rubric-note {
+  margin-top: 0.5rem;
+}
+
+.aigd-criteria {
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.aigd-criteria li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.125rem 0.5rem;
+  padding: 0.375rem 0.5rem;
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-sm);
+  background: var(--color-neutral-50);
+}
+
+.aigd-crit-name {
+  font-weight: 600;
+  color: var(--color-neutral-800);
+}
+
+.aigd-crit-level {
+  font-weight: 600;
+  color: var(--color-primary-700);
+  white-space: nowrap;
+}
+
+.aigd-crit-reason {
+  grid-column: 1 / -1;
+  font-size: 0.8125rem;
+  color: var(--color-neutral-600);
+  overflow-wrap: anywhere;
 }
 
 .aigd-applied {

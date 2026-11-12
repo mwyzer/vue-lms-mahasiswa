@@ -8,11 +8,13 @@ definePageMeta({
 })
 
 const assignmentsStore = useAssignmentsStore()
+const rubricsStore = useRubricsStore()
 
 const myAssignments = computed(() => assignmentsStore.myAssignments as any[])
 
 onMounted(() => {
   assignmentsStore.init()
+  rubricsStore.init()
 })
 
 function formatDate(dateStr: string): string {
@@ -59,6 +61,8 @@ function getSubmissionCount(assignmentId: string): number {
           <span class="meta-item">
             Deadline: {{ formatDate(a.tenggat_waktu) }}
           </span>
+          <span v-if="rubricsStore.rubricFor(a.id)" class="badge badge-primary meta-badge">📐 Rubrik</span>
+          <span v-if="rubricsStore.rubricFor(a.id)?.peer.enabled" class="badge badge-warning meta-badge">👥 Peer review</span>
         </div>
       </NuxtLink>
     </div>
@@ -122,6 +126,10 @@ function getSubmissionCount(assignmentId: string): number {
 .assignment-meta {
   font-size: 0.8125rem;
   color: var(--color-neutral-600);
+}
+
+.meta-badge {
+  margin-left: 0.5rem;
 }
 
 .meta-item {

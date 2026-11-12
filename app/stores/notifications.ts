@@ -162,15 +162,16 @@ export const useNotificationsStore = defineStore('notifications', {
      * Demo mode: create a notification for each given user.
      * In production this is a no-op — Postgres triggers create the rows.
      * Returns the number of notifications created.
+     * `includeSelf` also notifies the signed-in user (used for reminders).
      */
-    notifyUsers(userIds: string[], payload: NotificationPayload): number {
+    notifyUsers(userIds: string[], payload: NotificationPayload, includeSelf = false): number {
       if (!useUiStore().isDemoMode) return 0
       const auth = useAuthStore()
       const actorId = auth.user?.id
       let created = 0
 
       for (const uid of new Set(userIds)) {
-        if (!uid || uid === actorId) continue
+        if (!uid || (uid === actorId && !includeSelf)) continue
         if (payload.dedupe_key && DEMO_NOTIFICATIONS.some((n) => n.user_id === uid && n.dedupe_key === payload.dedupe_key)) {
           continue
         }

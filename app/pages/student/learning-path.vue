@@ -30,7 +30,19 @@ watch(paths, (list) => {
   }
 }, { immediate: true })
 
-const hasEstimates = computed(() => current.value?.topics.some((t) => t.estimated) ?? false)
+const hasEstimates = computed(() => (current.value?.estimatedResults ?? 0) > 0)
+/** 'exact' (semua dari jawaban per soal), 'partial' (campuran) atau 'estimated' (semua estimasi). */
+const dataQuality = computed<'exact' | 'partial' | 'estimated'>(() => {
+  const c = current.value
+  if (!c || c.estimatedResults === 0) return 'exact'
+  return c.exactResults > 0 ? 'partial' : 'estimated'
+})
+
+/** Badge text for a topic: null when all its results come from real answers. */
+function estimateBadge(t: { total: number; estimated_count: number }): string | null {
+  if (!t.estimated_count) return null
+  return t.estimated_count >= t.total ? 'estimasi' : `sebagian estimasi (${t.estimated_count}/${t.total})`
+}
 
 function level(score: number): 'good' | 'mid' | 'weak' {
   if (score >= 80) return 'good'
@@ -92,8 +104,18 @@ function level(score: number): 'good' | 'mid' | 'weak' {
         </EmptyState>
 
         <template v-else>
-          <p v-if="hasEstimates" class="lp-note" data-testid="lp-estimate-note">
-            ℹ️ Sebagian skor topik (bertanda “estimasi”) dihitung dari nilai kuis keseluruhan karena jawaban per soal tidak tersedia.
+          <p v-if="hasEstimates" class="lp-note" data-testid="lp-estimate-note" :data-quality="dataQuality">
+            ℹ️
+            <template v-if="dataQuality === 'partial'">
+              Sebagian skor dihitung dari jawaban per soal yang tersimpan; sisanya (bertanda “estimasi” / “sebagian estimasi”)
+              diestimasi dari nilai kuis keseluruhan karena jawaban per soal kuis lama tidak tersedia.
+            </template>
+            <template v-else>
+              Skor topik (bertanda “estimasi”) dihitung dari nilai kuis keseluruhan karena jawaban per soal tidak tersedia.
+            </template>
+          </p>
+          <p v-else class="lp-note lp-note-exact" data-testid="lp-exact-note">
+            ✅ Semua skor topik dihitung dari jawaban per soal yang tersimpan.
           </p>
 
           <!-- Recommendations -->
@@ -111,7 +133,7 @@ function level(score: number): 'good' | 'mid' | 'weak' {
                 </header>
                 <p class="text-sm text-muted">
                   {{ rec.topic.total }} soal dari {{ rec.topic.quiz_ids.length }} kuis
-                  <span v-if="rec.topic.estimated" class="badge badge-neutral">estimasi</span>
+                  <span v-if="estimateBadge(rec.topic)" class="badge badge-neutral" data-testid="lp-estimate-badge">{{ estimateBadge(rec.topic) }}</span>
                 </p>
                 <ul class="lp-actions">
                   <li v-if="rec.lesson">
@@ -150,7 +172,7 @@ function level(score: number): 'good' | 'mid' | 'weak' {
                   <span class="lp-topic-label">
                     {{ t.label }}
                     <span v-if="t.weak" class="badge badge-danger">Lemah</span>
-                    <span v-if="t.estimated" class="badge badge-neutral">estimasi</span>
+                    <span v-if="estimateBadge(t)" class="badge badge-neutral" data-testid="lp-estimate-badge">{{ estimateBadge(t) }}</span>
                   </span>
                   <span class="lp-topic-score">{{ t.score }}% <span class="text-xs text-muted">({{ t.total }} soal)</span></span>
                 </div>
@@ -210,6 +232,10 @@ function level(score: number): 'good' | 'mid' | 'weak' {
   padding: 0.75rem 1rem; border-radius: var(--radius-md); font-size: 0.875rem;
   background: var(--tint-info-bg, var(--color-primary-50)); color: var(--tint-info-fg, var(--color-primary-700));
   border: 1px solid var(--tint-info-border, var(--color-primary-200));
+}
+.lp-note-exact {
+  background: var(--tint-success-bg, #dcfce7); color: var(--tint-success-fg, #166534);
+  border-color: var(--tint-success-border, #86efac);
 }
 
 .lp-section { display: flex; flex-direction: column; gap: 0.75rem; }

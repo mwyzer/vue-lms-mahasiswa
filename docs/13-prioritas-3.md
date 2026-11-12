@@ -356,3 +356,31 @@ Dua fitur di halaman tugas yang sudah ada (tidak ada menu baru): rubrik penilaia
 - **Ekspor Excel nilai tugas** masih memakai nilai dosen (`submissions.nilai`), belum nilai gabungan peer; gradebook sudah memakai nilai gabungan.
 - **Data demo tidak persisten:** rubrik, skor rubrik, dan review hilang saat halaman dimuat ulang.
 - **Belum diuji terhadap backend nyata:** migrasi SQL, RLS, RPC, trigger notifikasi, dan jalur Supabase store belum dijalankan terhadap database sungguhan. Jalur AI hanya diuji dengan fetch mock.
+
+---
+
+## 3b-A — Jawaban per soal di store kuis + jalur belajar adaptif
+
+Sebelumnya `quizStore.submitQuiz` hanya menyimpan skor total, sehingga skor topik di `/student/learning-path` untuk kuis yang baru dikerjakan selalu **estimasi** dari persentase. Sekarang jawaban per soal ikut disimpan dan dipakai sebagai data asli.
+
+### Setup produksi
+
+Jalankan `supabase/migration-prioritas-3b-a.sql` (idempoten, setelah `schema.sql`): kolom `quiz_attempts.answers` (jsonb, array), `quiz_answers.attempt_id` (FK ke `quiz_attempts`, cascade) dan `quiz_answers.points`, plus indeks. RLS tidak diubah. Bila migrasi belum dijalankan, store otomatis mencoba ulang insert tanpa kolom baru (jalur belajar tetap bekerja lewat `quiz_answers`).
+
+### Perilaku
+
+- **Tipe:** `QuizAttempt.answers?: QuizAttemptAnswer[] | null` dengan `{ question_id, jawaban (a–d | null), is_correct, points }` (`app/types/database.ts`). Soal yang tidak dijawab dicatat dengan `jawaban: null`, salah, 0 poin.
+- **Submit** (`app/stores/quiz.ts`): `gradeAnswers()` menilai per soal; skor = jumlah poin. Demo: tersimpan di attempt di memori. Supabase: `persistAttempt()` (dipanggil di latar belakang; promise via `waitForPersist()`) menyisipkan `quiz_attempts` beserta `answers`, lalu satu baris `quiz_answers` per soal yang dijawab (`attempt_id`, `points`), dan menyelaraskan id lokal dengan UUID dari DB.
+- **Jalur belajar** (`app/utils/learningPath.ts`): urutan sumber per soal — `attempt.answers` (selalu milik percobaan itu) → `quiz_answers`/data demo (dengan cek waktu lama) → estimasi dari persentase. `TopicStat.estimated_count` dan `CourseLearningPath.exactResults/estimatedResults` baru; `estimated` tetap ada (kompatibel).
+- **UI** (`/student/learning-path`): badge "estimasi" hanya bila semua hasil topik estimasi, "sebagian estimasi (x/n)" bila campuran, tanpa badge bila data asli. Catatan atas: info estimasi (penuh/sebagian) atau ✅ "Semua skor topik dihitung dari jawaban per soal yang tersimpan."
+- **Kompatibel mundur:** percobaan demo lama (`qa1`–`qa4`) tidak diberi `answers`; hasilnya tetap dari `DEMO_QUIZ_ANSWERS` sehingga sama persis seperti sebelumnya.
+
+### Tes
+
+`app/test/stores/quiz-answers.test.ts` (penilaian per soal, submit demo menyimpan jawaban, jalur belajar memakai data asli setelah mengerjakan kuis, jalur Supabase dengan klien palsu termasuk retry tanpa kolom baru) dan tambahan di `app/test/utils/learningPath.test.ts` (jawaban di attempt vs fallback, prioritas atas `quiz_answers`, penanda sebagian estimasi).
+
+### Batasan
+
+- Jalur Supabase (insert + migrasi) hanya diuji dengan klien palsu, belum terhadap database sungguhan.
+- Penyimpanan Supabase berjalan di latar belakang; bila gagal hanya dicatat di console (UI tetap menampilkan hasil).
+- Data demo tidak persisten: jawaban kuis yang baru dikerjakan hilang saat halaman dimuat ulang.

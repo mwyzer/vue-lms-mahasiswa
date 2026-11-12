@@ -10,11 +10,14 @@
  *      of the question + correct option against the lesson title (×3) and
  *      lesson text (×1). Below {@link LP_MIN_MATCH_SCORE} the question goes to
  *      the course's "Umum" topic.
- * 2. Correctness per question
- *    - exact, from per-question answers (`quiz_answers`) when available;
+ * 2. Correctness per question, in order of preference
+ *    - exact, from the attempt's own per-question answers (`attempt.answers`,
+ *      stored by quizStore.submitQuiz since 3b-A; jsonb `quiz_attempts.answers`);
+ *    - exact, from separate per-question rows (`quiz_answers` / demo answers);
  *    - otherwise ESTIMATED: the attempt's percentage is spread evenly over the
- *      quiz's questions (the quiz store keeps only per-attempt scores). Topics
- *      that rely on estimates are flagged `estimated: true` in the UI.
+ *      quiz's questions (legacy attempts without answers). Topics that rely on
+ *      estimates are flagged `estimated: true` (`estimated_count` says how many
+ *      of their results are estimates, so the UI can mark "sebagian estimasi").
  *    Only the latest attempt per quiz counts (re-taking a quiz replaces it).
  * 3. Weak topic: score < threshold (default 70) with at least one question.
  * 4. Recommendations per weak topic: the topic's lesson (re-read) and active
@@ -62,6 +65,15 @@ export interface LpAttempt {
   percentage: number
   started_at?: string
   submitted_at: string
+  /** Per-question answers stored with the attempt (exact data), when present. */
+  answers?: readonly LpAttemptAnswer[] | null
+}
+
+export interface LpAttemptAnswer {
+  question_id: string
+  is_correct: boolean
+  jawaban?: string | null
+  points?: number
 }
 
 export interface LpAnswer {
@@ -92,6 +104,8 @@ export interface TopicStat {
   score: number
   /** True when at least one counted result is an estimate (no per-question answer). */
   estimated: boolean
+  /** How many of the `total` results are estimates (0 = all exact, total = all estimated). */
+  estimated_count: number
   /** Distinct quizzes that contributed. */
   quiz_ids: string[]
   weak: boolean
@@ -124,6 +138,9 @@ export interface CourseLearningPath {
   /** Weighted course score over all counted questions, or null when nothing was attempted. */
   overall: number | null
   attemptsCounted: number
+  /** Counted question results that are exact vs estimated (over all topics). */
+  exactResults: number
+  estimatedResults: number
 }
 
 export const LP_WEAK_THRESHOLD = 70
@@ -296,20 +313,29 @@ export function computeTopicStats(input: LpInput, courseId: string): { topics: T
     const pct = Math.min(100, Math.max(0, Number(attempt.percentage) || 0)) / 100
     // Answers older than the latest attempt belong to an earlier attempt and are ignored.
     const attemptStart = new Date(attempt.started_at ?? attempt.submitted_at).getTime() - LP_ANSWER_TOLERANCE_MS
+    // Answers stored on the attempt itself always belong to it (no time check).
+    const inline = new Map<string, LpAttemptAnswer>()
+    if (Array.isArray(attempt.answers)) {
+      for (const a of attempt.answers) if (a && typeof a.question_id === 'string') inline.set(a.question_id, a)
+    }
     for (const q of qs) {
       const topic = topicOfQuestion(q, courseId, lessons, ignore)
       const candidate = answerByQuestion.get(q.id)
       const exact =
-        candidate && (!candidate.submitted_at || new Date(candidate.submitted_at).getTime() >= attemptStart)
+        inline.get(q.id) ??
+        (candidate && (!candidate.submitted_at || new Date(candidate.submitted_at).getTime() >= attemptStart)
           ? candidate
-          : undefined
+          : undefined)
       const value = exact ? (exact.is_correct ? 1 : 0) : pct
       const s =
         stats.get(topic.key) ??
-        ({ ...topic, course_id: courseId, correct: 0, total: 0, score: 0, estimated: false, quiz_ids: [], weak: false } as TopicStat)
+        ({ ...topic, course_id: courseId, correct: 0, total: 0, score: 0, estimated: false, estimated_count: 0, quiz_ids: [], weak: false } as TopicStat)
       s.correct += value
       s.total += 1
-      if (!exact) s.estimated = true
+      if (!exact) {
+        s.estimated = true
+        s.estimated_count += 1
+      }
       if (!s.quiz_ids.includes(quizId)) s.quiz_ids.push(quizId)
       stats.set(topic.key, s)
     }
@@ -359,7 +385,10 @@ export function buildLearningPath(input: LpInput): CourseLearningPath[] {
     const untestedLessons = input.lessons
       .filter((l) => l.course_id === course.id && !tested.has(l.id))
       .sort((a, b) => (a.urutan ?? 0) - (b.urutan ?? 0))
-    const totals = topics.reduce((acc, t) => ({ c: acc.c + t.correct, n: acc.n + t.total }), { c: 0, n: 0 })
+    const totals = topics.reduce(
+      (acc, t) => ({ c: acc.c + t.correct, n: acc.n + t.total, e: acc.e + t.estimated_count }),
+      { c: 0, n: 0, e: 0 },
+    )
     return {
       course_id: course.id,
       course_kode: course.kode ?? '',
@@ -370,6 +399,8 @@ export function buildLearningPath(input: LpInput): CourseLearningPath[] {
       untestedLessons,
       overall: totals.n > 0 ? Math.round((totals.c / totals.n) * 100) : null,
       attemptsCounted,
+      exactResults: totals.n - totals.e,
+      estimatedResults: totals.e,
     }
   })
 }

@@ -2,11 +2,13 @@
  * useLearningPath — wires the pure learning-path logic (app/utils/learningPath.ts)
  * to the quiz, courses and auth stores for /student/learning-path.
  *
- * Per-question answers:
- *   - Supabase mode: read the student's own rows from `quiz_answers` (RLS).
- *   - Demo mode: a small fixed set consistent with the demo attempts in
- *     stores/quiz.ts (the quiz store itself only keeps per-attempt scores).
- *   Without them, topic scores are estimated from the attempt percentage.
+ * Per-question answers (exact topic scores), in order of preference:
+ *   - `attempt.answers` stored by quizStore.submitQuiz (3b-A) — demo and
+ *     Supabase (`quiz_attempts.answers` jsonb) alike; passed via quiz.attempts.
+ *   - Supabase mode: the student's own rows from `quiz_answers` (RLS).
+ *   - Demo mode: a small fixed set consistent with the legacy demo attempts in
+ *     stores/quiz.ts (which carry no `answers`), so old results are unchanged.
+ *   Without any of them, topic scores are estimated from the attempt percentage.
  */
 import { buildLearningPath, LP_WEAK_THRESHOLD, type LpAnswer, type CourseLearningPath } from '~/utils/learningPath'
 import { useAuthStore } from '~/stores/auth'

@@ -273,6 +273,9 @@ function closeSidebar() {
 /* Main Area */
 .main-area {
   flex: 1;
+  /* Let the flex item shrink below its content's min-content width, otherwise a wide
+     table/grid pushes the whole page wider than the viewport (mobile overflow). */
+  min-width: 0;
   margin-left: var(--sidebar-width);
   display: flex;
   flex-direction: column;
@@ -309,6 +312,7 @@ function closeSidebar() {
 
 .content {
   flex: 1;
+  min-width: 0;
   padding: 1.5rem;
 }
 

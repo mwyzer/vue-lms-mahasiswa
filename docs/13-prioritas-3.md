@@ -395,3 +395,19 @@ Jalankan `supabase/migration-prioritas-3b-a.sql` (idempoten, setelah `schema.sql
 - **Batasan:** ekspor per tugas di halaman daftar tugas dosen (`useExportGrades.exportCourseGrades`, tombol "Export Nilai ke Excel") belum diubah dan masih memakai nilai dosen. Mode dev Vite: impor jsPDF pertama kali bisa memicu reload halaman sehingga data demo di memori hilang (tidak terjadi di build produksi).
 
 > **Tindak lanjut 3b-B:** tombol "Export Nilai ke Excel" di halaman tugas dosen (`useExportGrades.exportCourseGrades`) sekarang juga memakai nilai akhir gabungan (dosen + peer). Untuk tugas dengan peer review ada kolom tambahan "Nilai Dosen"; tugas tanpa peer review tidak berubah.
+
+## 3b-C — Rapikan tampilan mobile (overflow horizontal)
+
+**Masalah:** di layar 360–414px beberapa halaman (gradebook, analitik, kalender, presensi mahasiswa, nilai, kampus/kuis admin) melebar horizontal sehingga seluruh halaman bisa digeser ke samping. Akar masalahnya: `.main-area` di layout adalah flex item dengan `min-width: auto` bawaan, sehingga konten terlebar (tabel/grid) memaksa area utama (dan topbar) ikut melebar melebihi viewport.
+
+**Perbaikan di akar:**
+- `app/layouts/{dashboard,instructor,admin}.vue`: `min-width: 0` pada `.main-area` dan `.content`; `default.vue`: pada `.layout-main`. Hanya CSS, isi navigasi tidak diubah. Admin: `.topbar-right` diberi `min-width: 0` dan di ≤400px nama user di topbar disembunyikan (nama tetap ada di sidebar).
+- `app/assets/css/main.css`: utilitas global **`.table-scroll`** (`max-width: 100%`, `min-width: 0`, `overflow-x: auto`, `overscroll-behavior-x: contain`) untuk membungkus tabel/grid lebar agar menggulir di dalam kotaknya sendiri, plus `max-width: 100%` untuk media di `main.content`. Tanpa warna hardcode, aman untuk tema gelap.
+- Tabel memakai `.table-scroll`: gradebook, analitik, `AtRiskDashboard`, `ImportExportPanel` (tambalan `contain: inline-size` sebelumnya dihapus karena akar sudah diperbaiki). Presensi mahasiswa: grid riwayat dibungkus `.table-scroll` dengan baris `min-width: 26rem`.
+- Penyesuaian kecil per halaman: kartu statistik nilai mahasiswa jadi 2 kolom di ≤480px; kartu kampus admin (`minmax(min(340px, 100%), 1fr)`, tombol aksi pindah ke baris sendiri di ≤768px); header kartu kuis admin `flex-wrap`.
+
+**Audit:** `node scripts/audit-mobile-overflow.mjs [--width=360 --width=390 ...] [--dark] [--strict] [--json=out.json]` (butuh app berjalan, `BASE_URL` default `http://localhost:3000`). Skrip login sebagai mahasiswa/dosen/admin demo, membuka 29 halaman, mengukur `scrollWidth > clientWidth` dan elemen yang melewati viewport tanpa dipotong ancestor yang bisa digulir. Hasil (mode dev): sebelum — 8 dari 29 halaman overflow di 390px, 25 di 360px, 7 di 414px (0 di 1280px); sesudah — 0 di 360/390/414/1280px dan 0 di 390px tema gelap.
+
+**Tes:** `app/test/shared/mobileOverflowCss.test.ts` (cek statis: `.table-scroll`, `min-width: 0` di layout, setiap `<table>` dibungkus `.table-scroll`).
+
+**Batasan:** audit hanya pada data demo (tabel dengan data lebih banyak/panjang belum diuji); dialog/modal dan halaman di luar daftar audit (mis. AI chat, playground, detail kuis) belum diaudit; pemeriksaan visual hanya lewat beberapa screenshot headless Chrome, belum di perangkat sungguhan.

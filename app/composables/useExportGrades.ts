@@ -4,6 +4,7 @@
  */
 import * as XLSX from 'xlsx'
 import { useNotification } from './useNotification'
+import { useRubricsStore } from '~/stores/rubrics'
 
 interface GradeRow {
   'No': number
@@ -11,6 +12,8 @@ interface GradeRow {
   'Nama Mahasiswa': string
   'Tugas': string
   'Nilai': number | string
+  /** Only present for assignments with peer review enabled. */
+  'Nilai Dosen'?: number | string
   'Feedback': string
   'Status': string
 }
@@ -107,6 +110,7 @@ export function useExportGrades() {
     courseName: string,
     assignments: Array<{ id: string; judul: string }>,
     getSubmissionsFn: (assignmentId: string) => Array<{
+      id?: string
       student_name?: string
       student_npm?: string
       nilai?: number | null
@@ -114,25 +118,33 @@ export function useExportGrades() {
       submitted_at?: string | null
     }>,
   ) {
+    const rubrics = useRubricsStore()
     const allRows: GradeRow[] = []
     let rowNo = 0
 
     for (const assignment of assignments) {
       const subs = getSubmissionsFn(assignment.id)
+      const peerOn = !!rubrics.rubricFor(assignment.id)?.peer.enabled
       for (const s of subs) {
         if (!s.submitted_at) continue
         rowNo++
-        allRows.push({
+        // Final score = instructor score blended with peer review (same as the gradebook).
+        const final = s.id
+          ? rubrics.finalScoreFor({ id: s.id, assignment_id: assignment.id, nilai: s.nilai ?? null })
+          : (s.nilai ?? null)
+        const row: GradeRow = {
           'No': rowNo,
           'NPM': s.student_npm || '-',
           'Nama Mahasiswa': s.student_name || '-',
           'Tugas': assignment.judul,
-          'Nilai': s.nilai !== null && s.nilai !== undefined ? s.nilai : '-',
+          'Nilai': final !== null && final !== undefined ? final : '-',
           'Feedback': s.feedback || '-',
-          'Status': s.nilai !== null && s.nilai !== undefined
-            ? (s.nilai >= 60 ? 'Lulus' : 'Tidak Lulus')
+          'Status': final !== null && final !== undefined
+            ? (final >= 60 ? 'Lulus' : 'Tidak Lulus')
             : 'Belum Dinilai',
-        })
+        }
+        if (peerOn) row['Nilai Dosen'] = s.nilai !== null && s.nilai !== undefined ? s.nilai : '-'
+        allRows.push(row)
       }
     }
 

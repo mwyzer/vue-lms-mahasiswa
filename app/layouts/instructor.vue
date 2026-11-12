@@ -14,6 +14,8 @@ const navigation = computed(() => [
   { label: 'Tugas', icon: '📝', to: '/instructor/assignments' },
   { label: 'Kuis', icon: '❓', to: '/instructor/quiz' },
   { label: 'Mahasiswa', icon: '👥', to: '/instructor/students' },
+  { label: 'Mahasiswa Berisiko', icon: '⚠️', to: '/instructor/at-risk' },
+  { label: 'Impor / Ekspor', icon: '📥', to: '/instructor/import-export' },
   { label: 'Presensi', icon: '✅', to: '/instructor/attendance' },
   { label: 'Analisis', icon: '📊', to: '/instructor/courses' },
   { label: 'Kalender', icon: '📅', to: '/calendar' },
@@ -113,6 +115,7 @@ function closeSidebar() {
         </button>
 
         <div class="topbar-right">
+          <GlobalSearch />
           <ThemeToggle />
           <NotificationBell />
           <span class="badge badge-primary">Instruktur</span>

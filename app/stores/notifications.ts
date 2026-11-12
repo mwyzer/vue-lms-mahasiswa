@@ -162,15 +162,16 @@ export const useNotificationsStore = defineStore('notifications', {
      * Demo mode: create a notification for each given user.
      * In production this is a no-op — Postgres triggers create the rows.
      * Returns the number of notifications created.
+     * `includeSelf` also notifies the signed-in user (used for reminders).
      */
-    notifyUsers(userIds: string[], payload: NotificationPayload): number {
+    notifyUsers(userIds: string[], payload: NotificationPayload, includeSelf = false): number {
       if (!useUiStore().isDemoMode) return 0
       const auth = useAuthStore()
       const actorId = auth.user?.id
       let created = 0
 
       for (const uid of new Set(userIds)) {
-        if (!uid || uid === actorId) continue
+        if (!uid || (uid === actorId && !includeSelf)) continue
         if (payload.dedupe_key && DEMO_NOTIFICATIONS.some((n) => n.user_id === uid && n.dedupe_key === payload.dedupe_key)) {
           continue
         }
@@ -190,6 +191,34 @@ export const useNotificationsStore = defineStore('notifications', {
 
       if (created > 0 && this.isDemoMode) this.items = [...DEMO_NOTIFICATIONS]
       return created
+    },
+
+    /**
+     * Demo mode: notify the signed-in user (e.g. a badge they just earned).
+     * `notifyUsers` skips the actor, so self-notifications go through here.
+     * In production this is a no-op — a Postgres trigger creates the row
+     * (see supabase/migration-prioritas-3-w2.sql). Returns true if created.
+     */
+    notifySelf(payload: NotificationPayload): boolean {
+      if (!useUiStore().isDemoMode) return false
+      const uid = useAuthStore().user?.id
+      if (!uid) return false
+      if (payload.dedupe_key && DEMO_NOTIFICATIONS.some((n) => n.user_id === uid && n.dedupe_key === payload.dedupe_key)) {
+        return false
+      }
+      DEMO_NOTIFICATIONS.push({
+        id: `n-demo-${Date.now()}-${++demoSeq}`,
+        user_id: uid,
+        tipe: payload.tipe,
+        judul: payload.judul,
+        pesan: payload.pesan ?? null,
+        link: payload.link ?? null,
+        dedupe_key: payload.dedupe_key ?? null,
+        read_at: null,
+        created_at: new Date().toISOString(),
+      })
+      this.items = [...DEMO_NOTIFICATIONS]
+      return true
     },
 
     /**

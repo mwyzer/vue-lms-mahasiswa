@@ -16,6 +16,8 @@ const navigation = computed(() => [
   { label: 'Kuis', icon: '❓', to: '/admin/quiz' },
   { label: 'Mahasiswa', icon: '👥', to: '/admin/students' },
   { label: 'Instruktur', icon: '👨‍🏫', to: '/admin/instructors' },
+  { label: 'Mahasiswa Berisiko', icon: '⚠️', to: '/admin/at-risk' },
+  { label: 'Impor / Ekspor', icon: '📥', to: '/admin/import-export' },
   { label: 'Presensi', icon: '✅', to: '/instructor/attendance' },
   { label: 'Kalender', icon: '📅', to: '/calendar' },
   { label: 'AI Tutor', icon: '🤖', to: '/ai/chat' },
@@ -115,6 +117,7 @@ function closeSidebar() {
         </button>
 
         <div class="topbar-right">
+          <GlobalSearch />
           <ThemeToggle />
           <NotificationBell />
           <span class="badge badge-danger">Administrator</span>

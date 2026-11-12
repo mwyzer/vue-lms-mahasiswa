@@ -10,6 +10,7 @@ definePageMeta({
 const route = useRoute()
 const router = useRouter()
 const assignmentsStore = useAssignmentsStore()
+const rubricsStore = useRubricsStore()
 const { formatDate, isOverdue, useCountdown } = useAssignments()
 const notification = useNotification()
 const { uploading, maxAttachmentMB, uploadAttachment, validateAttachmentFile, formatFileSize, downloadFile } = useFileAttachment()
@@ -54,9 +55,23 @@ const assignment = computed(() =>
   myAssignments.value.find((a: any) => a.id === assignmentId.value) || null
 )
 
-onMounted(() => {
+onMounted(async () => {
   assignmentsStore.setCurrentAssignment(assignmentId.value)
   countdown.start()
+  await rubricsStore.init()
+  rubricsStore.syncPeerDeadlineReminders()
+})
+
+// ── Rubric + peer review (Prioritas 3) ──
+const rubric = computed(() => rubricsStore.rubricFor(assignmentId.value))
+const mySelection = computed(() =>
+  assignment.value?.submission ? rubricsStore.selectionFor(assignment.value.submission.id) : {}
+)
+const hasRubricBreakdown = computed(() => Object.keys(mySelection.value).length > 0)
+/** Final score shown to the student: instructor score blended with the peer average when enabled. */
+const finalScore = computed(() => {
+  const sub = assignment.value?.submission
+  return sub ? rubricsStore.finalScoreFor(sub) : null
 })
 
 onUnmounted(() => {
@@ -175,7 +190,7 @@ function handleSubmit() {
             <span
               v-if="assignment.submission?.nilai != null"
               class="badge badge-success"
-            >Dinilai: {{ assignment.submission.nilai }}</span>
+            >Dinilai: {{ finalScore }}</span>
             <span
               v-else-if="assignment.submission"
               class="badge badge-primary"
@@ -209,6 +224,23 @@ function handleSubmit() {
         </div>
       </div>
 
+      <!-- Rubric shown before submitting (Prioritas 3) -->
+      <div v-if="rubric" class="card rubric-card">
+        <details :open="!assignment.submission">
+          <summary class="rubric-summary">📐 Rubrik Penilaian</summary>
+          <p class="text-sm text-muted rubric-intro">
+            Jawabanmu akan dinilai dengan rubrik ini.
+            <template v-if="rubric.peer.enabled">
+              Tugas ini juga memakai peer review anonim ({{ rubric.peer.weight }}% dari nilai akhir).
+            </template>
+          </p>
+          <RubricGrader :criteria="rubric.criteria" readonly :show-total="false" title="Kriteria dan level" />
+        </details>
+      </div>
+
+      <!-- Peer review tasks for this student -->
+      <PeerReviewTasks v-if="assignment.submission" :assignment-id="assignment.id" />
+
       <!-- Submission form -->
       <div class="card submission-section">
         <h3>Pengumpulan Tugas</h3>
@@ -238,13 +270,29 @@ function handleSubmit() {
             <div v-if="assignment.submission.nilai != null" class="grade-section">
               <div class="grade-card">
                 <span class="grade-label">Nilai</span>
-                <span class="grade-value">{{ assignment.submission.nilai }}</span>
+                <span class="grade-value">{{ finalScore }}</span>
+              </div>
+              <p v-if="finalScore !== assignment.submission.nilai" class="text-sm text-muted">
+                Nilai dosen {{ assignment.submission.nilai }}, digabung dengan nilai peer review.
+              </p>
+              <div v-if="rubric && hasRubricBreakdown" class="rubric-breakdown">
+                <RubricGrader
+                  :criteria="rubric.criteria"
+                  :model-value="mySelection"
+                  readonly
+                  title="Rincian skor per kriteria"
+                />
               </div>
               <div v-if="assignment.submission.feedback" class="feedback-section">
                 <strong>Feedback:</strong>
                 <p>{{ assignment.submission.feedback }}</p>
               </div>
             </div>
+            <PeerFeedback
+              :assignment-id="assignment.id"
+              :submission-id="assignment.submission.id"
+              :instructor-score="assignment.submission.nilai"
+            />
           </div>
 
           <!-- Update submission -->
@@ -462,6 +510,24 @@ function handleSubmit() {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+}
+
+.rubric-card {
+  margin-bottom: 1rem;
+}
+
+.rubric-summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.rubric-intro {
+  margin: 0.5rem 0 0.75rem;
+}
+
+.rubric-breakdown {
+  margin-top: 0.75rem;
 }
 
 .grade-card {

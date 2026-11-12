@@ -118,6 +118,11 @@ const upcomingAssignments = computed(() =>
         <StatCard icon="📊" :value="`${overallProgress}%`" label="Progress Keseluruhan" variant="warning" />
       </div>
 
+      <!-- ── Progress & badges (Prioritas 3) ── -->
+      <div class="bento-tile bento-tile--full reveal" style="--i:3">
+        <ProgressSummaryWidget />
+      </div>
+
       <!-- ── Courses (span 2 cols — weightier) ── -->
       <div class="bento-tile bento-tile--span-2 reveal" style="--i:4">
         <div class="tile-header">
@@ -370,6 +375,10 @@ const upcomingAssignments = computed(() =>
 
 .bento-tile--span-2 {
   grid-column: span 2;
+}
+
+.bento-tile--full {
+  grid-column: 1 / -1;
 }
 
 /* ── Tile Headers ───────────────────────── */

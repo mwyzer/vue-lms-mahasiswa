@@ -13,6 +13,9 @@ const navigation = computed(() => [
   { label: 'Mata Kuliah', icon: '📖', to: '/courses' },
   { label: 'Tugas', icon: '📝', to: '/assignments' },
   { label: 'Nilai', icon: '🏆', to: '/student/grades' },
+  { label: 'Jalur Belajar', icon: '🧭', to: '/student/learning-path' },
+  { label: 'Flashcard', icon: '🗂️', to: '/student/flashcards' },
+  { label: 'Progres & Badge', icon: '🏅', to: '/student/progress' },
   { label: 'Kuis & Ujian', icon: '✍️', to: '/quiz' },
   { label: 'Presensi', icon: '✅', to: '/student/attendance' },
   { label: 'Kalender', icon: '📅', to: '/calendar' },
@@ -98,6 +101,7 @@ function closeSidebar() {
         </button>
 
         <div class="topbar-right">
+          <GlobalSearch />
           <ThemeToggle />
           <NotificationBell />
           <span class="text-sm text-muted">

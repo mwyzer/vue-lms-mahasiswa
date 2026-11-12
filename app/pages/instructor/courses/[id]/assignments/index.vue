@@ -2,6 +2,8 @@
 /**
  * Instructor Assignments Management — View, create, and grade assignments.
  */
+import { computeRubricScore, type RubricSelection } from '#shared/rubric'
+
 definePageMeta({
   layout: 'instructor',
   middleware: ['auth', 'instructor']
@@ -11,6 +13,7 @@ const route = useRoute()
 const router = useRouter()
 const coursesStore = useCoursesStore()
 const assignmentsStore = useAssignmentsStore()
+const rubricsStore = useRubricsStore()
 const auth = useAuthStore()
 const notification = useNotification()
 const { exportCourseGrades } = useExportGrades()
@@ -44,10 +47,28 @@ const gradeNilai = ref<number>(0)
 const gradeFeedback = ref('')
 const grading = ref(false)
 const selectedSubmissionId = ref<string | null>(null)
+// Rubric grading (Prioritas 3)
+const rubricPanelId = ref<string | null>(null)
+const gradeSelection = ref<RubricSelection>({})
+const gradingRubric = computed(() => (showGrading.value ? rubricsStore.rubricFor(showGrading.value) : null))
+const gradeRubricScore = computed(() =>
+  gradingRubric.value ? computeRubricScore(gradingRubric.value.criteria, gradeSelection.value) : null
+)
+// A complete rubric selection fills the score field automatically — except right
+// after opening a saved grade, so a manually adjusted score is not overwritten.
+let skipAutoFill = false
+watch(gradeRubricScore, (sc, prev) => {
+  if (skipAutoFill) {
+    skipAutoFill = false
+    return
+  }
+  if (sc?.complete && sc.total !== prev?.total) gradeNilai.value = sc.total
+})
 
 onMounted(async () => {
   await coursesStore.init()
   await assignmentsStore.init()
+  await rubricsStore.init()
   coursesStore.setCurrentCourse(courseId.value)
 })
 
@@ -176,9 +197,25 @@ function cancelGrading() {
 }
 
 /** Fill the grade form from an AI draft. Not saved until the instructor clicks "Simpan Nilai". */
-function applyAiGradeDraft(d: { nilai: number; feedback: string }) {
+function applyAiGradeDraft(d: { nilai: number; feedback: string; selection?: Record<string, string> }) {
+  if (d.selection) gradeSelection.value = { ...d.selection }
   gradeNilai.value = d.nilai
   gradeFeedback.value = d.feedback
+}
+
+/** Open the grade form for one submission (pre-filled with saved score/levels). */
+function startGrading(assignmentId: string, sub: any) {
+  openGrading(assignmentId)
+  selectedSubmissionId.value = sub.id
+  gradeNilai.value = sub.nilai || 0
+  gradeFeedback.value = sub.feedback || ''
+  const saved = rubricsStore.selectionFor(sub.id)
+  skipAutoFill = Object.keys(saved).length > 0 && sub.nilai != null
+  gradeSelection.value = { ...saved }
+}
+
+function toggleRubricPanel(assignmentId: string) {
+  rubricPanelId.value = rubricPanelId.value === assignmentId ? null : assignmentId
 }
 
 // Direct grading for all students
@@ -234,9 +271,24 @@ function submitGrade(submissionId: string) {
     notification.warning('Nilai harus antara 0-100.')
     return
   }
+  const sc = gradeRubricScore.value
+  const usesRubric = !!sc && Object.keys(gradeSelection.value).length > 0
+  if (usesRubric && !sc!.complete) {
+    notification.warning('Lengkapi level untuk setiap kriteria rubrik, atau kosongkan pilihan rubrik untuk menilai manual.')
+    return
+  }
   grading.value = true
-  setTimeout(() => {
-    assignmentsStore.gradeSubmission(submissionId, gradeNilai.value, gradeFeedback.value)
+  setTimeout(async () => {
+    if (usesRubric && showGrading.value) {
+      const saved = await rubricsStore.gradeWithRubric(submissionId, showGrading.value, gradeSelection.value, gradeFeedback.value, gradeNilai.value)
+      if (saved === null) {
+        notification.error(rubricsStore.error || 'Gagal menyimpan nilai rubrik.')
+        grading.value = false
+        return
+      }
+    } else {
+      await assignmentsStore.gradeSubmission(submissionId, gradeNilai.value, gradeFeedback.value)
+    }
     notification.success('Nilai berhasil disimpan!')
     showGrading.value = null
     grading.value = false
@@ -372,9 +424,22 @@ function formatDate(dateStr: string): string {
             <div>
               <h3>{{ a.judul }}</h3>
               <p class="text-sm text-muted">Deadline: {{ formatDate(a.tenggat_waktu) }}</p>
+              <div v-if="rubricsStore.rubricFor(a.id)" class="rubric-tags">
+                <span class="badge badge-primary">📐 Rubrik · {{ rubricsStore.rubricFor(a.id)!.criteria.length }} kriteria</span>
+                <span v-if="rubricsStore.rubricFor(a.id)!.peer.enabled" class="badge badge-warning">
+                  👥 Peer review {{ rubricsStore.rubricFor(a.id)!.peer.weight }}%
+                </span>
+              </div>
             </div>
             <div class="assignment-actions">
               <button class="btn btn-ghost btn-sm" @click="openEditForm(a)">✏️ Edit</button>
+              <button
+                class="btn btn-ghost btn-sm"
+                :aria-expanded="rubricPanelId === a.id"
+                @click="toggleRubricPanel(a.id)"
+              >
+                📐 Rubrik &amp; Peer
+              </button>
               <button
                 class="btn btn-ghost btn-sm"
                 @click="openGrading(a.id)"
@@ -405,6 +470,13 @@ function formatDate(dateStr: string): string {
             >⬇️ Unduh</button>
           </div>
 
+          <!-- Rubric + peer review (Prioritas 3) -->
+          <div v-if="rubricPanelId === a.id" class="rubric-section">
+            <RubricEditor :assignment-id="a.id" @close="rubricPanelId = null" />
+            <div class="rubric-divider" />
+            <PeerReviewManager :assignment-id="a.id" />
+          </div>
+
           <!-- Submissions -->
           <div class="submissions-section">
             <p class="submissions-title">Pengumpulan:</p>
@@ -427,6 +499,11 @@ function formatDate(dateStr: string): string {
                   {{ sub.nilai }}
                 </span>
                 <span v-else class="badge badge-neutral">Belum Dinilai</span>
+                <span
+                  v-if="sub.nilai != null && rubricsStore.finalScoreFor(sub) !== sub.nilai"
+                  class="badge badge-primary"
+                  title="Nilai akhir setelah digabung dengan nilai peer review"
+                >Akhir {{ rubricsStore.finalScoreFor(sub) }}</span>
               </div>
 
               <div v-if="showGrading === a.id && selectedSubmissionId === sub.id" class="grading-form">
@@ -455,8 +532,23 @@ function formatDate(dateStr: string): string {
                     :has-file="!!sub.file_url"
                     :current-score="gradeNilai"
                     :current-feedback="gradeFeedback"
+                    :rubric="rubricsStore.rubricFor(a.id)?.criteria || null"
                     @apply="applyAiGradeDraft"
                   />
+                  <div v-if="gradingRubric" class="form-group">
+                    <RubricGrader v-model="gradeSelection" :criteria="gradingRubric.criteria" title="Penilaian dengan rubrik" />
+                    <div class="rubric-grade-actions">
+                      <span class="text-xs text-muted">
+                        Skor rubrik mengisi kolom Nilai. Nilai masih bisa disesuaikan manual.
+                      </span>
+                      <button
+                        v-if="Object.keys(gradeSelection).length"
+                        type="button"
+                        class="btn btn-ghost btn-xs"
+                        @click="gradeSelection = {}"
+                      >Kosongkan pilihan rubrik</button>
+                    </div>
+                  </div>
                   <div class="form-group">
                     <label class="form-label">Nilai (0-100)</label>
                     <input
@@ -492,7 +584,7 @@ function formatDate(dateStr: string): string {
               <button
                 v-if="showGrading !== a.id || selectedSubmissionId !== sub.id"
                 class="btn btn-ghost btn-sm"
-                @click="openGrading(a.id); selectedSubmissionId = sub.id; gradeNilai = sub.nilai || 0; gradeFeedback = sub.feedback || ''"
+                @click="startGrading(a.id, sub)"
               >
                 {{ sub.nilai != null ? 'Edit Nilai' : 'Beri Nilai' }}
               </button>
@@ -945,6 +1037,36 @@ function formatDate(dateStr: string): string {
 
 .btn-secondary:hover {
   background: var(--color-neutral-200);
+}
+
+/* Rubric + peer review panel */
+.rubric-tags {
+  display: flex;
+  gap: 0.375rem;
+  flex-wrap: wrap;
+  margin-top: 0.25rem;
+}
+
+.rubric-section {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 2px solid var(--color-primary-200);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.rubric-divider {
+  border-top: 1px dashed var(--color-neutral-200);
+}
+
+.rubric-grade-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.375rem;
 }
 
 /* Plagiarism check panel */

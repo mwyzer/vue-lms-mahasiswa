@@ -14,9 +14,9 @@
 -- ────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.risk_interventions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
-  student_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  actor_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  course_id TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+  student_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  actor_id TEXT REFERENCES profiles(id) ON DELETE SET NULL,
   actor_name TEXT,
   tipe VARCHAR(10) NOT NULL CHECK (tipe IN ('reminder', 'followup')),
   catatan TEXT CHECK (catatan IS NULL OR char_length(catatan) <= 2000),
@@ -54,8 +54,8 @@ CREATE POLICY "Admin delete risk interventions"
 -- pengingat lewat fungsi SECURITY DEFINER yang memeriksa sendiri bahwa pemanggil
 -- adalah dosen pengampu/admin dan mahasiswanya terdaftar di mata kuliah itu.
 CREATE OR REPLACE FUNCTION public.send_risk_reminder(
-  p_course_id UUID,
-  p_student_id UUID,
+  p_course_id TEXT,
+  p_student_id TEXT,
   p_judul TEXT,
   p_pesan TEXT,
   p_risk_score INTEGER DEFAULT NULL,
@@ -65,7 +65,7 @@ RETURNS public.risk_interventions
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
 AS $$
 DECLARE
-  v_actor UUID := public.current_profile_id();
+  v_actor TEXT := public.current_profile_id();
   v_row public.risk_interventions;
 BEGIN
   IF v_actor IS NULL OR NOT public.is_course_staff(p_course_id) THEN
@@ -101,8 +101,8 @@ BEGIN
   RETURN v_row;
 END $$;
 
-REVOKE ALL ON FUNCTION public.send_risk_reminder(UUID, UUID, TEXT, TEXT, INTEGER, TEXT) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.send_risk_reminder(UUID, UUID, TEXT, TEXT, INTEGER, TEXT) TO authenticated, service_role;
+REVOKE ALL ON FUNCTION public.send_risk_reminder(TEXT, TEXT, TEXT, TEXT, INTEGER, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.send_risk_reminder(TEXT, TEXT, TEXT, TEXT, INTEGER, TEXT) TO authenticated, service_role;
 
 -- ────────────────────────────────────────────
 -- 3. IMPORT JOBS
@@ -110,11 +110,11 @@ GRANT EXECUTE ON FUNCTION public.send_risk_reminder(UUID, UUID, TEXT, TEXT, INTE
 -- Ditulis oleh POST /api/import/students (service role). Klien hanya membaca.
 CREATE TABLE IF NOT EXISTS public.import_jobs (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  actor_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  actor_id TEXT REFERENCES profiles(id) ON DELETE SET NULL,
   actor_role VARCHAR(20),
   kind VARCHAR(20) NOT NULL DEFAULT 'students' CHECK (kind IN ('students')),
   file_name TEXT,
-  course_id UUID REFERENCES courses(id) ON DELETE SET NULL,
+  course_id TEXT REFERENCES courses(id) ON DELETE SET NULL,
   total_rows INTEGER NOT NULL DEFAULT 0,
   created_count INTEGER NOT NULL DEFAULT 0,
   failed_count INTEGER NOT NULL DEFAULT 0,

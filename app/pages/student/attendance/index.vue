@@ -87,7 +87,7 @@ function statusClass(status: string): string {
         </div>
 
         <!-- Records table -->
-        <div v-if="course.records.length > 0" class="records-table">
+        <div v-if="course.records.length > 0" class="records-table table-scroll">
           <div class="table-header">
             <span class="text-sm font-semibold">Pertemuan</span>
             <span class="text-sm font-semibold">Tanggal</span>
@@ -193,6 +193,12 @@ function statusClass(status: string): string {
   gap: 0.5rem;
   align-items: center;
   padding: 0.375rem 0;
+}
+
+/* Keep columns readable on phones; the .table-scroll wrapper scrolls horizontally. */
+.records-table > .table-header,
+.records-table > .table-row {
+  min-width: 26rem;
 }
 
 .table-header {

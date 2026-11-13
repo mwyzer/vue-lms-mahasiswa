@@ -171,3 +171,67 @@ describe('useLearningPath (demo stores)', () => {
     expect(c1.topics.find((t) => t.lesson_id === 'l3')?.total).toBe(1)
   })
 })
+
+describe('per-question answers stored on the attempt (3b-A)', () => {
+  const inlineAttempt = (answers: { question_id: string; is_correct: boolean }[]) => ({
+    id: 'a9', quiz_id: 'Z1', student_id: 'S', score: 1, total_questions: 4, percentage: 25,
+    started_at: '2026-03-01T10:00:00Z', submitted_at: '2026-03-01T10:20:00Z',
+    answers: answers.map((a) => ({ ...a, jawaban: a.is_correct ? 'a' : 'b', points: a.is_correct ? 1 : 0 })),
+  })
+
+  it('uses attempt.answers as exact data (no estimate), overriding the percentage', () => {
+    const input = base({
+      answers: [],
+      attempts: [inlineAttempt([
+        { question_id: 'q1', is_correct: true },
+        { question_id: 'q2', is_correct: false },
+        { question_id: 'q3', is_correct: false },
+        { question_id: 'q4', is_correct: false },
+      ])],
+    })
+    const { topics } = computeTopicStats(input, 'C')
+    const byKey = Object.fromEntries(topics.map((t) => [t.key, t]))
+    expect(byKey['lesson:L1']).toMatchObject({ score: 100, estimated: false, estimated_count: 0, weak: false })
+    expect(byKey['lesson:L3']).toMatchObject({ score: 0, estimated: false, weak: true })
+    const [path] = buildLearningPath(input)
+    expect(path).toMatchObject({ exactResults: 4, estimatedResults: 0, overall: 25 })
+  })
+
+  it('prefers attempt.answers over older quiz_answers rows of the same question', () => {
+    // base() has quiz_answers saying q1 correct; the new attempt says wrong.
+    const input = base({ attempts: [inlineAttempt([{ question_id: 'q1', is_correct: false }])] })
+    const { topics } = computeTopicStats(input, 'C')
+    expect(topics.find((t) => t.key === 'lesson:L1')).toMatchObject({ score: 0, estimated: false })
+  })
+
+  it('marks topics as partially estimated when the attempt misses some questions', () => {
+    // q1 + q4 exact; q2/q3 (added later, not in the attempt) estimated from 25%.
+    const input = base({
+      answers: [],
+      questions: [...QUESTIONS, q('q7', 'Z1', 'Tipe data bilangan bulat adalah...', { pilihan_a: 'int' })],
+      attempts: [inlineAttempt([
+        { question_id: 'q1', is_correct: true },
+        { question_id: 'q4', is_correct: true },
+      ])],
+    })
+    const { topics } = computeTopicStats(input, 'C')
+    const l1 = topics.find((t) => t.key === 'lesson:L1')!
+    expect(l1).toMatchObject({ total: 2, estimated: true, estimated_count: 1 })
+    expect(l1.correct).toBe(1.25) // 1 (exact) + 0.25 (estimate)
+    expect(topics.find((t) => t.key === 'umum:C')).toMatchObject({ estimated: false, estimated_count: 0, score: 100 })
+    const [path] = buildLearningPath(input)
+    expect(path!.exactResults).toBe(2)
+    expect(path!.estimatedResults).toBe(3)
+  })
+
+  it('falls back to the old behaviour for attempts without answers (null / missing)', () => {
+    const legacy = computeTopicStats(base(), 'C').topics
+    const withNull = computeTopicStats(
+      base({ attempts: base().attempts.map((a) => ({ ...a, answers: null })) }),
+      'C',
+    ).topics
+    expect(withNull).toEqual(legacy)
+    const estimated = computeTopicStats(base({ answers: [], attempts: base().attempts.map((a) => ({ ...a, answers: null })) }), 'C').topics
+    expect(estimated.every((t) => t.estimated && t.estimated_count === t.total && t.score === 50)).toBe(true)
+  })
+})

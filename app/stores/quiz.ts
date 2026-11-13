@@ -3,7 +3,7 @@
  * Follows the Pinia demo-data pattern from assignments.ts / courses.ts stores.
  */
 import { defineStore } from 'pinia'
-import type { Quiz, QuizQuestion, QuizAttempt } from '~/types/database'
+import type { Quiz, QuizQuestion, QuizAttempt, QuizAttemptAnswer } from '~/types/database'
 import type { QuizWithCourse } from '~/types/quiz'
 
 export type QuizUpdateData = {
@@ -198,6 +198,31 @@ const DEMO_ATTEMPTS: QuizAttempt[] = [
   { id: 'qa3', quiz_id: 'qz1', student_id: 's1', score: 4, total_questions: 5, percentage: 80, started_at: '2025-10-02T08:00:00Z', submitted_at: '2025-10-02T09:25:00Z' },
   { id: 'qa4', quiz_id: 'qz4', student_id: 's3', score: 2, total_questions: 3, percentage: 67, started_at: '2025-09-21T10:00:00Z', submitted_at: '2025-09-21T10:18:00Z' },
 ]
+
+/** Latest background Supabase save started by submitQuiz (for callers/tests). */
+let lastPersist: Promise<QuizAttempt | null> = Promise.resolve(null)
+
+/**
+ * Grade a quiz session into per-question answers (1 point per correct answer).
+ * Unanswered questions are kept with `jawaban: null` and count as wrong.
+ */
+export function gradeAnswers(
+  questions: readonly QuizQuestion[],
+  chosen: Readonly<Record<string, 'a' | 'b' | 'c' | 'd' | undefined>>,
+): QuizAttemptAnswer[] {
+  return questions.map((q) => {
+    const jawaban = chosen[q.id] ?? null
+    const is_correct = jawaban !== null && jawaban === q.jawaban_benar
+    return { question_id: q.id, jawaban, is_correct, points: is_correct ? 1 : 0 }
+  })
+}
+
+/** PostgREST/Postgres "column does not exist" (migration not applied yet). */
+function isMissingColumnError(err: unknown): boolean {
+  const e = err as { code?: string; message?: string } | null
+  if (!e) return false
+  return e.code === '42703' || e.code === 'PGRST204' || /column .* (does not exist|not find)|could not find the .* column/i.test(e.message ?? '')
+}
 
 export const useQuizStore = defineStore('quiz', {
   state: () => ({
@@ -415,18 +440,19 @@ export const useQuizStore = defineStore('quiz', {
       this.currentAnswers[questionId] = jawaban
     },
 
-    /** Submit the quiz and auto-grade */
+    /**
+     * Submit the quiz and auto-grade. Synchronous for the UI; in Supabase mode
+     * the attempt (+ per-question answers) is persisted in the background via
+     * {@link persistAttempt} (promise kept in `lastPersist`).
+     */
     submitQuiz(studentId: string): QuizAttempt | null {
       if (!this.currentQuizId) return null
 
-      const quizQuestions = this.questions.filter(q => q.quiz_id === this.currentQuizId)
-      let score = 0
-      for (const q of quizQuestions) {
-        const userAnswer = this.currentAnswers[q.id]
-        if (userAnswer && userAnswer === q.jawaban_benar) {
-          score++
-        }
-      }
+      const quizQuestions = this.questions
+        .filter(q => q.quiz_id === this.currentQuizId)
+        .sort((a, b) => a.urutan - b.urutan)
+      const answers = gradeAnswers(quizQuestions, this.currentAnswers)
+      const score = answers.reduce((sum, a) => sum + a.points, 0)
 
       const now = new Date().toISOString()
       const attempt: QuizAttempt = {
@@ -438,9 +464,13 @@ export const useQuizStore = defineStore('quiz', {
         percentage: quizQuestions.length > 0 ? Math.round((score / quizQuestions.length) * 100) : 0,
         started_at: this.quizStartTime || now,
         submitted_at: now,
+        answers,
       }
 
       this.attempts.push(attempt)
+      if (!this.isDemoMode) {
+        lastPersist = this.persistAttempt(attempt)
+      }
 
       // Reset current session
       this.currentQuizId = null
@@ -448,6 +478,68 @@ export const useQuizStore = defineStore('quiz', {
       this.quizStartTime = null
 
       return attempt
+    },
+
+    /** Promise of the latest background Supabase save (resolves to the saved attempt or null). */
+    waitForPersist(): Promise<QuizAttempt | null> {
+      return lastPersist
+    },
+
+    /**
+     * Supabase: insert the attempt (with `answers` jsonb) and one `quiz_answers`
+     * row per answered question. Degrades gracefully when the 3b-A migration has
+     * not been applied (retries without the new columns).
+     */
+    async persistAttempt(attempt: QuizAttempt): Promise<QuizAttempt | null> {
+      try {
+        const supabase = useNuxtApp().$supabase
+        const base = {
+          quiz_id: attempt.quiz_id,
+          student_id: attempt.student_id,
+          score: attempt.score,
+          total_questions: attempt.total_questions,
+          percentage: attempt.percentage,
+          started_at: attempt.started_at,
+          submitted_at: attempt.submitted_at,
+        }
+        let res = await supabase.from('quiz_attempts').insert({ ...base, answers: attempt.answers ?? [] }).select().single()
+        if (res.error && isMissingColumnError(res.error)) {
+          res = await supabase.from('quiz_attempts').insert(base).select().single()
+        }
+        if (res.error) throw res.error
+        const savedId = (res.data as { id?: string } | null)?.id
+        if (savedId && savedId !== attempt.id) {
+          const local = this.attempts.find(a => a.id === attempt.id)
+          attempt.id = savedId
+          if (local) local.id = savedId
+        }
+        if (!this.sbAttempts.some(a => a.id === attempt.id)) this.sbAttempts.unshift({ ...attempt })
+
+        const rows = (attempt.answers ?? [])
+          .filter(a => a.jawaban !== null)
+          .map(a => ({
+            quiz_id: attempt.quiz_id,
+            student_id: attempt.student_id,
+            question_id: a.question_id,
+            jawaban: a.jawaban,
+            is_correct: a.is_correct,
+            submitted_at: attempt.submitted_at,
+          }))
+        if (rows.length > 0) {
+          let ins = await supabase.from('quiz_answers').insert(rows.map(r => {
+            const a = attempt.answers!.find(x => x.question_id === r.question_id)!
+            return { ...r, attempt_id: attempt.id, points: a.points }
+          }))
+          if (ins.error && isMissingColumnError(ins.error)) {
+            ins = await supabase.from('quiz_answers').insert(rows)
+          }
+          if (ins.error) throw ins.error
+        }
+        return attempt
+      } catch (err) {
+        console.error('Failed to save quiz attempt to Supabase:', err)
+        return null
+      }
     },
 
     /** Cancel current quiz */

@@ -356,3 +356,64 @@ Dua fitur di halaman tugas yang sudah ada (tidak ada menu baru): rubrik penilaia
 - **Ekspor Excel nilai tugas** masih memakai nilai dosen (`submissions.nilai`), belum nilai gabungan peer; gradebook sudah memakai nilai gabungan.
 - **Data demo tidak persisten:** rubrik, skor rubrik, dan review hilang saat halaman dimuat ulang.
 - **Belum diuji terhadap backend nyata:** migrasi SQL, RLS, RPC, trigger notifikasi, dan jalur Supabase store belum dijalankan terhadap database sungguhan. Jalur AI hanya diuji dengan fetch mock.
+
+---
+
+## 3b-A — Jawaban per soal di store kuis + jalur belajar adaptif
+
+Sebelumnya `quizStore.submitQuiz` hanya menyimpan skor total, sehingga skor topik di `/student/learning-path` untuk kuis yang baru dikerjakan selalu **estimasi** dari persentase. Sekarang jawaban per soal ikut disimpan dan dipakai sebagai data asli.
+
+### Setup produksi
+
+Jalankan `supabase/migration-prioritas-3b-a.sql` (idempoten, setelah `schema.sql`): kolom `quiz_attempts.answers` (jsonb, array), `quiz_answers.attempt_id` (FK ke `quiz_attempts`, cascade) dan `quiz_answers.points`, plus indeks. RLS tidak diubah. Bila migrasi belum dijalankan, store otomatis mencoba ulang insert tanpa kolom baru (jalur belajar tetap bekerja lewat `quiz_answers`).
+
+### Perilaku
+
+- **Tipe:** `QuizAttempt.answers?: QuizAttemptAnswer[] | null` dengan `{ question_id, jawaban (a–d | null), is_correct, points }` (`app/types/database.ts`). Soal yang tidak dijawab dicatat dengan `jawaban: null`, salah, 0 poin.
+- **Submit** (`app/stores/quiz.ts`): `gradeAnswers()` menilai per soal; skor = jumlah poin. Demo: tersimpan di attempt di memori. Supabase: `persistAttempt()` (dipanggil di latar belakang; promise via `waitForPersist()`) menyisipkan `quiz_attempts` beserta `answers`, lalu satu baris `quiz_answers` per soal yang dijawab (`attempt_id`, `points`), dan menyelaraskan id lokal dengan UUID dari DB.
+- **Jalur belajar** (`app/utils/learningPath.ts`): urutan sumber per soal — `attempt.answers` (selalu milik percobaan itu) → `quiz_answers`/data demo (dengan cek waktu lama) → estimasi dari persentase. `TopicStat.estimated_count` dan `CourseLearningPath.exactResults/estimatedResults` baru; `estimated` tetap ada (kompatibel).
+- **UI** (`/student/learning-path`): badge "estimasi" hanya bila semua hasil topik estimasi, "sebagian estimasi (x/n)" bila campuran, tanpa badge bila data asli. Catatan atas: info estimasi (penuh/sebagian) atau ✅ "Semua skor topik dihitung dari jawaban per soal yang tersimpan."
+- **Kompatibel mundur:** percobaan demo lama (`qa1`–`qa4`) tidak diberi `answers`; hasilnya tetap dari `DEMO_QUIZ_ANSWERS` sehingga sama persis seperti sebelumnya.
+
+### Tes
+
+`app/test/stores/quiz-answers.test.ts` (penilaian per soal, submit demo menyimpan jawaban, jalur belajar memakai data asli setelah mengerjakan kuis, jalur Supabase dengan klien palsu termasuk retry tanpa kolom baru) dan tambahan di `app/test/utils/learningPath.test.ts` (jawaban di attempt vs fallback, prioritas atas `quiz_answers`, penanda sebagian estimasi).
+
+### Batasan
+
+- Jalur Supabase (insert + migrasi) hanya diuji dengan klien palsu, belum terhadap database sungguhan.
+- Penyimpanan Supabase berjalan di latar belakang; bila gagal hanya dicatat di console (UI tetap menampilkan hasil).
+- Data demo tidak persisten: jawaban kuis yang baru dikerjakan hilang saat halaman dimuat ulang.
+
+## 3b-B — Ekspor nilai memakai nilai gabungan peer review
+
+- **Masalah:** batasan W3 di atas ("ekspor nilai tugas masih memakai nilai dosen") untuk ekspor buku nilai di `/instructor/import-export` dan `/admin/import-export`.
+- **Perilaku:** ekspor Excel/PDF/CSV buku nilai memakai baris yang sama dengan gradebook di layar (`gradebook.courseGradebook`; komponen Tugas sudah memakai nilai gabungan via `rubrics.withFinalScores`). Untuk setiap tugas yang peer review-nya aktif dengan bobot > 0 ditambahkan 5 kolom setelah UAS: `{judul} - Nilai Dosen`, `- Nilai Peer (rata-rata)`, `- Review Dihitung` ("x dari n"), `- Bobot Peer (%)`, `- Nilai Akhir Tugas`. Nilai Akhir, Huruf, dan Status tidak berubah dan sama dengan gradebook. Tanpa peer review, tata letak kolom sama persis seperti sebelumnya. PDF menambahkan rumus peer di catatan kaki.
+- **Peer review belum lengkap:** rata-rata peer hanya dari review yang dihitung (`aggregatePeerScores`); belum ada review yang dihitung → kolom peer "-" dan Nilai Akhir Tugas = nilai dosen. Tidak mengumpulkan dan lewat tenggat → Nilai Dosen "-", Nilai Akhir Tugas 0 (sama seperti komponen Tugas).
+- **Tanpa duplikasi rumus:** `buildPeerBreakdown` / getter `gradebook.coursePeerBreakdown` (`app/stores/gradebook.ts`) memakai `rubrics.withFinalScores`, `rubrics.peerSummaryFor`, `rubrics.rubricFor`, dan helper baru `assignmentScore` yang kini juga dipakai `assignmentComponent`. `gradebookTable` (`app/utils/exportFiles.ts`) menerima parameter opsional `peer`. Sanitasi CSV injection (termasuk judul tugas di header) dan BOM UTF-8 tetap.
+- **Tes:** `app/test/utils/exportPeerGrades.test.ts` — alur demo: tanpa peer review, peer review belum lengkap, peer review lengkap + timpaan dosen; tiap kasus membuktikan angka ekspor == gradebook (Tugas, Nilai Akhir, Huruf, nilai akhir per tugas == `rubrics.finalScoreFor`, Tugas dihitung ulang dari kolom ekspor) dan isi CSV/XLSX hasil parse == tabel; plus guard injection pada judul tugas.
+- **Batasan:** ekspor per tugas di halaman daftar tugas dosen (`useExportGrades.exportCourseGrades`, tombol "Export Nilai ke Excel") belum diubah dan masih memakai nilai dosen. Mode dev Vite: impor jsPDF pertama kali bisa memicu reload halaman sehingga data demo di memori hilang (tidak terjadi di build produksi).
+
+> **Tindak lanjut 3b-B:** tombol "Export Nilai ke Excel" di halaman tugas dosen (`useExportGrades.exportCourseGrades`) sekarang juga memakai nilai akhir gabungan (dosen + peer). Untuk tugas dengan peer review ada kolom tambahan "Nilai Dosen"; tugas tanpa peer review tidak berubah.
+
+## 3b-C — Rapikan tampilan mobile (overflow horizontal)
+
+**Masalah:** di layar 360–414px beberapa halaman (gradebook, analitik, kalender, presensi mahasiswa, nilai, kampus/kuis admin) melebar horizontal sehingga seluruh halaman bisa digeser ke samping. Akar masalahnya: `.main-area` di layout adalah flex item dengan `min-width: auto` bawaan, sehingga konten terlebar (tabel/grid) memaksa area utama (dan topbar) ikut melebar melebihi viewport.
+
+**Perbaikan di akar:**
+- `app/layouts/{dashboard,instructor,admin}.vue`: `min-width: 0` pada `.main-area` dan `.content`; `default.vue`: pada `.layout-main`. Hanya CSS, isi navigasi tidak diubah. Admin: `.topbar-right` diberi `min-width: 0` dan di ≤400px nama user di topbar disembunyikan (nama tetap ada di sidebar).
+- `app/assets/css/main.css`: utilitas global **`.table-scroll`** (`max-width: 100%`, `min-width: 0`, `overflow-x: auto`, `overscroll-behavior-x: contain`) untuk membungkus tabel/grid lebar agar menggulir di dalam kotaknya sendiri, plus `max-width: 100%` untuk media di `main.content`. Tanpa warna hardcode, aman untuk tema gelap.
+- Tabel memakai `.table-scroll`: gradebook, analitik, `AtRiskDashboard`, `ImportExportPanel` (tambalan `contain: inline-size` sebelumnya dihapus karena akar sudah diperbaiki). Presensi mahasiswa: grid riwayat dibungkus `.table-scroll` dengan baris `min-width: 26rem`.
+- Penyesuaian kecil per halaman: kartu statistik nilai mahasiswa jadi 2 kolom di ≤480px; kartu kampus admin (`minmax(min(340px, 100%), 1fr)`, tombol aksi pindah ke baris sendiri di ≤768px); header kartu kuis admin `flex-wrap`.
+
+**Audit:** `node scripts/audit-mobile-overflow.mjs [--width=360 --width=390 ...] [--dark] [--strict] [--json=out.json]` (butuh app berjalan, `BASE_URL` default `http://localhost:3000`). Skrip login sebagai mahasiswa/dosen/admin demo, membuka 29 halaman, mengukur `scrollWidth > clientWidth` dan elemen yang melewati viewport tanpa dipotong ancestor yang bisa digulir. Hasil (mode dev): sebelum — 8 dari 29 halaman overflow di 390px, 25 di 360px, 7 di 414px (0 di 1280px); sesudah — 0 di 360/390/414/1280px dan 0 di 390px tema gelap.
+
+**Tes:** `app/test/shared/mobileOverflowCss.test.ts` (cek statis: `.table-scroll`, `min-width: 0` di layout, setiap `<table>` dibungkus `.table-scroll`).
+
+**Batasan:** audit hanya pada data demo (tabel dengan data lebih banyak/panjang belum diuji); dialog/modal dan halaman di luar daftar audit (mis. AI chat, playground, detail kuis) belum diaudit; pemeriksaan visual hanya lewat beberapa screenshot headless Chrome, belum di perangkat sungguhan.
+
+## Catatan penerapan di Supabase (tipe id)
+
+Database Supabase yang dibuat dari `setup.sql` memakai **TEXT** untuk `profiles.id`, `courses.id`, `assignments.id`, dan `lessons.id` (id demo seperti `c1`, `a1`, `s1`), sedangkan tabel lain (`submissions`, `quizzes`, `enrollments`, dst.) memakai UUID. Semua file `supabase/migration-prioritas-*.sql` sudah disesuaikan: kolom yang merujuk ke empat tabel itu bertipe TEXT, `current_profile_id()` mengembalikan TEXT (`auth.uid()::text`), dan kolom `file_name` ditambahkan ke `assignments` dan `submissions` (dipakai aplikasi, belum ada di `schema.sql`).
+
+Urutan penerapan: `migration-prioritas-1` → `-2` → `-3-w1` → `-3-w2` → `-3-w3` → `-3-w4` → `-3b-a` → `-3-hardening`. Semuanya sudah dijalankan di project Supabase `mwyzer's Project` dan diuji dengan skenario asap (notifikasi tugas/nilai/forum/badge/peer review dan pengaman review sendiri).

@@ -319,6 +319,8 @@ function closeSidebar() {
 /* Main content area */
 .main-area {
   flex: 1;
+  /* Allow shrinking below min-content so wide tables cannot widen the page. */
+  min-width: 0;
   margin-left: 260px;
   display: flex;
   flex-direction: column;
@@ -349,6 +351,18 @@ function closeSidebar() {
   gap: 0.75rem;
   /* Keep the group on the right even when the hamburger is hidden (desktop). */
   margin-left: auto;
+  min-width: 0;
+}
+
+/* Narrow phones: the user's name is already in the sidebar; drop it from the
+   top bar so the bar fits the viewport (CSS only, nav content unchanged). */
+@media (max-width: 400px) {
+  .topbar {
+    padding: 0.75rem 1rem;
+  }
+  .topbar-right > .text-sm.text-muted {
+    display: none;
+  }
 }
 
 .hamburger {
@@ -367,6 +381,7 @@ function closeSidebar() {
 
 .content {
   flex: 1;
+  min-width: 0;
   padding: 1.5rem;
 }
 

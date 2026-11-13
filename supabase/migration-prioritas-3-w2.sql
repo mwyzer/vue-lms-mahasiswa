@@ -17,11 +17,11 @@
 -- ============================================
 CREATE TABLE IF NOT EXISTS public.user_activity (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   tipe TEXT NOT NULL CHECK (tipe IN ('lesson_completed', 'quiz_submitted', 'assignment_submitted', 'flashcard_reviewed', 'forum_post')),
   -- id materi/kuis/tugas/thread/dek (TEXT agar tidak terikat ke satu tabel)
   ref_id TEXT,
-  course_id UUID REFERENCES public.courses(id) ON DELETE SET NULL,
+  course_id TEXT REFERENCES public.courses(id) ON DELETE SET NULL,
   meta JSONB,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -51,7 +51,7 @@ CREATE POLICY "Users delete own activity"
 -- ============================================
 CREATE TABLE IF NOT EXISTS public.user_badges (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   badge_id TEXT NOT NULL CHECK (char_length(badge_id) BETWEEN 1 AND 64),
   earned_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (user_id, badge_id)
@@ -97,8 +97,8 @@ CREATE TRIGGER trg_notify_badge_earned
 -- ============================================
 CREATE TABLE IF NOT EXISTS public.certificates (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  course_id UUID NOT NULL REFERENCES public.courses(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  course_id TEXT NOT NULL REFERENCES public.courses(id) ON DELETE CASCADE,
   verification_code TEXT NOT NULL UNIQUE CHECK (verification_code ~ '^LMS-[2-9A-HJ-NP-Z]{4}-[2-9A-HJ-NP-Z]{4}-[2-9A-HJ-NP-Z]{4}$'),
   issued_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

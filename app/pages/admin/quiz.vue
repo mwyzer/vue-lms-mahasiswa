@@ -685,6 +685,7 @@ function downloadCsvTemplate() {
 
 .quiz-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 0.5rem;
@@ -695,6 +696,7 @@ function downloadCsvTemplate() {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  min-width: 0;
 }
 
 .quiz-title-row h3 {

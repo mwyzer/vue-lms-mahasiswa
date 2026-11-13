@@ -279,7 +279,7 @@ const T = DEFAULT_RISK_THRESHOLDS
         </p>
         <p v-else-if="rows.length === 0" class="muted">Tidak ada mahasiswa yang cocok dengan filter.</p>
 
-        <div v-else class="table-wrap">
+        <div v-else class="table-scroll">
           <table class="risk-table">
             <thead>
               <tr>
@@ -426,7 +426,6 @@ const T = DEFAULT_RISK_THRESHOLDS
 .check input { width: auto; margin: 0; }
 
 /* contain: the wide table must not widen the layout's flex column (scrolls instead). */
-.table-wrap { contain: inline-size; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .risk-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; min-width: 56rem; }
 .risk-table th, .risk-table td { padding: 0.5rem 0.625rem; border-bottom: 1px solid var(--color-neutral-200); vertical-align: top; text-align: left; }
 .risk-table thead th { font-size: 0.75rem; font-weight: 600; color: var(--color-neutral-600); white-space: nowrap; }

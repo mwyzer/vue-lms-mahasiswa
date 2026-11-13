@@ -155,6 +155,22 @@ export interface QuizAttempt {
   percentage: number
   started_at: string
   submitted_at: string
+  /**
+   * Per-question answers of this attempt (3b-A). Absent on legacy/demo attempts
+   * created before answers were stored; consumers must fall back gracefully.
+   * Supabase: `quiz_attempts.answers` (jsonb), see migration-prioritas-3b-a.sql.
+   */
+  answers?: QuizAttemptAnswer[] | null
+}
+
+/** One answered (or skipped) question inside a {@link QuizAttempt}. */
+export interface QuizAttemptAnswer {
+  question_id: string
+  /** Chosen option, or null when the question was left unanswered. */
+  jawaban: 'a' | 'b' | 'c' | 'd' | null
+  is_correct: boolean
+  /** Points earned for this question (currently 1 per correct answer). */
+  points: number
 }
 
 /** Attendance — student attendance/presensi records */

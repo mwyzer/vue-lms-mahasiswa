@@ -15,9 +15,9 @@
 -- ────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS flashcards (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  course_id UUID REFERENCES courses(id) ON DELETE SET NULL,
-  lesson_id UUID REFERENCES lessons(id) ON DELETE SET NULL,
+  user_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  course_id TEXT REFERENCES courses(id) ON DELETE SET NULL,
+  lesson_id TEXT REFERENCES lessons(id) ON DELETE SET NULL,
   front TEXT NOT NULL CHECK (char_length(btrim(front)) BETWEEN 1 AND 300),
   back TEXT NOT NULL CHECK (char_length(btrim(back)) BETWEEN 1 AND 800),
   -- Kartu AI hanya disimpan setelah user menekan "Simpan"; draf hidup di klien.
@@ -47,7 +47,7 @@ CREATE INDEX IF NOT EXISTS idx_flashcards_lesson ON flashcards(lesson_id) WHERE 
 CREATE TABLE IF NOT EXISTS flashcard_reviews (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   card_id UUID NOT NULL REFERENCES flashcards(id) ON DELETE CASCADE,
-  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   quality SMALLINT NOT NULL CHECK (quality BETWEEN 0 AND 5),
   interval_days INTEGER NOT NULL CHECK (interval_days >= 0),
   ease_factor NUMERIC(4,2) NOT NULL,

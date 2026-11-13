@@ -21,26 +21,34 @@
 -- ============================================
 
 -- ────────────────────────────────────────────
+-- 0a. Kolom nama file lampiran
+--     Aplikasi menulis file_name (bersama file_url) pada tugas dan jawaban, tetapi
+--     schema.sql belum memilikinya. Fungsi get_peer_review_tasks() membacanya.
+-- ────────────────────────────────────────────
+ALTER TABLE assignments ADD COLUMN IF NOT EXISTS file_name TEXT;
+ALTER TABLE submissions ADD COLUMN IF NOT EXISTS file_name TEXT;
+
+-- ────────────────────────────────────────────
 -- 0. Helper
 -- ────────────────────────────────────────────
 
 /** course_id dari sebuah tugas (SECURITY DEFINER → tidak kena rekursi RLS). */
-CREATE OR REPLACE FUNCTION public.assignment_course_id(p_assignment_id UUID)
-RETURNS UUID
+CREATE OR REPLACE FUNCTION public.assignment_course_id(p_assignment_id TEXT)
+RETURNS TEXT
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
 AS $$
   SELECT course_id FROM assignments WHERE id = p_assignment_id;
 $$;
 
 CREATE OR REPLACE FUNCTION public.rubric_course_id(p_rubric_id UUID)
-RETURNS UUID
+RETURNS TEXT
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
 AS $$
   SELECT a.course_id FROM rubrics r JOIN assignments a ON a.id = r.assignment_id WHERE r.id = p_rubric_id;
 $$;
 
 CREATE OR REPLACE FUNCTION public.criterion_course_id(p_criterion_id UUID)
-RETURNS UUID
+RETURNS TEXT
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
 AS $$
   SELECT a.course_id
@@ -51,7 +59,7 @@ AS $$
 $$;
 
 CREATE OR REPLACE FUNCTION public.submission_course_id(p_submission_id UUID)
-RETURNS UUID
+RETURNS TEXT
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
 AS $$
   SELECT a.course_id FROM submissions s JOIN assignments a ON a.id = s.assignment_id WHERE s.id = p_submission_id;
@@ -70,8 +78,8 @@ $$;
 
 CREATE TABLE IF NOT EXISTS rubrics (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  assignment_id UUID NOT NULL UNIQUE REFERENCES assignments(id) ON DELETE CASCADE,
-  created_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  assignment_id TEXT NOT NULL UNIQUE REFERENCES assignments(id) ON DELETE CASCADE,
+  created_by TEXT REFERENCES profiles(id) ON DELETE SET NULL,
   -- Peer review
   peer_enabled BOOLEAN NOT NULL DEFAULT FALSE,
   peer_reviewers INTEGER NOT NULL DEFAULT 2 CHECK (peer_reviewers BETWEEN 1 AND 5),
@@ -111,7 +119,7 @@ CREATE TABLE IF NOT EXISTS rubric_scores (
   criterion_id UUID NOT NULL REFERENCES rubric_criteria(id) ON DELETE CASCADE,
   level_id UUID NOT NULL REFERENCES rubric_levels(id) ON DELETE CASCADE,
   poin NUMERIC(6,2) NOT NULL,
-  graded_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  graded_by TEXT REFERENCES profiles(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (submission_id, criterion_id)
@@ -119,9 +127,9 @@ CREATE TABLE IF NOT EXISTS rubric_scores (
 
 CREATE TABLE IF NOT EXISTS peer_reviews (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  assignment_id UUID NOT NULL REFERENCES assignments(id) ON DELETE CASCADE,
+  assignment_id TEXT NOT NULL REFERENCES assignments(id) ON DELETE CASCADE,
   submission_id UUID NOT NULL REFERENCES submissions(id) ON DELETE CASCADE,
-  reviewer_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  reviewer_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   status VARCHAR(12) NOT NULL DEFAULT 'assigned' CHECK (status IN ('assigned', 'submitted')),
   selections JSONB NOT NULL DEFAULT '{}'::jsonb,   -- { criterion_id: level_id }
   komentar TEXT CHECK (komentar IS NULL OR length(komentar) <= 2000),
@@ -150,8 +158,8 @@ RETURNS TRIGGER
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
 AS $$
 DECLARE
-  v_owner UUID;
-  v_assignment UUID;
+  v_owner TEXT;
+  v_assignment TEXT;
   v_deadline TIMESTAMPTZ;
 BEGIN
   SELECT student_id, assignment_id INTO v_owner, v_assignment FROM submissions WHERE id = NEW.submission_id;
@@ -258,7 +266,7 @@ CREATE POLICY "Reviewer submits own peer reviews"
 
 /** Jawaban yang harus direview user login — tanpa identitas pemilik. */
 CREATE OR REPLACE FUNCTION public.get_peer_review_tasks()
-RETURNS TABLE (review_id UUID, assignment_id UUID, jawaban TEXT, file_name TEXT)
+RETURNS TABLE (review_id UUID, assignment_id TEXT, jawaban TEXT, file_name TEXT)
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
 AS $$
   SELECT pr.id, pr.assignment_id, s.jawaban, s.file_name
@@ -271,7 +279,7 @@ $$;
 /** Review yang dihitung atas jawaban milik user login — tanpa reviewer_id. Skor = override bila ada. */
 CREATE OR REPLACE FUNCTION public.get_received_peer_reviews()
 RETURNS TABLE (
-  id UUID, assignment_id UUID, submission_id UUID, selections JSONB, komentar TEXT,
+  id UUID, assignment_id TEXT, submission_id UUID, selections JSONB, komentar TEXT,
   skor NUMERIC, override_skor NUMERIC, excluded BOOLEAN, submitted_at TIMESTAMPTZ
 )
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public

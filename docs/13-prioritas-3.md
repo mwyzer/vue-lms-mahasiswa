@@ -411,3 +411,9 @@ Jalankan `supabase/migration-prioritas-3b-a.sql` (idempoten, setelah `schema.sql
 **Tes:** `app/test/shared/mobileOverflowCss.test.ts` (cek statis: `.table-scroll`, `min-width: 0` di layout, setiap `<table>` dibungkus `.table-scroll`).
 
 **Batasan:** audit hanya pada data demo (tabel dengan data lebih banyak/panjang belum diuji); dialog/modal dan halaman di luar daftar audit (mis. AI chat, playground, detail kuis) belum diaudit; pemeriksaan visual hanya lewat beberapa screenshot headless Chrome, belum di perangkat sungguhan.
+
+## Catatan penerapan di Supabase (tipe id)
+
+Database Supabase yang dibuat dari `setup.sql` memakai **TEXT** untuk `profiles.id`, `courses.id`, `assignments.id`, dan `lessons.id` (id demo seperti `c1`, `a1`, `s1`), sedangkan tabel lain (`submissions`, `quizzes`, `enrollments`, dst.) memakai UUID. Semua file `supabase/migration-prioritas-*.sql` sudah disesuaikan: kolom yang merujuk ke empat tabel itu bertipe TEXT, `current_profile_id()` mengembalikan TEXT (`auth.uid()::text`), dan kolom `file_name` ditambahkan ke `assignments` dan `submissions` (dipakai aplikasi, belum ada di `schema.sql`).
+
+Urutan penerapan: `migration-prioritas-1` → `-2` → `-3-w1` → `-3-w2` → `-3-w3` → `-3-w4` → `-3b-a` → `-3-hardening`. Semuanya sudah dijalankan di project Supabase `mwyzer's Project` dan diuji dengan skenario asap (notifikasi tugas/nilai/forum/badge/peer review dan pengaman review sendiri).

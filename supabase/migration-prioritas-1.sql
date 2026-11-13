@@ -22,18 +22,18 @@
  *      (lihat app/stores/auth.ts → signInWithPassword)
  */
 CREATE OR REPLACE FUNCTION public.current_profile_id()
-RETURNS UUID
+RETURNS TEXT
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
 AS $$
   SELECT p.id
   FROM profiles p
   WHERE auth.uid() IS NOT NULL
     AND (
-      p.id = auth.uid()
+      p.id = auth.uid()::text
       OR (p.email IS NOT NULL AND lower(p.email) = lower(auth.jwt() ->> 'email'))
       OR (p.npm IS NOT NULL AND lower(p.npm || '@lms.ac.id') = lower(auth.jwt() ->> 'email'))
     )
-  ORDER BY (p.id = auth.uid()) DESC
+  ORDER BY (p.id = auth.uid()::text) DESC
   LIMIT 1;
 $$;
 
@@ -45,7 +45,7 @@ AS $$
 $$;
 
 /** TRUE jika user login adalah anggota mata kuliah: mahasiswa terdaftar, instruktur pengampu, atau admin. */
-CREATE OR REPLACE FUNCTION public.is_course_member(p_course_id UUID)
+CREATE OR REPLACE FUNCTION public.is_course_member(p_course_id TEXT)
 RETURNS BOOLEAN
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
 AS $$
@@ -56,7 +56,7 @@ AS $$
 $$;
 
 /** TRUE jika user login adalah instruktur pengampu mata kuliah, atau admin. */
-CREATE OR REPLACE FUNCTION public.is_course_staff(p_course_id UUID)
+CREATE OR REPLACE FUNCTION public.is_course_staff(p_course_id TEXT)
 RETURNS BOOLEAN
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
 AS $$
@@ -121,7 +121,7 @@ CREATE POLICY "attachments delete own"
 
 CREATE TABLE IF NOT EXISTS notifications (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   tipe VARCHAR(20) NOT NULL CHECK (tipe IN ('tugas', 'nilai', 'pengumuman', 'forum', 'deadline', 'sistem')),
   judul VARCHAR(255) NOT NULL,
   pesan TEXT,
@@ -267,9 +267,9 @@ GRANT EXECUTE ON FUNCTION public.notify_upcoming_deadlines(INTEGER) TO service_r
 
 CREATE TABLE IF NOT EXISTS forum_threads (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
-  lesson_id UUID REFERENCES lessons(id) ON DELETE SET NULL,  -- opsional: diskusi untuk materi tertentu
-  author_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  course_id TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+  lesson_id TEXT REFERENCES lessons(id) ON DELETE SET NULL,  -- opsional: diskusi untuk materi tertentu
+  author_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   judul VARCHAR(255) NOT NULL,
   konten TEXT NOT NULL,
   is_pinned BOOLEAN NOT NULL DEFAULT FALSE,
@@ -281,7 +281,7 @@ CREATE TABLE IF NOT EXISTS forum_threads (
 CREATE TABLE IF NOT EXISTS forum_replies (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   thread_id UUID NOT NULL REFERENCES forum_threads(id) ON DELETE CASCADE,
-  author_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  author_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   konten TEXT NOT NULL,
   is_answer BOOLEAN NOT NULL DEFAULT FALSE,   -- ditandai instruktur sebagai jawaban
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -394,7 +394,7 @@ CREATE TRIGGER trg_on_forum_reply
 
 -- Bobot komponen nilai per mata kuliah (total harus 100).
 CREATE TABLE IF NOT EXISTS grade_weights (
-  course_id UUID PRIMARY KEY REFERENCES courses(id) ON DELETE CASCADE,
+  course_id TEXT PRIMARY KEY REFERENCES courses(id) ON DELETE CASCADE,
   bobot_tugas INTEGER NOT NULL DEFAULT 25 CHECK (bobot_tugas BETWEEN 0 AND 100),
   bobot_kuis INTEGER NOT NULL DEFAULT 15 CHECK (bobot_kuis BETWEEN 0 AND 100),
   bobot_presensi INTEGER NOT NULL DEFAULT 10 CHECK (bobot_presensi BETWEEN 0 AND 100),
@@ -408,8 +408,8 @@ CREATE TABLE IF NOT EXISTS grade_weights (
 -- Nilai UTS/UAS (diinput manual oleh instruktur).
 CREATE TABLE IF NOT EXISTS exam_scores (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
-  student_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  course_id TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+  student_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   tipe VARCHAR(3) NOT NULL CHECK (tipe IN ('uts', 'uas')),
   nilai INTEGER NOT NULL CHECK (nilai BETWEEN 0 AND 100),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

@@ -27,8 +27,8 @@ CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA extensions;
 -- ============================================
 CREATE TABLE IF NOT EXISTS public.lesson_chunks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  lesson_id UUID NOT NULL REFERENCES public.lessons(id) ON DELETE CASCADE,
-  course_id UUID NOT NULL REFERENCES public.courses(id) ON DELETE CASCADE,
+  lesson_id TEXT NOT NULL REFERENCES public.lessons(id) ON DELETE CASCADE,
+  course_id TEXT NOT NULL REFERENCES public.courses(id) ON DELETE CASCADE,
   chunk_index INTEGER NOT NULL CHECK (chunk_index >= 0),
   content TEXT NOT NULL,
   content_hash TEXT NOT NULL,
@@ -64,13 +64,13 @@ CREATE POLICY "Members read lesson chunks"
 -- embedding_mode = p_embedding_mode yang dibandingkan. p_match_count dibatasi 1..50.
 CREATE OR REPLACE FUNCTION public.match_lesson_chunks(
   query_embedding vector(1536),
-  p_course_ids UUID[],
+  p_course_ids TEXT[],
   p_match_count INTEGER DEFAULT 5,
   p_embedding_mode TEXT DEFAULT 'api'
 )
 RETURNS TABLE (
-  lesson_id UUID,
-  course_id UUID,
+  lesson_id TEXT,
+  course_id TEXT,
   chunk_index INTEGER,
   content TEXT,
   similarity DOUBLE PRECISION
@@ -92,5 +92,5 @@ AS $$
 $$;
 
 -- Hanya service role yang boleh memanggil (bukan klien biasa).
-REVOKE ALL ON FUNCTION public.match_lesson_chunks(vector, UUID[], INTEGER, TEXT) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.match_lesson_chunks(vector, UUID[], INTEGER, TEXT) TO service_role;
+REVOKE ALL ON FUNCTION public.match_lesson_chunks(vector, TEXT[], INTEGER, TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.match_lesson_chunks(vector, TEXT[], INTEGER, TEXT) TO service_role;
